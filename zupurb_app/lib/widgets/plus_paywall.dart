@@ -17,6 +17,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../core/config/legal_urls.dart';
 import '../core/services/iap_service.dart';
 import '../state/iap/iap_providers.dart';
 import '../theme/colors.dart';
@@ -527,8 +529,7 @@ class _LegalText extends StatelessWidget {
               button: true,
               link: true,
               child: GestureDetector(
-                // TODO(I6): replace with real Privacy Policy URL
-                onTap: () {},
+                onTap: () => launchUrl(Uri.parse(LegalUrls.privacyPolicy), mode: LaunchMode.externalApplication),
                 child: const Text(
                   'Privacy Policy',
                   style: TextStyle(
@@ -550,8 +551,7 @@ class _LegalText extends StatelessWidget {
               button: true,
               link: true,
               child: GestureDetector(
-                // TODO(I6): replace with real Terms of Service URL
-                onTap: () {},
+                onTap: () => launchUrl(Uri.parse(LegalUrls.termsOfService), mode: LaunchMode.externalApplication),
                 child: const Text(
                   'Terms of Service',
                   style: TextStyle(

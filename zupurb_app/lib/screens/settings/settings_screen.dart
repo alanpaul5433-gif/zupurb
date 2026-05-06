@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../core/config/legal_urls.dart';
 import '../../state/analytics/analytics_providers.dart';
 import '../../state/iap/iap_providers.dart';
 import '../../theme/colors.dart';
@@ -84,7 +86,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const Gap(16),
             _SectionLabel('Support'),
             _SettingsItem(icon: Icons.headset_mic_outlined, label: 'Help Center', onTap: () {}),
-            _SettingsItem(icon: Icons.description_outlined, label: 'Terms of Service', onTap: () {}, trailing: Icons.open_in_new),
+            _SettingsItem(icon: Icons.privacy_tip_outlined, label: 'Privacy Policy', onTap: () => launchUrl(Uri.parse(LegalUrls.privacyPolicy), mode: LaunchMode.externalApplication), trailing: Icons.open_in_new),
+            _SettingsItem(icon: Icons.description_outlined, label: 'Terms of Service', onTap: () => launchUrl(Uri.parse(LegalUrls.termsOfService), mode: LaunchMode.externalApplication), trailing: Icons.open_in_new),
             const Gap(16),
             _SectionLabel('Account Action'),
             _SettingsItem(icon: Icons.logout_outlined, label: 'Logout', onTap: () => context.go('/login'), showChevron: false),

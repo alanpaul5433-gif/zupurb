@@ -20,6 +20,7 @@ import 'screens/auth/forgot_password_screen.dart';
 import 'screens/auth/otp_screen.dart';
 import 'screens/auth/email_sent_screen.dart';
 import 'screens/auth/phone_otp_screen.dart';
+import 'screens/auth/att_prompt_screen.dart';
 import 'screens/onboarding/onboarding_step1_screen.dart';
 import 'screens/onboarding/onboarding_step2_screen.dart';
 import 'screens/onboarding/onboarding_step3_screen.dart';
@@ -69,6 +70,7 @@ const _authRoutes = {
   '/email-sent',
   '/otp',
   '/signup/phone-otp',
+  '/att', // ATT pre-prompt — shown before onboarding on iOS (D6/T9)
 };
 
 /// Riverpod notifier that bridges Firebase auth state changes to GoRouter's
@@ -150,6 +152,11 @@ GoRouter buildRouter(Ref ref) {
         path: '/signup/phone-otp',
         name: 'phone-otp',
         builder: (context, state) => const PhoneOtpScreen(),
+      ),
+      GoRoute(
+        path: '/att',
+        name: 'att',
+        builder: (context, state) => const AttPromptScreen(),
       ),
       GoRoute(
         path: '/onboarding/1',

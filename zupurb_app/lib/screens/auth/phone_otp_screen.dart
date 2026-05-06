@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
@@ -118,7 +120,10 @@ class _PhoneOtpScreenState extends State<PhoneOtpScreen> {
               const Spacer(),
               AppButton(
                 label: 'Verify & Continue',
-                onTap: _codeComplete ? () => context.go('/onboarding/1') : null,
+                // D6/T9: Route iOS users through ATT pre-prompt before onboarding.
+                onTap: _codeComplete
+                    ? () => context.go(Platform.isIOS ? '/att' : '/onboarding/1')
+                    : null,
               ),
               const Gap(32),
             ],

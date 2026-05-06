@@ -5,6 +5,7 @@ import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_text_field.dart';
+import '../../core/services/apple_auth_service.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -105,7 +106,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 children: [
                   _SocialButton(label: 'G', color: Colors.white, textColor: Colors.red),
                   _SocialButton(label: 'f', color: Colors.white, textColor: const Color(0xFF1877F2)),
-                  _SocialButton(label: '', icon: Icons.apple, color: Colors.white, textColor: Colors.black),
+                  _SocialButton(
+                    label: '',
+                    icon: Icons.apple,
+                    color: Colors.white,
+                    textColor: Colors.black,
+                    onTap: () async { await AppleAuthService.signIn(); },
+                  ),
                 ],
               ),
               const Gap(32),
@@ -122,26 +129,36 @@ class _SocialButton extends StatelessWidget {
   final Color color;
   final Color textColor;
   final IconData? icon;
+  final VoidCallback? onTap;
 
-  const _SocialButton({required this.label, required this.color, required this.textColor, this.icon});
+  const _SocialButton({
+    required this.label,
+    required this.color,
+    required this.textColor,
+    this.icon,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 88,
-      height: 52,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE8E0DA)),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 88,
+        height: 52,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE8E0DA)),
+        ),
+        alignment: Alignment.center,
+        child: icon != null
+            ? Icon(icon, color: textColor, size: 24)
+            : Text(
+                label,
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: textColor),
+              ),
       ),
-      alignment: Alignment.center,
-      child: icon != null
-          ? Icon(icon, color: textColor, size: 24)
-          : Text(
-              label,
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: textColor),
-            ),
     );
   }
 }

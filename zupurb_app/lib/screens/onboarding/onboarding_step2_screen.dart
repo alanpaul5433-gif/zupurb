@@ -120,8 +120,16 @@ class _OnboardingStep2ScreenState extends State<OnboardingStep2Screen> {
                   ),
                   const Gap(4),
                   const Text('Your data is encrypted and used only for calibration.', style: TextStyle(fontSize: 12, color: Color(0xFF666666))),
+                  if (_age < 18) ...[
+                    const Gap(8),
+                    const Text(
+                      'You must be 18 or older to use Zupurb',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12, color: AppColors.textTertiary),
+                    ),
+                  ],
                   const Gap(12),
-                  AppButton(label: 'Continue', onTap: () => context.go('/onboarding/3')),
+                  AppButton(label: 'Continue', onTap: _age < 18 ? null : () => context.go('/onboarding/3')),
                 ],
               ),
             ),

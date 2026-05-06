@@ -73,5 +73,8 @@
 	     RevenueCat-recommended SKAdNetwork IDs before App Store submission. -->
 	<key>SKAdNetworkItems</key>
 	<array></array>
+	<!-- ATT: required by App Store Guidelines §5.1.1 when accessing IDFA or advertising-adjacent SDKs (D6/T9) -->
+	<key>NSUserTrackingUsageDescription</key>
+	<string>Zupurb uses your data to show personalized venue recommendations and measure app performance.</string>
 </dict>
 </plist>
