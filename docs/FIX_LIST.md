@@ -68,6 +68,13 @@ Source: screen-by-screen audit of `Zupurb User App/UI/` against `ZUPURB - SOW V6
 | P2-16 | `iPhone 16 Pro - 38.png` (Home Deals) | Different tab set than main Home | No separate deals screen found — single home screen with consistent tabs. N/A. | N/A — single screen |
 | P2-17 | `User Profile (Own).png` | Income brackets not exposed on Identity step (verify drill-down respects SOW brackets) | INCOME RANGE field present with dropdown chevron. Mock expansion deferred. Field placement is correct. | ACKNOWLEDGED |
 
+## Integration Fix Register (I-series)
+
+| # | Domain | Issue | Fix | Status |
+|---|---|---|---|---|
+| I-info-1 | Multiple screens (Phase 1B) | `withOpacity` deprecated (10 instances across splash, discover, home, onboarding, reservation, settings) | Replace with `.withValues(alpha: ...)`. Not introduced by I1; pre-existing. | OPEN |
+| I2-1 | `lib/widgets/establishment_map.dart` | `_openDirections` builds the Google Maps URL but does not launch it — `url_launcher` not yet in pubspec. | Add `url_launcher: ^6.3.0` to pubspec.yaml and wire `launchUrl(uri)` in `_openDirections`. | OPEN |
+
 ## Backend Fix Register (B-series)
 
 | # | Domain | Issue | Fix | Status |

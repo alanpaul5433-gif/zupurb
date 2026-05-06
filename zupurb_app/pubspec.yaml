@@ -12,6 +12,13 @@ dependencies:
     sdk: flutter
 
   cupertino_icons: ^1.0.8
+
+  # Firebase core
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.1
+  cloud_firestore: ^5.4.4
+  cloud_functions: ^5.1.3
+  firebase_app_check: ^0.3.1+4
   flutter_riverpod: ^2.6.1
   riverpod_annotation: ^2.6.1
   go_router: ^14.8.1
@@ -20,6 +27,11 @@ dependencies:
   flutter_svg: ^2.0.16
   gap: ^3.0.1
   intl: ^0.20.2
+  google_maps_flutter: ^2.9.0
+  google_places_flutter: ^2.0.8
+  geolocator: ^13.0.2
+  geocoding: ^3.0.0
+  purchases_flutter: ^10.0.1   # RevenueCat Flutter SDK (I6 — IAP/subscriptions)
 
 dev_dependencies:
   flutter_test:

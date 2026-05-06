@@ -1,21 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../widgets/app_button.dart';
+import '../../state/location/location_providers.dart';
 
 // P0-3: Step 10 — Neighborhood / Location preferences (final onboarding step)
-class OnboardingStep10Screen extends StatefulWidget {
+class OnboardingStep10Screen extends ConsumerStatefulWidget {
   const OnboardingStep10Screen({super.key});
 
   @override
-  State<OnboardingStep10Screen> createState() => _OnboardingStep10ScreenState();
+  ConsumerState<OnboardingStep10Screen> createState() =>
+      _OnboardingStep10ScreenState();
 }
 
-class _OnboardingStep10ScreenState extends State<OnboardingStep10Screen> {
+class _OnboardingStep10ScreenState
+    extends ConsumerState<OnboardingStep10Screen> {
   final Set<String> _neighborhoods = {};
   String _radius = '5 km';
+  bool _locationLoading = false;
 
   final _radiusOptions = ['1 km', '2 km', '5 km', '10 km', '25 km'];
   final _nearbyNeighborhoods = [
@@ -44,7 +49,32 @@ class _OnboardingStep10ScreenState extends State<OnboardingStep10Screen> {
                     const Text('Your Neighborhood', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A), height: 1.25)),
                     const Gap(6),
                     const Text("Tell us where you hang out so we can surface the best nearby spots.", style: TextStyle(fontSize: 13, color: Color(0xFF666666))),
-                    const Gap(24),
+                    const Gap(16),
+                    // "Use my current location" — auto-fills city + neighborhood via GPS.
+                    // Falls back gracefully when permission is denied or GPS unavailable.
+                    OutlinedButton.icon(
+                      onPressed: _locationLoading ? null : _useCurrentLocation,
+                      icon: _locationLoading
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                              ),
+                            )
+                          : const Icon(Icons.my_location, size: 18, color: AppColors.primary),
+                      label: Text(
+                        _locationLoading ? 'Detecting location...' : 'Use my current location',
+                        style: const TextStyle(fontSize: 13, color: AppColors.primary, fontWeight: FontWeight.w600),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppColors.primary),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                      ),
+                    ),
+                    const Gap(20),
                     const Text('Preferred Search Radius', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A))),
                     const Gap(10),
                     Wrap(
@@ -110,6 +140,57 @@ class _OnboardingStep10ScreenState extends State<OnboardingStep10Screen> {
         ),
       ),
     );
+  }
+
+  /// Resolves GPS position then reverse-geocodes to city + neighborhood.
+  /// On failure (denied permission, GPS off, geocoding error) shows a snackbar
+  /// and leaves the manual selection intact.
+  Future<void> _useCurrentLocation() async {
+    setState(() => _locationLoading = true);
+
+    try {
+      final mapsService = ref.read(mapsServiceProvider);
+      final position = await mapsService.getCurrentLocation();
+
+      if (position == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not detect location. Please select manually.'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+
+      final result = await mapsService.reverseGeocode(
+        position.latitude,
+        position.longitude,
+      );
+
+      if (!mounted) return;
+
+      // Pre-select the detected neighborhood if it matches one of the known chips.
+      final detectedNeighborhood = result.neighborhood;
+      setState(() {
+        if (detectedNeighborhood.isNotEmpty &&
+            _nearbyNeighborhoods.contains(detectedNeighborhood)) {
+          _neighborhoods.add(detectedNeighborhood);
+        }
+      });
+
+      // Inform user of detected city even when neighborhood isn't in the preset list.
+      final city = result.city.isNotEmpty ? result.city : 'your area';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Location detected: $city'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _locationLoading = false);
+    }
   }
 
   Widget _buildProgress() {

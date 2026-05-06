@@ -41,9 +41,17 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Zupurb uses your location to show nearby restaurants and bars.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Zupurb uses your location to show nearby restaurants and bars.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- SKAdNetworkItems: required placeholder for StoreKit attribution; populate with
+	     RevenueCat-recommended SKAdNetwork IDs before App Store submission. -->
+	<key>SKAdNetworkItems</key>
+	<array></array>
 </dict>
 </plist>

@@ -228,6 +228,7 @@ Total estimate: ~6 months for User App alone with a small focused team.
 | 2026-05-05 | **Referral system: INCLUDED — spec approved** | Client (Alan) | 500 referrer / 250 referee pts on referee's first verified review; 10 per rolling 30 days; self-referral blocked. Full spec in §11.2. B13 unblocked. SOW addendum still pending from client |
 | 2026-05-05 | **OCR harness: APPROVED at $60 (4-vendor incl. Veryfi)** | Client (Alan) | "Do what's best for the app" — full evaluation across Document AI, Textract, Mindee, Veryfi |
 | 2026-05-05 | **Gift card vendor: Tremendous** | Client (Alan) | Modern API, no min spend, broader reward catalog. Start KYC immediately |
+| 2026-05-05 | **I4 OCR harness scaffolded** | integrations-dev | 4-vendor harness (Document AI, Textract, Mindee, Veryfi) under `functions/src/integrations/ocr/`. Two callables: `runOCRHarness` (admin, batch eval) and `extractReceiptData` (production, single vendor). RC: `ocr_selected_vendor` defaults to `textract`. Veryfi adapter uses REST directly (no npm SDK needed). Run harness with real images to pick winner before enabling in verify-visit flow. |
 
 ---
 

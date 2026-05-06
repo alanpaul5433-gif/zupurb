@@ -159,3 +159,10 @@ export { getTierStatus }           from "./http/getTierStatus";
 export { getTierPerks }            from "./http/getTierPerks";
 export { adminAdjustTier }         from "./http/adminAdjustTier";
 export { processPlusExpirations }  from "./scheduled/processPlusExpirations";
+
+// ---------------------------------------------------------------------------
+// I4 — OCR Vendor Harness & Production Receipt Extraction
+// ---------------------------------------------------------------------------
+
+export { runOCRHarnessCallable as runOCRHarness }  from "./http/runOCRHarness";
+export { extractReceiptData }                       from "./http/extractReceiptData";

@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import '../../state/iap/iap_providers.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
+import '../../widgets/plus_paywall.dart';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _pushNotifs = true;
   bool _marketing = false;
 
@@ -47,25 +50,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ]),
             ),
             const Gap(12),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.primary.withOpacity(0.3))),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                  Text('MEMBERSHIP STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.primary, letterSpacing: 0.5)),
-                  Icon(Icons.workspace_premium, color: AppColors.primary, size: 18),
-                ]),
-                const Gap(4),
-                const Text('Plus Membership', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A))),
-                const Gap(4),
-                const Text('Enjoy 1.25× points on every visit, exclusive partner deals, early access to new venues, and a Plus badge on your profile.\n\nActive until Dec 31, 2026', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                const Gap(12),
-                ElevatedButton(
-                  onPressed: () => context.go('/zupurb-plus'),
-                  style: ElevatedButton.styleFrom(minimumSize: const Size(120, 36), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100))),
-                  child: const Text('Manage Plan'),
-                ),
-              ]),
+            // Membership status — reads live Plus entitlement from RevenueCat.
+            // isPlusActiveProvider is a client-side optimistic check backed by
+            // RevenueCat; backend isPlusActive callable is the authority.
+            ref.watch(isPlusActiveProvider).when(
+              data: (isPlus) => isPlus
+                  ? _PlusActiveCard(onManage: () => context.go('/zupurb-plus'))
+                  : _PlusUpgradeCard(onUpgrade: () => PlusPaywall.show(context)),
+              loading: () => const _MembershipSkeleton(),
+              error: (e, st) => _PlusUpgradeCard(
+                  onUpgrade: () => PlusPaywall.show(context)),
             ),
             const Gap(20),
             _SectionLabel('Account'),
@@ -89,6 +83,135 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const Gap(32),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Membership status cards
+// ---------------------------------------------------------------------------
+
+/// Shown when isPlusActiveProvider returns true.
+class _PlusActiveCard extends StatelessWidget {
+  const _PlusActiveCard({required this.onManage});
+  final VoidCallback onManage;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.primaryLight,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Text('MEMBERSHIP STATUS',
+                style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                    letterSpacing: 0.5)),
+            Icon(Icons.workspace_premium, color: AppColors.primary, size: 18),
+          ]),
+          const Gap(4),
+          const Row(children: [
+            Text('Plus Membership',
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1A1A1A))),
+            Gap(8),
+            Icon(Icons.check_circle, color: AppColors.success, size: 18),
+          ]),
+          const Gap(4),
+          const Text(
+            'Enjoy 1.25× points on every visit, exclusive partner deals, '
+            'early access to new venues, and a Plus badge on your profile.',
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+          const Gap(12),
+          ElevatedButton(
+            onPressed: onManage,
+            style: ElevatedButton.styleFrom(
+                minimumSize: const Size(120, 36),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(100))),
+            child: const Text('Manage Plan'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shown when isPlusActiveProvider returns false — prompts user to subscribe.
+class _PlusUpgradeCard extends StatelessWidget {
+  const _PlusUpgradeCard({required this.onUpgrade});
+  final VoidCallback onUpgrade;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Text('UPGRADE YOUR PLAN',
+                style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                    letterSpacing: 0.5)),
+            Icon(Icons.workspace_premium, color: AppColors.textTertiary, size: 18),
+          ]),
+          const Gap(4),
+          const Text('Zupurb Plus',
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF1A1A1A))),
+          const Gap(4),
+          const Text(
+            '1.25× points, exclusive deals, priority reservations, early access.',
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+          const Gap(12),
+          ElevatedButton(
+            onPressed: onUpgrade,
+            style: ElevatedButton.styleFrom(
+                minimumSize: const Size(140, 36),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(100))),
+            child: const Text('Upgrade to Plus'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Loading skeleton while isPlusActiveProvider resolves.
+class _MembershipSkeleton extends StatelessWidget {
+  const _MembershipSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 100,
+      decoration: BoxDecoration(
+        color: AppColors.border,
+        borderRadius: BorderRadius.circular(12),
       ),
     );
   }
