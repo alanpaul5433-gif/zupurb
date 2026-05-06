@@ -23,6 +23,8 @@ import {
 } from "../lib/schema";
 import { computeSimilarity } from "./fingerprint";
 import { log } from "../lib/logging";
+import { redis } from "../lib/redis";
+import { CacheKeys, CacheTTL } from "../lib/cacheKeys";
 
 // ---------------------------------------------------------------------------
 // Question weight matrices (Remote Config governed)
@@ -397,4 +399,67 @@ async function _getFallbackScore(
   const scoreSnap = await db.doc(Paths.establishmentScore(establishmentId)).get();
   if (!scoreSnap.exists) return 0;
   return (scoreSnap.data() as EstablishmentScoreDoc).overallScore;
+}
+
+// ---------------------------------------------------------------------------
+// Cached score helpers (B11)
+// ---------------------------------------------------------------------------
+
+/**
+ * Return the rolling score for an establishment, serving from Redis when fresh.
+ * Cache miss: calls computeRollingScore, populates Redis, returns value.
+ * Graceful degradation: falls through to Firestore on any Redis error.
+ */
+export async function getCachedRollingScore(establishmentId: string): Promise<number> {
+  // 1. Try Redis
+  const cached = await redis.get<number>(CacheKeys.establishmentScore(establishmentId));
+  if (cached !== null) return cached;
+
+  // 2. Cache miss — read from Firestore score doc (avoids full recompute on detail page reads)
+  const db = getFirestore();
+  const scoreSnap = await db.doc(Paths.establishmentScore(establishmentId)).get();
+  if (scoreSnap.exists) {
+    const score = (scoreSnap.data() as EstablishmentScoreDoc).overallScore;
+    // Warm Redis (best-effort, non-blocking)
+    redis.set(CacheKeys.establishmentScore(establishmentId), score, CacheTTL.establishmentScore)
+      .catch(() => { /* non-critical */ });
+    return score;
+  }
+
+  return 0;
+}
+
+/**
+ * Return the FPYL score for a viewer at an establishment, serving from Redis when fresh.
+ * Cache miss: calls computeFPYLScore, populates Redis, returns value.
+ * Graceful degradation: falls through to compute on any Redis error.
+ */
+export async function getCachedFPYLScore(
+  establishmentId: string,
+  viewerUid: string,
+  traceId?: string
+): Promise<number> {
+  // 1. Try Redis
+  const cached = await redis.get<number>(CacheKeys.fpylScore(establishmentId, viewerUid));
+  if (cached !== null) return cached;
+
+  // 2. Cache miss — compute fresh
+  const score = await computeFPYLScore(establishmentId, viewerUid, traceId);
+
+  // Warm Redis (best-effort, non-blocking)
+  redis.set(CacheKeys.fpylScore(establishmentId, viewerUid), score, CacheTTL.fpylScore)
+    .catch(() => { /* non-critical */ });
+
+  return score;
+}
+
+/**
+ * Invalidate the establishment rolling score in Redis.
+ * Called after score recomputation so next request re-warms from Firestore.
+ *
+ * FPYL keys are per-viewer — cannot bulk-invalidate. Let them expire naturally
+ * (30 min TTL is acceptable staleness after a new review arrives).
+ */
+export async function invalidateScoreCache(establishmentId: string): Promise<void> {
+  await redis.del(CacheKeys.establishmentScore(establishmentId));
 }

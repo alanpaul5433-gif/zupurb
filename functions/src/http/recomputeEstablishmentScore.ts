@@ -9,7 +9,7 @@
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { z } from "zod";
-import { computeRollingScore } from "../algorithms/scoring";
+import { computeRollingScore, invalidateScoreCache } from "../algorithms/scoring";
 import { log, newTraceId } from "../lib/logging";
 
 // ---------------------------------------------------------------------------
@@ -55,6 +55,9 @@ export const recomputeEstablishmentScore = onCall(
     });
 
     const result = await computeRollingScore(establishmentId, traceId);
+
+    // Invalidate Redis so next request re-warms from fresh Firestore data
+    await invalidateScoreCache(establishmentId);
 
     log.info("recomputeEstablishmentScore: complete", {
       traceId,

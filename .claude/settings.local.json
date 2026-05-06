@@ -26,7 +26,16 @@
       "Read(//mnt/c/**)",
       "Read(//c/Projects//**)",
       "Bash(git init *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(gh repo *)",
+      "Bash(echo \"Exit code: $?\")",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('/c/Projects/Zupurb/firestore.indexes.json','utf8'\\)\\); console.log\\('JSON valid'\\)\")",
+      "Bash(python3 -c \"import json,sys; json.load\\(open\\('/c/Projects/Zupurb/firestore.indexes.json'\\)\\); print\\('JSON valid'\\)\")",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('C:/Projects/Zupurb/firestore.indexes.json','utf8'\\)\\); console.log\\('indexes valid'\\)\")",
+      "Bash(powershell.exe -Command \"Set-Location 'C:\\\\Projects\\\\Zupurb\\\\functions'; npx tsc --noEmit 2>&1\")",
+      "Read(//c//**)",
+      "Read(//cygdrive/c/Projects/Zupurb/**)",
+      "Bash(powershell.exe -Command \"Set-Location C:\\\\Projects\\\\Zupurb\\\\functions; npx tsc --noEmit 2>&1\")"
     ]
   }
 }

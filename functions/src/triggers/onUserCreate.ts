@@ -35,11 +35,8 @@ const EMPTY_FINGERPRINT: DemographicFingerprint = {
   spendingHabit: 0,
 };
 
-/** Generate a short unique referral code (7 chars). Uniqueness enforced in B13. */
-function generateReferralCode(uid: string): string {
-  const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
-  return `ZU${uid.slice(0, 3).toUpperCase()}${suffix}`;
-}
+// B13: generateReferralCode is now handled in lib/referral.ts at onboarding completion.
+// At account creation we just set null — the real code is generated in completeOnboarding.
 
 export const onUserCreate = functionsV1
   .region("us-central1")
@@ -75,9 +72,38 @@ export const onUserCreate = functionsV1
       verifiedReviewCount: 0,
       onboardingComplete: false,
       phoneVerified: false,
-      referralCode: generateReferralCode(uid),
+      // B13: referral fields — fully populated at completeOnboarding time
+      referralCode: null,            // code this user applied (null until they enter one)
+      myReferralCode: null,          // this user's shareable code (generated at onboarding)
+      referredBy: null,              // referrer uid (null until referral applied)
+      referralRewardClaimed: false,  // set true once first-verified-review reward fires
+      noShowCount: 0,           // B7: reservation no-show counter
+      reservationsBanned: false, // B7: set true at noShowCount >= 3
       isPlusSubscriber: false,
       plusExpiresAt: null,
+      // B14: Plus managed state
+      plusActive: false,
+      plusActivatedAt: null,
+      plusActiveUntil: null,
+      plusSource: null,
+      // B14: Tier override (admin-set)
+      tierOverride: false,
+      tierOverrideReason: null,
+      tierOverrideExpiresAt: null,
+      // B10: FCM + notification defaults
+      fcmTokens: [],
+      fcmTokenDetails: {},
+      notificationPreferences: {},    // all types enabled by default (empty = all on)
+      unreadNotificationCount: 0,
+      // B12: ban state (defaults)
+      isBanned: false,
+      bannedAt: null,
+      banReason: null,
+      banExpiresAt: null,
+      accountType: "user" as const,
+      following: [],
+      followers: [],
+      lastActiveAt: null,
       createdAt: now,
       updatedAt: now,
       schemaVersion: SCHEMA_VERSION,

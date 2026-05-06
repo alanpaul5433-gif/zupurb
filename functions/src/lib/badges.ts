@@ -20,12 +20,18 @@ import { awardPoints } from "./ledger";
 // ---------------------------------------------------------------------------
 
 export const VALID_BADGE_IDS = [
-  "taster",         // First review ever submitted
-  "first_bite",     // First verified review (photo or receipt)
-  "critic",         // 10+ reviews submitted
-  "explorer",       // Reviewed 5+ different establishments
-  "trailblazer",    // Onboarding complete
-  "founder",        // Admin-only; first 150 members (not auto-unlockable here)
+  "taster",           // First review ever submitted
+  "first_bite",       // First verified review (photo or receipt)
+  "critic",           // 10+ reviews submitted
+  "explorer",         // Reviewed 5+ different establishments
+  "trailblazer",      // Onboarding complete
+  "founder",          // Admin-only; first 150 members (not auto-unlockable here)
+  // B14: Tier milestone badges
+  "silver_member",    // Reached Silver tier
+  "gold_member",      // Reached Gold tier
+  "platinum_member",  // Reached Platinum tier
+  // B14: Plus badge
+  "plus_activated",   // First time Zupurb Plus activated
 ] as const;
 
 export type BadgeId = typeof VALID_BADGE_IDS[number];

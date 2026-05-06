@@ -27,6 +27,7 @@ import {
   ReviewDoc,
   EstablishmentDoc,
   PrivateUserDataDoc,
+  ReservationDoc,
   FraudFlag,
   FraudFlagReason,
   REVIEWS_COLLECTION,
@@ -224,6 +225,82 @@ async function checkDuplicate(
 }
 
 // ---------------------------------------------------------------------------
+// Reservation verification bonus (B7)
+// ---------------------------------------------------------------------------
+
+/**
+ * If the review has a reservationId, verify the reservation belongs to this reviewer
+ * and upgrade the verification tier to "reservation_verified" with weight 1.35.
+ * RC: verification_weight_reservation (1.35)
+ */
+async function applyReservationVerificationBonus(
+  uid: string,
+  reviewId: string,
+  review: ReviewDoc,
+  db: FirebaseFirestore.Firestore,
+  traceId: string
+): Promise<void> {
+  // reservationId is not part of the core ReviewDoc schema — it may be set as an
+  // extra field by the submit callable (B4) when the user links a reservation.
+  const reviewWithReservation = review as ReviewDoc & { reservationId?: string };
+  const reservationId = reviewWithReservation.reservationId;
+  if (!reservationId) return;
+
+  const resSnap = await db.doc(Paths.reservation(reservationId)).get();
+  if (!resSnap.exists) {
+    log.warn("applyReservationVerificationBonus: reservation not found", {
+      traceId,
+      userId: uid,
+      eventId: reviewId,
+      domain: "reviews",
+    }, { reservationId });
+    return;
+  }
+
+  const res = resSnap.data() as ReservationDoc;
+
+  // Reservation must belong to the reviewer
+  if (res.guestUid !== uid) {
+    log.warn("applyReservationVerificationBonus: reservation owner mismatch", {
+      traceId,
+      userId: uid,
+      eventId: reviewId,
+      domain: "reviews",
+    }, { reservationId, reservationOwner: res.guestUid });
+    return;
+  }
+
+  // Reservation must have been checked in (confirms physical presence)
+  if (res.status !== "checked_in" && res.status !== "completed") {
+    log.info("applyReservationVerificationBonus: reservation not checked in — no bonus", {
+      traceId,
+      userId: uid,
+      eventId: reviewId,
+      domain: "reviews",
+    }, { reservationId, reservationStatus: res.status });
+    return;
+  }
+
+  // Apply the highest verification tier bonus
+  const RESERVATION_WEIGHT_FACTOR = 135; // RC: verification_weight_reservation (1.35 × 100)
+
+  const reviewRef = db.doc(Paths.review(reviewId));
+  await reviewRef.update({
+    reservationVerified:   true,
+    verificationMethod:    "reservation_verified",
+    weightFactor:          RESERVATION_WEIGHT_FACTOR,  // 135 = 1.35×
+    updatedAt:             Timestamp.now(),
+  });
+
+  log.info("applyReservationVerificationBonus: applied", {
+    traceId,
+    userId: uid,
+    eventId: reviewId,
+    domain: "reviews",
+  }, { reservationId, weightFactor: RESERVATION_WEIGHT_FACTOR });
+}
+
+// ---------------------------------------------------------------------------
 // Exported trigger
 // ---------------------------------------------------------------------------
 
@@ -286,6 +363,18 @@ export const onReviewWriteFraudCheck = onDocumentWritten(
           domain: "fraud",
         }, { error: String(err) });
       }
+    }
+
+    // B7 extension: apply reservation verification bonus if review links a checked-in reservation.
+    try {
+      await applyReservationVerificationBonus(uid, reviewId, review, db, traceId);
+    } catch (err) {
+      log.error("onReviewWriteFraudCheck: reservation verification bonus failed", {
+        traceId,
+        userId: uid,
+        eventId: reviewId,
+        domain: "reviews",
+      }, { error: String(err) });
     }
 
     // B4 extension: trigger rolling score recompute after fraud checks complete.

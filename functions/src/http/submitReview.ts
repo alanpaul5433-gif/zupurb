@@ -33,6 +33,10 @@ import { awardPoints } from "../lib/ledger";
 import { unlockBadge, checkAndUnlockBadges } from "../lib/badges";
 import { onReviewSubmittedChallenges } from "../lib/challenges";
 import { log, newTraceId } from "../lib/logging";
+import { sendNotification } from "../lib/notify";
+import { REFERRAL_CODES_COLLECTION, UserDoc } from "../lib/schema";
+import { getTierMultiplier } from "../lib/tiers";
+import { isPlusActive } from "../lib/plus";
 
 // ---------------------------------------------------------------------------
 // Zod input schema
@@ -114,10 +118,14 @@ export const submitReview = onCall(
 
     log.info("submitReview: start", { traceId, userId: uid, domain: "reviews", eventId: `submit_${uid}` });
 
-    // 3. Check sandbox status — sandboxed users cannot submit
+    // 3. Check ban and sandbox status
     const privSnap = await db.doc(Paths.privateUserData(uid)).get();
     if (privSnap.exists) {
       const priv = privSnap.data() as PrivateUserDataDoc;
+      // Banned users cannot submit reviews
+      if (priv.isBanned) {
+        throw new HttpsError("permission-denied", "Your account has been suspended.");
+      }
       if (priv.isSandboxed) {
         // Silent no-op: return success-looking response but write nothing
         log.warn("submitReview: user is sandboxed, silent reject", {
@@ -215,6 +223,13 @@ export const submitReview = onCall(
       status: "pending",
       flagCount: 0,
       isFeatured: false,
+      // B12: moderation fields (defaults)
+      isModerated: false,
+      moderationStatus: "pending" as const,
+      removedAt: null,
+      removedBy: null,
+      removedReason: null,
+      reportCount: 0,
       isAnomalous: false,
       hasQ8Contradiction: false,
       isCoordinatedAttack: false,
@@ -249,19 +264,40 @@ export const submitReview = onCall(
       updatedAt: now,
     });
 
-    // 16. Award points
+    // 16. Award points — apply tier multiplier + Plus multiplier independently
     const basePoints =
       input.verificationMethod === "photo"
         ? POINTS_VERIFIED_REVIEW
         : POINTS_UNVERIFIED_REVIEW;
 
-    let totalPointsAwarded = basePoints;
+    // Fetch current tier for multiplier
+    const reviewUserSnap = await db.doc(Paths.user(uid)).get();
+    const reviewUserData = reviewUserSnap.exists
+      ? (reviewUserSnap.data() as Pick<UserDoc, "loyaltyTier">)
+      : null;
+    const currentTier = reviewUserData?.loyaltyTier ?? "bronze";
+    const tierMultiplier = getTierMultiplier(currentTier); // integer × 100
+
+    // Plus multiplier: 1.25 if Plus active, 1.0 otherwise  // RC: plus_points_multiplier
+    const PLUS_MULTIPLIER = 125; // RC: plus_points_multiplier (1.25 × 100)
+    const userPlusActive = await isPlusActive(uid);
+    const plusMultiplierInt = userPlusActive ? PLUS_MULTIPLIER : 100;
+
+    // Total points = floor(base × tierMultiplier/100 × plusMultiplier/100)
+    // Tier multiplier already applied here; verifyCheckIn.ts applies it separately for check-in
+    const multipliedPoints = Math.floor(
+      basePoints * (tierMultiplier / 100) * (plusMultiplierInt / 100)
+    );
+    const effectiveMultiplier = Math.round((tierMultiplier / 100) * (plusMultiplierInt / 100) * 100);
+
+    let totalPointsAwarded = multipliedPoints;
 
     await awardPoints(uid, {
-      amount: basePoints,
+      amount: multipliedPoints,
       type: input.verificationMethod === "photo"
         ? "earn_review_partial"
         : "earn_review_unverified",
+      multiplierApplied: effectiveMultiplier,
       description:
         input.verificationMethod === "photo"
           ? "Points for photo-verified review"
@@ -326,6 +362,103 @@ export const submitReview = onCall(
     } catch (err) {
       log.error("submitReview: challenge check failed", {
         traceId, userId: uid, domain: "challenges", eventId: reviewId,
+      }, { error: String(err) });
+    }
+
+    // 20. B13: Referral reward check (anti-fraud: only on first VERIFIED review)
+    try {
+      if (verificationTier !== "unverified") {
+        const userReferralSnap = await db.doc(Paths.user(uid)).get();
+        const userData = userReferralSnap.exists ? userReferralSnap.data() as UserDoc : null;
+
+        const referredBy: string | null = userData?.referredBy ?? null;
+        const rewardClaimed: boolean = userData?.referralRewardClaimed ?? false;
+
+        if (referredBy && !rewardClaimed) {
+          // Count verified reviews by this user to confirm this is the first
+          const verifiedReviewsSnap = await db
+            .collection(REVIEWS_COLLECTION)
+            .where("authorUid", "==", uid)
+            .where("verificationTier", "!=", "unverified")
+            .get();
+
+          const verifiedCount = verifiedReviewsSnap.size;
+
+          if (verifiedCount === 1) {
+            // This IS the first verified review — award referral rewards
+            const referralCode: string | null = userData?.referralCode ?? null;
+
+            // Award referee 250 pts
+            await awardPoints(uid, {
+              amount: 250,  // RC: referrals.pointsReferee
+              type: "earn_referral_bonus",
+              description: "Referral reward — first verified review",
+              relatedEntityType: "referral",
+            });
+            totalPointsAwarded += 250;
+
+            // Award referrer 500 pts
+            await awardPoints(referredBy, {
+              amount: 500,  // RC: referrals.pointsReferrer
+              type: "earn_referral_bonus",
+              description: "Referral reward — your friend posted their first verified review",
+              relatedEntityType: "referral",
+            });
+
+            // Mark reward as claimed (idempotency)
+            await db.doc(Paths.user(uid)).update({
+              referralRewardClaimed: true,
+              updatedAt: now,
+            } as Record<string, unknown>);
+
+            // Update referralCodes doc: increment successfulReferrals + update referee entry status
+            if (referralCode) {
+              const referralCodeRef = db.collection(REFERRAL_CODES_COLLECTION).doc(referralCode);
+              const referralCodeSnap = await referralCodeRef.get();
+
+              if (referralCodeSnap.exists) {
+                const referralDocData = referralCodeSnap.data() as { referees?: Array<{ uid: string; rewardStatus: string; appliedAt: unknown; rewardedAt?: unknown }> };
+                const updatedReferees = (referralDocData.referees ?? []).map((entry) => {
+                  if (entry.uid === uid) {
+                    return { ...entry, rewardStatus: "awarded", rewardedAt: now };
+                  }
+                  return entry;
+                });
+
+                await referralCodeRef.update({
+                  successfulReferrals: FieldValue.increment(1),
+                  referees: updatedReferees,
+                });
+              }
+            }
+
+            // Notify referee
+            await sendNotification(uid, {
+              type: "points_earned",
+              title: "Referral reward!",
+              body: "You earned 250 pts — your referral is complete!",
+              relatedEntityType: "referral",
+            });
+
+            // Notify referrer — fetch referee display name for personalised message
+            const refereeDisplayName = userData?.displayName ?? "Your friend";
+            await sendNotification(referredBy, {
+              type: "points_earned",
+              title: "Referral reward!",
+              body: `${refereeDisplayName} just posted their first review — you earned 500 pts!`,
+              relatedEntityType: "referral",
+            });
+
+            log.info("submitReview: referral rewards awarded", {
+              traceId, userId: uid, domain: "referrals", eventId: reviewId,
+            }, { referredBy, referralCode, pointsReferee: 250, pointsReferrer: 500 });
+          }
+        }
+      }
+    } catch (err) {
+      // Non-fatal — referral reward failure must not fail the review submission
+      log.error("submitReview: referral reward check failed", {
+        traceId, userId: uid, domain: "referrals", eventId: reviewId,
       }, { error: String(err) });
     }
 

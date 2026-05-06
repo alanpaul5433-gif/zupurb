@@ -34,6 +34,10 @@ export type LedgerEntryType =
   | "earn_deal_cashback"       // B6: cashback from deal redemption (future)
   | "spend_deal_redemption"
   | "spend_gift_card"
+  | "spend_noshow_penalty"    // B7: no-show deduction
+  | "earn_reservation_create" // B7: 50 pts for making a reservation
+  | "earn_checkin"            // B7: check-in points (tier-multiplied)
+  | "earn_tier_upgrade_bonus" // B14: bonus awarded on tier upgrade
   | "expire";
 
 // B6: Deal redemption lifecycle status
@@ -60,6 +64,8 @@ export type BadgeCategory =
   | "deal"
   | "special";
 export type LoyaltyTier = "bronze" | "silver" | "gold" | "platinum";
+/** Alias for LoyaltyTier — used by the B14 tier engine. */
+export type TierName = LoyaltyTier;
 export type EstablishmentCategory =
   | "restaurant"
   | "bar"
@@ -107,11 +113,58 @@ export interface UserDoc {
   phoneVerified: boolean;
 
   // Referral
-  referralCode: string;              // auto-generated on account creation; unique
+  referralCode: string | null;              // the code this user used when signing up (applied to them)
+  myReferralCode: string | null;            // this user's own shareable referral code (generated at onboarding)
+  referredBy: string | null;               // uid of the user who referred this user
+  referralRewardClaimed: boolean;          // true once first-verified-review reward has been awarded
+
+  // Reservation behaviour tracking (B7)
+  noShowCount: number;             // lifetime no-show counter; default 0
+  reservationsBanned: boolean;     // RC: noshow_ban_threshold (3)
 
   // Plus subscription state (sourced from RevenueCat webhook, not client)
   isPlusSubscriber: boolean;
   plusExpiresAt: Timestamp | null;
+
+  // B14: Zupurb Plus managed state (replaces/supplements isPlusSubscriber for tier-driven Plus)
+  plusActive: boolean;
+  plusActivatedAt: Timestamp | null;
+  plusActiveUntil: Timestamp | null;
+  plusSource: "iap" | "platinum_tier" | null;
+
+  // B14: Tier override — admin can manually set tier (e.g., for customer support)
+  tierOverride: boolean;
+  tierOverrideReason: string | null;
+  tierOverrideExpiresAt: Timestamp | null;
+
+  // B10: FCM push token management
+  // RC: max_fcm_tokens_per_user (default 5)
+  fcmTokens: string[];                                          // flat array for FCM multicast
+  fcmTokenDetails: Record<string, FCMTokenDetail>;              // token → detail map
+
+  // B10: User notification preferences — false = suppress FCM push for that type
+  // Firestore inbox entry is always written regardless; only push is suppressed.
+  notificationPreferences: Partial<Record<NotificationType, boolean>>;
+
+  // B10: Unread notification counter — incremented by onNotificationWrite trigger
+  unreadNotificationCount: number;
+
+  // B12: Ban state — set by adminBanUser callable; never set by client
+  isBanned: boolean;
+  bannedAt: Timestamp | null;
+  banReason: string | null;
+  banExpiresAt: Timestamp | null;  // null = permanent ban
+
+  // B12: Account classification
+  accountType: "user" | "business" | "entertainer";
+
+  // B12: Social graph lists (denormalized; capped — use subcollection at scale)
+  following: string[];           // uids this user follows
+  followers: string[];           // uids following this user
+  // Note: followingCount and followersCount already exist above (pre-B12 fields)
+
+  // B12: Last active signal — updated on any authenticated callable
+  lastActiveAt: Timestamp | null;
 
   // Timestamps
   createdAt: Timestamp;
@@ -119,6 +172,21 @@ export interface UserDoc {
 
   // Schema version — increment when shape changes to allow migration guards
   schemaVersion: number;
+}
+
+// ---------------------------------------------------------------------------
+// B14: Tier history — sub-collection users/{uid}/tierHistory/{eventId}
+// ---------------------------------------------------------------------------
+
+export const TIER_HISTORY_SUBCOLLECTION = "tierHistory";
+
+export interface TierHistoryEvent {
+  eventId: string;
+  previousTier: TierName;
+  newTier: TierName;
+  transitionedAt: Timestamp;
+  rolling12MonthPts: number;
+  bonusAwarded?: number;    // upgrade bonus points, if any
 }
 
 export interface DemographicFingerprint {
@@ -268,6 +336,18 @@ export interface EstablishmentDoc {
   claimedAt: Timestamp | null;
   isVerifiedBusiness: boolean;
 
+  // B12: Verification by admin
+  isVerified: boolean;           // admin-set; signals trust badge in search results
+  verifiedAt: Timestamp | null;
+  verificationNotes: string | null;
+  verifiedBy: string | null;     // admin uid who performed verification
+
+  // B12: Owner management (multiple owners supported)
+  ownerUids: string[];           // uids with businessOwner claim for this establishment
+
+  // B12: Report signal
+  reportCount: number;           // incremented by reportContent callable
+
   // Media
   coverPhotoUrl: string | null;
   photoUrls: string[];
@@ -356,6 +436,14 @@ export interface ReviewDoc {
   status: ReviewStatus;
   flagCount: number;
   isFeatured: boolean;        // admin-set for editorial spotlight
+
+  // B12: Moderation workflow
+  isModerated: boolean;       // true = hidden pending human review
+  moderationStatus: "pending" | "approved" | "flagged" | "removed";
+  removedAt: Timestamp | null;
+  removedBy: string | null;   // admin uid
+  removedReason: string | null;
+  reportCount: number;        // incremented by reportContent callable
 
   // Fraud detection result fields (set by async fraud checks)
   isAnomalous: boolean;       // all-A or all-D structural anomaly
@@ -517,11 +605,29 @@ export interface ReservationDoc {
   cancellationDeadlineAt: Timestamp; // = scheduledAt - 48h; set by Cloud Function
 
   // QR / OTP for check-in (set by Cloud Function at booking time)
-  checkInQrCode: string | null;   // base64 or URL
-  checkInOtp: string | null;      // 6-digit numeric OTP
-  otpExpiresAt: Timestamp | null;
+  checkInQrCode: string | null;   // base64 payload (signed stub; real HMAC in B9)
+  /** @deprecated use checkInOtpHash */
+  checkInOtp?: string | null;     // legacy field — may still exist in prod documents; do not write
+  checkInOtpHash: string | null;  // SHA-256 hash of 4-digit OTP; plaintext never stored
+  otpExpiresAt: Timestamp | null; // scheduledAt + 15 min  // RC: otp_validity_minutes
+  otpAttempts: number;            // failed OTP attempts counter; RC: otp_max_attempts (5)
+
+  // Idempotency key (client-supplied UUID; prevents double-booking on retry)
+  idempotencyKey: string;
+
+  // Cancellation metadata
+  cancelledBy: "guest" | "admin" | null;
+  cancellationReason: string | null;
+
+  // Check-in metadata
+  checkInMethod: "qr" | "otp" | null;
+
+  // Reminder flags (set by scheduled job to avoid duplicate sends)
+  reminder24hSent: boolean;
+  reminder2hSent: boolean;
 
   // No-show tracking
+  noShowAt: Timestamp | null;
   noShowRecordedAt: Timestamp | null;
   noShowPenaltyApplied: boolean;
 
@@ -536,17 +642,31 @@ export interface ReservationDoc {
 
 export const CONVERSATIONS_COLLECTION = "conversations";
 
+// Conversation type encodes which party initiated and the account types involved.
+export type ConversationType =
+  | "user_user"
+  | "user_business"
+  | "business_user"
+  | "entertainer_user";
+
 export interface ConversationDoc {
   conversationId: string;
-  participantUids: string[];     // exactly 2 for 1:1; used for security rule gate
+  participantUids: string[];           // exactly 2; sorted lexicographically for dedup
   participantInfo: Record<string, ParticipantInfo>; // uid → display snapshot
-  lastMessage: string | null;
+  conversationType: ConversationType;
+
+  lastMessageText: string | null;      // preview (first 100 chars of last message)
   lastMessageAt: Timestamp | null;
   lastMessageSenderUid: string | null;
   unreadCounts: Record<string, number>; // uid → unread count
-  // Business messaging gate: business may send first message even without mutual follow
-  isBusinessInitiated: boolean;
-  businessUid: string | null;
+
+  // Business 1-msg gate (B8)
+  // Count of messages sent by the business before any user reply.
+  // RC: messaging.businessIntroLimit (1)
+  businessInitiatedMessageCount: number;
+  // Set to the non-business participant's uid once they reply.
+  lastRepliedByUid: string | null;
+
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -563,11 +683,25 @@ export interface MessageDoc {
   messageId: string;
   conversationId: string;
   senderUid: string;
-  body: string;
-  mediaUrl: string | null;
+
+  text: string;                        // renamed from body; max 2000 chars
+  mediaUrls: string[];                 // supports multiple attachments
+
   isRead: boolean;
   readAt: Timestamp | null;
   sentAt: Timestamp;
+
+  // Idempotency — client-supplied UUID; duplicate sends with same key are ignored
+  idempotencyKey: string;
+
+  // Content moderation (stub until I9)
+  isModerated: boolean;
+  moderationResult: { flagged: boolean; reason?: string } | null;
+
+  // Soft delete — messages are NEVER hard-deleted (audit trail)
+  isDeleted: boolean;
+  deletedAt: Timestamp | null;
+  deletedBy: string | null;            // uid of deleter (sender or admin)
 }
 
 // ---------------------------------------------------------------------------
@@ -576,6 +710,36 @@ export interface MessageDoc {
 
 export const NOTIFICATIONS_COLLECTION = "notifications";
 export const NOTIFICATIONS_ITEMS_SUBCOLLECTION = "items";
+
+// B10: Canonical notification type union used by sendNotification utility.
+export type NotificationType =
+  | "new_message"
+  | "new_follower"
+  | "review_helpful_vote"
+  | "points_earned"
+  | "points_expiring_soon"
+  | "points_expiring_urgent"
+  | "badge_unlocked"
+  | "challenge_complete"
+  | "tier_upgrade"
+  | "tier_downgrade"
+  | "reservation_confirmed"
+  | "reservation_reminder_24h"
+  | "reservation_reminder_2h"
+  | "reservation_cancelled"
+  | "reservation_no_show"
+  | "deal_ready"
+  | "deal_expiring"
+  | "review_flagged"
+  | "admin_alert"
+  | "system";
+
+// B10: Per-device FCM token detail stored on users/{uid}.fcmTokenDetails
+export interface FCMTokenDetail {
+  token: string;
+  platform: "ios" | "android";
+  registeredAt: Timestamp;
+}
 
 export interface NotificationDoc {
   notifId: string;
@@ -592,6 +756,15 @@ export interface NotificationDoc {
   isRead: boolean;
   readAt: Timestamp | null;
   createdAt: Timestamp;
+
+  // B10: soft delete support
+  isDeleted?: boolean;
+  deletedAt?: Timestamp;
+
+  // B10: extra fields written by sendNotification
+  relatedEntityId?: string;
+  relatedEntityType?: string;
+  data?: Record<string, string>;
 }
 
 // ---------------------------------------------------------------------------
@@ -680,10 +853,25 @@ export interface DealRedemptionDoc {
 
 export const REFERRAL_CODES_COLLECTION = "referralCodes";
 
+// ---------------------------------------------------------------------------
+// B13: Referee entry — stored inside ReferralCodeDoc.referees array
+// ---------------------------------------------------------------------------
+
+export interface RefereeEntry {
+  uid: string;
+  appliedAt: Timestamp;
+  rewardStatus: "pending" | "awarded" | "expired";
+  rewardedAt?: Timestamp;
+}
+
 export interface ReferralCodeDoc {
   code: string;                // unique; URL-safe base58
   ownerUid: string;
   createdAt: Timestamp;
+  isActive: boolean;           // false = code deactivated (admin or expiry)
+  totalReferrals: number;      // how many users applied the code
+  successfulReferrals: number; // how many completed the reward trigger
+  referees: RefereeEntry[];    // array of referee entries
   // Rolling 30-day successful referral count
   // RC: referrals.rollingCapPer30Days (10)
   successfulReferralsLast30Days: number;
@@ -781,6 +969,35 @@ export interface EstablishmentScoreDoc {
 }
 
 // ---------------------------------------------------------------------------
+// COLLECTION: reportedContent/{reportId}  (user-submitted content reports)
+// ---------------------------------------------------------------------------
+
+export const REPORTED_CONTENT_COLLECTION = "reportedContent";
+
+export type ReportedContentType = "review" | "post" | "message" | "establishment" | "user";
+export type ReportedContentReason = "spam" | "inappropriate" | "fake" | "harassment" | "other";
+export type ReportedContentStatus = "pending" | "resolved";
+
+export interface ReportedContentDoc {
+  reportId: string;
+  contentType: ReportedContentType;
+  contentId: string;
+  reason: ReportedContentReason;
+  details: string | null;
+  reporterUid: string;
+  reportedAt: Timestamp;
+
+  // Moderation resolution (set by resolveModerationItem)
+  status: ReportedContentStatus;
+  resolution: "no_action" | "content_removed" | "user_warned" | "user_banned" | null;
+  resolvedAt: Timestamp | null;
+  resolvedBy: string | null;   // admin uid
+  resolutionNotes: string | null;
+
+  schemaVersion: number;
+}
+
+// ---------------------------------------------------------------------------
 // Collection path helpers — return typed Firestore path strings
 // ---------------------------------------------------------------------------
 
@@ -820,4 +1037,7 @@ export const Paths = {
   flag: (flagId: string) => `${FLAGS_COLLECTION}/${flagId}`,
   adminQueueItem: (itemId: string) => `${ADMIN_QUEUE_COLLECTION}/${itemId}`,
   establishmentScore: (estId: string) => `${ESTABLISHMENT_SCORES_COLLECTION}/${estId}`,
+  reportedContent: (reportId: string) => `${REPORTED_CONTENT_COLLECTION}/${reportId}`,
+  tierHistoryEvent: (uid: string, eventId: string) =>
+    `${USERS_COLLECTION}/${uid}/${TIER_HISTORY_SUBCOLLECTION}/${eventId}`,
 } as const;

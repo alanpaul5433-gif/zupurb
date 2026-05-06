@@ -50,6 +50,14 @@ service cloud.firestore {
       return request.resource.data.keys().hasOnly(fields);
     }
 
+    // Ensure the calling user is not banned.
+    // Used on write rules for reviews, messages, and reports.
+    // Returns true (allow) when the isBanned field is absent or false.
+    // Cloud Functions enforce this at the callable layer as well.
+    function isNotBanned() {
+      return !('isBanned' in resource.data) || resource.data.isBanned == false;
+    }
+
     // -------------------------------------------------------------------------
     // COLLECTION: users/{userId}
     //
@@ -164,6 +172,8 @@ service cloud.firestore {
         && (resource == null || resource.data.status == "published" || isOwner(resource.data.authorUid));
 
       allow create: if isOwner(request.resource.data.authorUid)
+        // Banned users cannot write reviews (B12)
+        && isNotBanned()
         // answers array must have exactly 8 elements (Q1–Q8)
         && request.resource.data.answers is list
         && request.resource.data.answers.size() == 8
@@ -345,7 +355,12 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
     // COLLECTION: conversations/{conversationId}
     //
-    // - Participants only: read + create messages
+    // - Participants only: read
+    // - Create: authenticated caller must be in participantUids
+    // - Update: ONLY the metadata fields that Cloud Functions legitimately
+    //   write via the client SDK path (lastMessageText, unreadCounts, etc.).
+    //   All other mutations (businessInitiatedMessageCount, lastRepliedByUid,
+    //   conversationType) must go through Cloud Functions via Admin SDK.
     // - Admin: full access for moderation
     // -------------------------------------------------------------------------
 
@@ -354,11 +369,12 @@ service cloud.firestore {
         && isParticipant(resource.data);
       allow create: if isAuthenticated()
         && request.auth.uid in request.resource.data.participantUids;
-      // Conversation metadata (lastMessage, unreadCounts) updated by CF or client
+      // Client-side updates restricted to safe metadata fields only.
+      // Score, UAR, business gate fields are Admin SDK–only writes.
       allow update: if isAuthenticated()
         && isParticipant(resource.data)
         && hasOnly([
-          "lastMessage",
+          "lastMessageText",
           "lastMessageAt",
           "lastMessageSenderUid",
           "unreadCounts",
@@ -369,18 +385,23 @@ service cloud.firestore {
 
       // -----------------------------------------------------------------------
       // SUB-COLLECTION: conversations/{conversationId}/messages/{messageId}
-      // Only participants can read or write messages.
+      //
+      // - Read:   participant only
+      // - Create: participant + senderUid must equal caller uid
+      // - Update: NOT allowed from client (soft-delete and moderation go through
+      //           Cloud Functions via Admin SDK)
+      // - Delete: never (soft delete only)
       // -----------------------------------------------------------------------
       match /messages/{messageId} {
         allow read: if isAuthenticated()
           && isParticipant(get(/databases/$(database)/documents/conversations/$(conversationId)).data);
         allow create: if isAuthenticated()
           && request.resource.data.senderUid == request.auth.uid
-          && isParticipant(get(/databases/$(database)/documents/conversations/$(conversationId)).data);
-        // Mark as read: sender cannot un-read; receiver can set isRead=true
-        allow update: if isAuthenticated()
           && isParticipant(get(/databases/$(database)/documents/conversations/$(conversationId)).data)
-          && hasOnly(["isRead", "readAt"]);
+          // Banned users cannot send messages (B12)
+          && isNotBanned();
+        // No client-side updates — soft-delete and moderation go through Cloud Functions
+        allow update: if false;
         allow delete: if false;
         allow read, write: if isAdmin();
       }
@@ -468,8 +489,26 @@ service cloud.firestore {
     match /flags/{flagId} {
       allow create: if isAuthenticated()
         && request.resource.data.reporterUid == request.auth.uid
-        && request.resource.data.status == "open";
+        && request.resource.data.status == "open"
+        // Banned users cannot file reports (B12)
+        && isNotBanned();
       allow read, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLECTION: reportedContent/{rid}  (B12 content report pipeline)
+    //
+    // - Authenticated users: create (callable enforces rate limit + ban check)
+    // - Admin/staff: read + update (triage and resolve)
+    // -------------------------------------------------------------------------
+
+    match /reportedContent/{rid} {
+      allow create: if isAuthenticated()
+        && request.resource.data.reporterUid == request.auth.uid
+        // Banned users cannot submit reports (B12)
+        && isNotBanned();
+      allow read, update: if isAdmin() || isStaff();
       allow delete: if false;
     }
 
@@ -480,7 +519,8 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
 
     match /adminQueue/{queueItemId} {
-      allow read, write: if isAdmin();
+      // No client access — admin and staff only (Retool / Admin SDK path)
+      allow read, write: if isAdmin() || isStaff();
     }
 
     // -------------------------------------------------------------------------

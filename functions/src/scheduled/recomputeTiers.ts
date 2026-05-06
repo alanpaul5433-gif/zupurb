@@ -3,15 +3,16 @@
  *
  * Steps:
  *   1. Paginate through all active users in batches of 100
- *   2. For each user: compute rolling 12-month earn points → tier
- *   3. If tier changed: update users/{uid}.loyaltyTier + rollingPoints12mo
- *   4. On upgrade: send tier-upgrade notification
- *   5. On downgrade: send gentle tier-downgrade notification
+ *   2. Skip users with an active tierOverride (non-expired)
+ *   3. For expired overrides: clear override fields then recompute
+ *   4. For each user: call computeRolling12MonthPts → computeTier
+ *   5. If tier changed: call handleTierTransition (awards bonus, badges, Plus, history)
+ *   6. After tier recompute: if user is Platinum and plusActiveUntil < now + 7 days → auto-renew Plus
  *
  * RC keys:
  *   expiry_batch_size (shared; default 100)
  *
- * Milestone: B5
+ * Milestones: B5, B14
  */
 
 import { onSchedule } from "firebase-functions/v2/scheduler";
@@ -19,65 +20,20 @@ import { setGlobalOptions } from "firebase-functions/v2";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import {
   USERS_COLLECTION,
-  POINTS_LEDGER_COLLECTION,
-  NOTIFICATIONS_COLLECTION,
-  NOTIFICATIONS_ITEMS_SUBCOLLECTION,
   UserDoc,
-  PointsLedgerEntry,
-  NotificationDoc,
   LoyaltyTier,
 } from "../lib/schema";
-import { computeTier } from "../lib/tiers";
+import { computeTier, computeRolling12MonthPts, handleTierTransition } from "../lib/tiers";
+import { activatePlus } from "../lib/plus";
 import { log } from "../lib/logging";
+import type * as FirebaseFirestore from "@google-cloud/firestore";
 
 setGlobalOptions({ timeoutSeconds: 540, memory: "512MiB" });
 
 const BATCH_SIZE = 100; // RC: expiry_batch_size
 
-const TIER_ORDER: LoyaltyTier[] = ["bronze", "silver", "gold", "platinum"];
-
-function isUpgrade(prev: LoyaltyTier, next: LoyaltyTier): boolean {
-  return TIER_ORDER.indexOf(next) > TIER_ORDER.indexOf(prev);
-}
-
-function isDowngrade(prev: LoyaltyTier, next: LoyaltyTier): boolean {
-  return TIER_ORDER.indexOf(next) < TIER_ORDER.indexOf(prev);
-}
-
-async function sendTierNotification(
-  uid: string,
-  prevTier: LoyaltyTier,
-  newTier: LoyaltyTier,
-  upgrade: boolean
-): Promise<void> {
-  const db = getFirestore();
-  const notifId = `tier_${uid}_${Date.now()}`;
-  const tierDisplay = newTier.charAt(0).toUpperCase() + newTier.slice(1);
-  const body = upgrade
-    ? `Congratulations! You've reached ${tierDisplay} tier`
-    : `Your activity has decreased — you've moved to ${tierDisplay} tier`;
-
-  const notif: NotificationDoc = {
-    notifId,
-    userId: uid,
-    type: "tier_change",
-    title: upgrade ? "Tier Upgrade!" : "Tier Update",
-    body,
-    deepLinkPath: "/points/wallet",
-    imageUrl: null,
-    payload: { prevTier, newTier, upgrade },
-    isRead: false,
-    readAt: null,
-    createdAt: Timestamp.now(),
-  };
-
-  await db
-    .collection(NOTIFICATIONS_COLLECTION)
-    .doc(uid)
-    .collection(NOTIFICATIONS_ITEMS_SUBCOLLECTION)
-    .doc(notifId)
-    .set(notif);
-}
+/** 7 days in milliseconds — window to auto-renew Platinum Plus */
+const PLUS_RENEW_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000; // RC: plus_renew_threshold_days (7)
 
 export const recomputeTiers = onSchedule(
   {
@@ -90,17 +46,17 @@ export const recomputeTiers = onSchedule(
   async () => {
     const traceId = `tiers_${Date.now()}`;
     const db = getFirestore();
+    const now = Timestamp.now();
 
     log.info("recomputeTiers: start", {
       traceId, domain: "tiers", eventId: "recomputeTiers",
     });
 
-    const twelveMonthsAgo = Timestamp.fromMillis(
-      Date.now() - 365 * 24 * 60 * 60 * 1000
-    );
-
     let userCount = 0;
     let tierChanges = 0;
+    let overridesSkipped = 0;
+    let overridesCleared = 0;
+    let plusRenewed = 0;
     let lastDoc: FirebaseFirestore.DocumentSnapshot | undefined;
 
     while (true) {
@@ -116,52 +72,88 @@ export const recomputeTiers = onSchedule(
       const batchSnap = await query.get();
       if (batchSnap.empty) break;
 
-      for (const userDoc of batchSnap.docs) {
-        const uid = userDoc.id;
-        const userData = userDoc.data() as UserDoc;
+      for (const userDocSnap of batchSnap.docs) {
+        const uid = userDocSnap.id;
+        const userData = userDocSnap.data() as UserDoc;
         const prevTier: LoyaltyTier = userData.loyaltyTier ?? "bronze";
 
         try {
-          // Compute rolling 12-month earn points
-          const rollingSnap = await db
-            .collection(POINTS_LEDGER_COLLECTION)
-            .where("userId", "==", uid)
-            .where("createdAt", ">", twelveMonthsAgo)
-            .where("delta", ">", 0)
-            .select("delta")
-            .get();
+          // ----------------------------------------------------------------
+          // B14: Tier override check
+          // ----------------------------------------------------------------
+          if (userData.tierOverride) {
+            const overrideExpiresAt = userData.tierOverrideExpiresAt;
 
-          const rolling12MonthPoints = rollingSnap.docs.reduce(
-            (sum, d) => sum + ((d.data() as Pick<PointsLedgerEntry, "delta">).delta ?? 0),
-            0
-          );
+            if (overrideExpiresAt && overrideExpiresAt.toMillis() > now.toMillis()) {
+              // Active override — skip tier recompute for this user
+              overridesSkipped++;
+              log.info("recomputeTiers: override active, skipping", {
+                traceId, userId: uid, domain: "tiers", eventId: "recomputeTiers",
+              });
+              userCount++;
+              continue;
+            } else {
+              // Expired override — clear and fall through to recompute
+              await db.doc(`${USERS_COLLECTION}/${uid}`).update({
+                tierOverride: false,
+                tierOverrideReason: null,
+                tierOverrideExpiresAt: null,
+                updatedAt: now,
+              });
+              overridesCleared++;
+              log.info("recomputeTiers: cleared expired override", {
+                traceId, userId: uid, domain: "tiers", eventId: "recomputeTiers",
+              });
+            }
+          }
 
+          // ----------------------------------------------------------------
+          // Compute rolling 12-month earn points (extracted utility)
+          // ----------------------------------------------------------------
+          const rolling12MonthPoints = await computeRolling12MonthPts(uid);
           const newTier = computeTier(rolling12MonthPoints);
 
-          // Always update rolling points; only update tier if changed
-          const updatePayload: Partial<UserDoc> & Record<string, unknown> = {
+          // Always update rolling points cache on user doc
+          const updatePayload: Record<string, unknown> = {
             rollingPoints12mo: rolling12MonthPoints,
-            updatedAt: Timestamp.now(),
+            updatedAt: now,
           };
 
           if (newTier !== prevTier) {
             updatePayload.loyaltyTier = newTier;
-            updatePayload.tierUpdatedAt = Timestamp.now();
+            updatePayload.tierUpdatedAt = now;
             tierChanges++;
 
             await db.doc(`${USERS_COLLECTION}/${uid}`).update(updatePayload);
 
-            if (isUpgrade(prevTier, newTier)) {
-              await sendTierNotification(uid, prevTier, newTier, true);
-            } else if (isDowngrade(prevTier, newTier)) {
-              await sendTierNotification(uid, prevTier, newTier, false);
-            }
+            // B14: handleTierTransition awards bonus pts, badge, Plus, history + notification
+            await handleTierTransition(uid, prevTier, newTier, rolling12MonthPoints, traceId);
 
             log.info("recomputeTiers: tier changed", {
               traceId, userId: uid, domain: "tiers", eventId: "recomputeTiers",
             }, { prevTier, newTier, rolling12MonthPoints });
           } else {
             await db.doc(`${USERS_COLLECTION}/${uid}`).update(updatePayload);
+          }
+
+          // ----------------------------------------------------------------
+          // B14: Platinum Plus auto-renewal
+          // If user is Platinum and Plus expires within 7 days → renew
+          // ----------------------------------------------------------------
+          const effectiveTier = newTier;
+          if (effectiveTier === "platinum") {
+            const plusActiveUntil = userData.plusActiveUntil;
+            const shouldRenew =
+              !plusActiveUntil ||
+              plusActiveUntil.toMillis() < now.toMillis() + PLUS_RENEW_THRESHOLD_MS;
+
+            if (shouldRenew) {
+              await activatePlus(uid, 365, "platinum_tier");
+              plusRenewed++;
+              log.info("recomputeTiers: Platinum Plus renewed", {
+                traceId, userId: uid, domain: "tiers", eventId: "recomputeTiers",
+              });
+            }
           }
         } catch (err) {
           log.error("recomputeTiers: error for user", {
@@ -178,9 +170,6 @@ export const recomputeTiers = onSchedule(
 
     log.info("recomputeTiers: complete", {
       traceId, domain: "tiers", eventId: "recomputeTiers",
-    }, { userCount, tierChanges });
+    }, { userCount, tierChanges, overridesSkipped, overridesCleared, plusRenewed });
   }
 );
-
-// Typed lastDoc
-import type * as FirebaseFirestore from "@google-cloud/firestore";

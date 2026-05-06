@@ -176,6 +176,50 @@
         { "fieldPath": "dealId",     "order": "ASCENDING" },
         { "fieldPath": "redeemedAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "establishments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isActive",   "order": "ASCENDING" },
+        { "fieldPath": "city",       "order": "ASCENDING" },
+        { "fieldPath": "createdAt",  "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "establishments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isActive",              "order": "ASCENDING" },
+        { "fieldPath": "isOpenForReservations", "order": "ASCENDING" },
+        { "fieldPath": "overallScore",          "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "establishments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isActive",     "order": "ASCENDING" },
+        { "fieldPath": "categories",   "arrayConfig": "CONTAINS" },
+        { "fieldPath": "city",         "order": "ASCENDING" },
+        { "fieldPath": "overallScore", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "deals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isActive",  "order": "ASCENDING" },
+        { "fieldPath": "expiresAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "reviews",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status",    "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

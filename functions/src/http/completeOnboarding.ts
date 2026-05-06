@@ -21,6 +21,8 @@ import {
   Paths,
 } from "../lib/schema";
 import { awardPoints } from "../lib/ledger";
+import { generateReferralCode, applyReferral } from "../lib/referral";
+import { REFERRAL_CODES_COLLECTION, ReferralCodeDoc } from "../lib/schema";
 import { log, newTraceId } from "../lib/logging";
 
 // ---------------------------------------------------------------------------
@@ -47,6 +49,7 @@ const OnboardingPayloadSchema = z.object({
   nightlifePreferences: z.array(z.string()).min(0),
   sensitiveTopics: SensitiveTopicsSchema,
   bio: z.string().trim().max(500),
+  referralCode: z.string().trim().optional(),  // B13: optional code entered during sign-up
 });
 
 type OnboardingPayload = z.infer<typeof OnboardingPayloadSchema>;
@@ -251,6 +254,65 @@ export const completeOnboarding = onCall(
       rollingPoints12mo: FieldValue.increment(150),
     } as Record<string, unknown>);
 
+    // ------------------------------------------------------------------
+    // 8. B13: Generate this user's own referral code
+    // ------------------------------------------------------------------
+    let myReferralCode: string | null = null;
+    try {
+      myReferralCode = await generateReferralCode(uid);
+
+      const referralDoc: ReferralCodeDoc = {
+        code: myReferralCode,
+        ownerUid: uid,
+        createdAt: now,
+        isActive: true,
+        totalReferrals: 0,
+        successfulReferrals: 0,
+        referees: [],
+        successfulReferralsLast30Days: 0,
+        rollingWindowStart: now,
+      };
+
+      await db.collection(REFERRAL_CODES_COLLECTION).doc(myReferralCode).set(referralDoc);
+      await db.doc(Paths.user(uid)).update({
+        myReferralCode,
+        updatedAt: now,
+      } as Record<string, unknown>);
+
+      log.info("completeOnboarding: referral code generated", {
+        traceId, userId: uid, domain: "referrals",
+      }, { myReferralCode });
+    } catch (err) {
+      // Non-fatal: log and continue; code can be generated on-demand later
+      log.error("completeOnboarding: referral code generation failed", {
+        traceId, userId: uid, domain: "referrals",
+      }, { error: String(err) });
+    }
+
+    // ------------------------------------------------------------------
+    // 9. B13: Apply incoming referral code if provided
+    // ------------------------------------------------------------------
+    if (data.referralCode) {
+      try {
+        const applyResult = await applyReferral(uid, data.referralCode);
+        if (!applyResult.success) {
+          log.warn("completeOnboarding: referral code invalid, skipping", {
+            traceId, userId: uid, domain: "referrals",
+          }, { code: data.referralCode, reason: applyResult.error });
+          // Do NOT fail onboarding — referral is optional
+        } else {
+          log.info("completeOnboarding: referral applied", {
+            traceId, userId: uid, domain: "referrals",
+          }, { referrerUid: applyResult.referrerUid });
+        }
+      } catch (err) {
+        // Non-fatal: referral failure must never block onboarding
+        log.error("completeOnboarding: applyReferral threw", {
+          traceId, userId: uid, domain: "referrals",
+        }, { error: String(err) });
+      }
+    }
+
     log.info("completeOnboarding: complete", {
       traceId,
       userId: uid,
@@ -264,6 +326,7 @@ export const completeOnboarding = onCall(
       pointsAwarded: 150,
       newBalance: 150,
       badgeUnlocked: "trailblazer",
+      myReferralCode,
     };
   }
 );

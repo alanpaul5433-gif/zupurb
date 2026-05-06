@@ -18,6 +18,8 @@ import {
   POINTS_LEDGER_COLLECTION,
   Paths,
 } from "./schema";
+import { redis } from "./redis";
+import { CacheKeys, CacheTTL } from "./cacheKeys";
 
 const SCHEMA_VERSION = 1;
 
@@ -249,6 +251,9 @@ export async function awardPoints(uid: string, params: AwardPointsParams): Promi
       updatedAt: Timestamp.now(),
     });
   });
+
+  // Invalidate Redis balance cache so next read reflects the new balance
+  await redis.del(CacheKeys.userBalance(uid));
 }
 
 /**
@@ -307,17 +312,32 @@ export async function spendPoints(uid: string, params: SpendPointsParams): Promi
       updatedAt: Timestamp.now(),
     });
   });
+
+  // Invalidate Redis balance cache so next read reflects the new balance
+  await redis.del(CacheKeys.userBalance(uid));
 }
 
 /**
  * Get the current spendable balance for a user (excludes expired entries).
- * Reads the userBalances projection for O(1) performance.
+ * Reads from Redis (1 min TTL) first, then falls back to Firestore.
  * Note: expired entries are purged by the scheduled expiry job (B6); this
  *       function trusts the projection as the fast-read cache.
  */
 export async function getBalance(uid: string): Promise<number> {
+  // 1. Try Redis  RC: cache_ttl_balance (60s)
+  const cached = await redis.get<number>(CacheKeys.userBalance(uid));
+  if (cached !== null) return cached;
+
+  // 2. Firestore fallback
   const db = getFirestore();
   const balanceSnap = await db.doc(Paths.userBalance(uid)).get();
   if (!balanceSnap.exists) return 0;
-  return (balanceSnap.data() as UserBalanceDoc).balance;
+
+  const balance = (balanceSnap.data() as UserBalanceDoc).balance;
+
+  // Warm Redis (best-effort)
+  redis.set(CacheKeys.userBalance(uid), balance, CacheTTL.userBalance)
+    .catch(() => { /* non-critical */ });
+
+  return balance;
 }
