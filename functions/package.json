@@ -8,7 +8,33 @@
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
-    "logs": "firebase functions:log"
+    "logs": "firebase functions:log",
+    "test": "jest --passWithNoTests"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/__tests__/**/*.test.ts"
+    ],
+    "moduleNameMapper": {
+      "^firebase-admin/firestore$": "<rootDir>/src/__tests__/__mocks__/firebase-admin-firestore.ts",
+      "^firebase-admin$": "<rootDir>/src/__tests__/__mocks__/firebase-admin.ts",
+      "^firebase-functions/v2/https$": "<rootDir>/src/__tests__/__mocks__/firebase-functions.ts"
+    },
+    "transform": {
+      "^.+\\.tsx?$": ["ts-jest", {
+        "tsconfig": {
+          "module": "commonjs",
+          "esModuleInterop": true,
+          "skipLibCheck": true,
+          "strict": false,
+          "target": "es2020",
+          "noUnusedLocals": false,
+          "noImplicitReturns": false
+        }
+      }]
+    }
   },
   "engines": {
     "node": "20"
@@ -23,10 +49,13 @@
     "zod": "^3.23.0"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
     "eslint": "^8.57.0",
     "eslint-config-google": "^0.14.0",
+    "jest": "^30.3.0",
+    "ts-jest": "^29.4.9",
     "typescript": "^5.4.0"
   },
   "private": true
