@@ -7,13 +7,14 @@
  *
  * Existing inline notification writes from B2–B9 remain as-is; B12 will migrate them.
  *
- * FCM delivery is a STUB — real firebase-admin messaging is wired in I10.
- * RC: push_notifications_enabled (default: false until I10)
+ * FCM delivery is wired via firebase-admin/messaging (milestone I6).
+ * RC: push_notifications_enabled (set true in Remote Config to enable)
  *
- * Milestone: B10
+ * Milestone: B10, I6
  */
 
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { getMessaging, MulticastMessage } from "firebase-admin/messaging";
 import {
   NotificationDoc,
   NotificationType,
@@ -46,8 +47,8 @@ export type { NotificationType };
 // Constants
 // ---------------------------------------------------------------------------
 
-/** RC: push_notifications_enabled — false until I10 wires real FCM */
-const PUSH_ENABLED = false;
+/** RC: push_notifications_enabled — set true in Remote Config to enable FCM delivery */
+const PUSH_ENABLED = true;
 
 /** RC: notification_retention_days — used by cleanupOldNotifications */
 export const NOTIFICATION_RETENTION_DAYS = 90;
@@ -63,35 +64,106 @@ export const NOTIFICATION_MARK_READ_BATCH_SIZE = 500;
 const MAX_FCM_TOKENS_PER_USER = 5;
 
 // ---------------------------------------------------------------------------
-// FCM stub
+// FCM helpers
 // ---------------------------------------------------------------------------
 
 /**
- * sendFCMPush — stub implementation.
- * Logs the intent; real FCM multicast is wired in milestone I10.
- * TODO: wire firebase-admin messaging in I10
+ * Maps a NotificationType to an Android notification channel ID.
+ * Channel IDs must match those created in PushService.initialize() on the client.
+ */
+function getChannelId(type: NotificationType): string {
+  if (type === "new_message") return "messages";
+  if (type.startsWith("reservation_")) return "reservations";
+  if (
+    type.startsWith("points_") ||
+    type.startsWith("badge_") ||
+    type.startsWith("tier_") ||
+    type.startsWith("challenge_")
+  ) return "rewards";
+  return "general";
+}
+
+/**
+ * Batch-remove stale FCM tokens from users/{uid}.
+ * Called after sendEachForMulticast when registration-token-not-registered errors occur.
+ */
+async function removeStaleTokens(uid: string, stale: string[]): Promise<void> {
+  const promises = stale.map((token) => removeStaleToken(uid, token));
+  await Promise.allSettled(promises);
+}
+
+/**
+ * sendFCMPush — real firebase-admin multicast delivery (milestone I6).
+ *
+ * - Skips silently when PUSH_ENABLED is false (RC gate).
+ * - Converts vendor errors to internal log events; never throws.
+ * - Removes stale tokens automatically after delivery.
  */
 async function sendFCMPush(
   tokens: string[],
-  payload: NotificationPayload
+  payload: NotificationPayload,
+  uid: string
 ): Promise<void> {
-  log.info("FCM push stub: would send to devices", {
-    traceId: newTraceId(),
+  if (!PUSH_ENABLED) return;
+  if (tokens.length === 0) return;
+
+  const traceId = newTraceId();
+
+  const message: MulticastMessage = {
+    tokens,
+    notification: {
+      title: payload.title,
+      body: payload.body,
+      ...(payload.imageUrl ? { imageUrl: payload.imageUrl } : {}),
+    },
+    data: {
+      type: payload.type,
+      relatedEntityId: payload.relatedEntityId ?? "",
+      relatedEntityType: payload.relatedEntityType ?? "",
+      ...(payload.data ?? {}),
+    },
+    apns: {
+      payload: {
+        aps: {
+          sound: "default",
+          badge: 1,
+        },
+      },
+    },
+    android: {
+      priority: "high",
+      notification: {
+        sound: "default",
+        channelId: getChannelId(payload.type),
+      },
+    },
+  };
+
+  const response = await getMessaging().sendEachForMulticast(message);
+
+  log.info("sendFCMPush: delivery complete", {
+    traceId,
+    userId: uid,
     domain: "notifications",
-    eventId: "fcm_stub",
+    eventId: "fcm_delivery",
   }, {
     tokenCount: tokens.length,
+    successCount: response.successCount,
+    failureCount: response.failureCount,
     type: payload.type,
-    title: payload.title,
   });
-  // TODO: wire firebase-admin messaging in I10
-  // Example (I10):
-  //   import { getMessaging } from "firebase-admin/messaging";
-  //   await getMessaging().sendEachForMulticast({
-  //     tokens,
-  //     notification: { title: payload.title, body: payload.body },
-  //     data: payload.data,
-  //   });
+
+  // Prune stale tokens (registration-token-not-registered)
+  const staleTokens: string[] = [];
+  response.responses.forEach((resp, idx) => {
+    if (!resp.success && resp.error?.code === "messaging/registration-token-not-registered") {
+      staleTokens.push(tokens[idx]);
+    }
+  });
+
+  if (staleTokens.length > 0) {
+    await removeStaleTokens(uid, staleTokens);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -181,7 +253,7 @@ export async function sendNotification(
     const tokens: string[] = user.fcmTokens ?? [];
     if (tokens.length === 0) return;
 
-    await sendFCMPush(tokens, payload);
+    await sendFCMPush(tokens, payload, uid);
   } catch (err) {
     // FCM errors must never fail the caller
     log.error("sendNotification: FCM push failed", {
@@ -259,13 +331,21 @@ export async function sendBulkNotification(
     eventId: `bulk_${payload.type}`,
   }, { totalWritten, batchCount, type: payload.type });
 
-  // Per-user FCM push (best-effort; stub until I10)
+  // Per-user FCM push (best-effort). Firestore writes already batched above;
+  // only send FCM here to avoid double-writing inbox entries.
   if (PUSH_ENABLED) {
     for (const uid of uids) {
       try {
-        await sendNotification(uid, payload);
+        const userSnap = await db.doc(Paths.user(uid)).get();
+        if (!userSnap.exists) continue;
+        const user = userSnap.data() as UserDoc;
+        const prefs = user.notificationPreferences ?? {};
+        if (prefs[payload.type] === false) continue;
+        const tokens: string[] = user.fcmTokens ?? [];
+        if (tokens.length === 0) continue;
+        await sendFCMPush(tokens, payload, uid);
       } catch {
-        // non-fatal
+        // non-fatal — bulk FCM failure must never abort the loop
       }
     }
   }
@@ -273,7 +353,7 @@ export async function sendBulkNotification(
 
 // ---------------------------------------------------------------------------
 // removeStaleToken — removes a dead FCM token from users/{uid}
-// Called by FCM error handler in I10 when token is no longer registered.
+// Called by sendFCMPush when registration-token-not-registered is returned.
 // ---------------------------------------------------------------------------
 
 export async function removeStaleToken(uid: string, token: string): Promise<void> {

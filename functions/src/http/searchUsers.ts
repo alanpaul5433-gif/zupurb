@@ -1,11 +1,12 @@
 /**
  * searchUsers.ts — Authenticated callable: user search by display name.
  *
- * Returns safe public fields only. Never exposes private_user_data fields.
- * Text matching is done in-memory (Firestore limitation).
- * // TODO: replace with Algolia in I5
+ * Primary path:  Algolia full-text search on zupurb_users index (I5).
+ * Fallback path: Firestore + in-memory text filter (when credentials absent).
  *
- * Milestone: B9
+ * Returns safe public fields only. Never exposes private_user_data fields.
+ *
+ * Milestone: B9 + I5
  */
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
@@ -13,6 +14,7 @@ import { getFirestore } from "firebase-admin/firestore";
 import { z } from "zod";
 import { UserDoc, USERS_COLLECTION } from "../lib/schema";
 import { log, newTraceId } from "../lib/logging";
+import { getSearchClient, INDICES } from "../integrations/algolia/client";
 
 // ---------------------------------------------------------------------------
 // Input schema
@@ -57,47 +59,76 @@ export const searchUsers = onCall(async (request) => {
 
   const db = getFirestore();
 
-  // Build base query: only completed onboarding, not deleted
-  // NOTE: Firestore does not support full-text search — displayName matching is in-memory.
-  // TODO: replace with Algolia in I5
-  let q = db
-    .collection(USERS_COLLECTION)
-    .where("onboardingComplete", "==", true)
-    .orderBy("displayName", "asc");
+  let results: UserSearchResult[] = [];
+  let hasMore = false;
+  let nextCursor: string | null = null;
 
-  // Pagination cursor
-  if (afterDocId) {
-    const cursorSnap = await db.doc(`${USERS_COLLECTION}/${afterDocId}`).get();
-    if (cursorSnap.exists) {
-      q = q.startAfter(cursorSnap);
+  // ---------------------------------------------------------------------------
+  // Algolia primary path
+  // ---------------------------------------------------------------------------
+  const algoliaClient = getSearchClient();
+  if (algoliaClient) {
+    try {
+      const index = algoliaClient.initIndex(INDICES.users);
+      const algoliaFilters = ""; // city filter reserved; UserDoc city not yet indexed
+      const algoliaResult = await index.search<UserSearchResult>(query, {
+        filters:     algoliaFilters,
+        hitsPerPage: limit,
+        page:        0,
+      });
+
+      results    = algoliaResult.hits as unknown as UserSearchResult[];
+      hasMore    = algoliaResult.nbPages > 1;
+      nextCursor = hasMore && results.length > 0 ? results[results.length - 1].uid : null;
+    } catch (algoliaErr) {
+      log.warn("searchUsers: Algolia search failed — falling back to Firestore", {
+        traceId,
+        domain: "search",
+        eventId: `searchUsers_algoliaFallback_${uid}`,
+      }, { error: (algoliaErr as Error).message });
+      // results remains empty → fall through below
     }
   }
 
-  // Over-fetch for in-memory text filtering
-  const fetchLimit = Math.min(limit * 5, 250);
-  q = q.limit(fetchLimit);
+  // ---------------------------------------------------------------------------
+  // Firestore fallback
+  // ---------------------------------------------------------------------------
+  if (results.length === 0) {
+    let q = db
+      .collection(USERS_COLLECTION)
+      .where("onboardingComplete", "==", true)
+      .orderBy("displayName", "asc");
 
-  const snap = await q.get();
+    if (afterDocId) {
+      const cursorSnap = await db.doc(`${USERS_COLLECTION}/${afterDocId}`).get();
+      if (cursorSnap.exists) {
+        q = q.startAfter(cursorSnap);
+      }
+    }
 
-  const q_lower = query.toLowerCase();
+    const fetchLimit = Math.min(limit * 5, 250);
+    q = q.limit(fetchLimit);
 
-  // In-memory text filter on displayName
-  let matched = snap.docs
-    .map((d) => d.data() as UserDoc)
-    .filter((u) => u.displayName?.toLowerCase().includes(q_lower));
+    const snap = await q.get();
+    const q_lower = query.toLowerCase();
 
-  const pageDocs = matched.slice(0, limit);
-  const hasMore = matched.length > limit;
-  const nextCursor = hasMore && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].uid : null;
+    const matched = snap.docs
+      .map((d) => d.data() as UserDoc)
+      .filter((u) => u.displayName?.toLowerCase().includes(q_lower));
 
-  const results: UserSearchResult[] = pageDocs.map((u) => ({
-    uid:           u.uid,
-    displayName:   u.displayName,
-    photoUrl:      u.photoUrl,
-    reviewCount:   u.reviewCount,
-    followersCount: u.followersCount,
-    loyaltyTier:   u.loyaltyTier,
-  }));
+    const pageDocs = matched.slice(0, limit);
+    hasMore    = matched.length > limit;
+    nextCursor = hasMore && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].uid : null;
+
+    results = pageDocs.map((u) => ({
+      uid:            u.uid,
+      displayName:    u.displayName,
+      photoUrl:       u.photoUrl,
+      reviewCount:    u.reviewCount,
+      followersCount: u.followersCount,
+      loyaltyTier:    u.loyaltyTier,
+    }));
+  }
 
   log.info("searchUsers: complete", {
     traceId,

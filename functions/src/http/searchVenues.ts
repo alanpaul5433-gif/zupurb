@@ -1,15 +1,15 @@
 /**
- * searchVenues.ts — Authenticated callable: Firestore-native venue search.
+ * searchVenues.ts — Authenticated callable: venue search.
  *
- * Performs filtered queries on `establishments` collection. Text matching is
- * done in-memory on returned docs (name / description contains query string).
- * // TODO: replace with Algolia in I5
+ * Primary path:  Algolia full-text + filtered search (I5).
+ * Fallback path: Firestore-native query + in-memory text filter (used when
+ *                Algolia credentials are absent — dev / test environments).
  *
  * RC keys:
  *   search_default_limit   (default 20)
  *   fpyl_cache_ttl_minutes (default 60)
  *
- * Milestone: B9
+ * Milestone: B9 + I5
  */
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
@@ -21,6 +21,7 @@ import {
 } from "../lib/schema";
 import { getCachedFPYLScore } from "../algorithms/scoring";
 import { log, newTraceId } from "../lib/logging";
+import { getSearchClient, INDICES } from "../integrations/algolia/client";
 
 // ---------------------------------------------------------------------------
 // Input schema
@@ -87,6 +88,35 @@ function textMatch(doc: EstablishmentDoc, query: string): boolean {
 
 // getFpylScore removed in B11 — replaced by getCachedFPYLScore (Redis-backed)
 
+/**
+ * Build an Algolia filter string from search parameters.
+ * Algolia filter syntax: https://www.algolia.com/doc/guides/managing-results/refine-results/filtering/
+ */
+function buildAlgoliaFilters(params: {
+  city?: string;
+  categories?: string[];
+  hasReservations?: boolean;
+}): string {
+  const clauses: string[] = [];
+  // isActive must always be true for public search
+  clauses.push("isActive:true");
+  if (params.city) {
+    // Escape single quotes in city names
+    clauses.push(`city:"${params.city.replace(/"/g, '\\"')}"`);
+  }
+  if (params.hasReservations === true) {
+    clauses.push("acceptsReservations:true");
+  }
+  if (params.categories && params.categories.length > 0) {
+    // OR across category values: (categories:restaurant OR categories:bar)
+    const catClause = params.categories
+      .map((c) => `categories:"${c.replace(/"/g, '\\"')}"`)
+      .join(" OR ");
+    clauses.push(`(${catClause})`);
+  }
+  return clauses.join(" AND ");
+}
+
 // ---------------------------------------------------------------------------
 // Callable
 // ---------------------------------------------------------------------------
@@ -107,56 +137,86 @@ export const searchVenues = onCall(async (request) => {
 
   const db = getFirestore();
 
-  // Build base query
-  let q = db
-    .collection(ESTABLISHMENTS_COLLECTION)
-    .where("isActive", "==", true);
+  let pageDocs: EstablishmentDoc[] = [];
+  let hasMore = false;
+  let nextCursor: string | null = null;
 
-  if (city) {
-    q = q.where("city", "==", city);
-  }
-  if (hasReservations === true) {
-    q = q.where("isOpenForReservations", "==", true);
-  }
+  // ---------------------------------------------------------------------------
+  // Algolia primary path
+  // ---------------------------------------------------------------------------
+  const algoliaClient = getSearchClient();
+  if (algoliaClient && query.trim()) {
+    try {
+      const index = algoliaClient.initIndex(INDICES.venues);
+      const algoliaResult = await index.search<EstablishmentDoc>(query, {
+        filters:      buildAlgoliaFilters({ city, categories, hasReservations }),
+        hitsPerPage:  limit,
+        page:         0,
+        // Sort replica selection: Algolia uses separate replica indices per sort.
+        // Default index = score DESC; newest = separate replica (configure in Algolia dashboard).
+        // For now sort is applied client-side after fetch; replica support is a dashboard task.
+      });
 
-  // categories: array-contains-any supports up to 10 values
-  if (categories && categories.length > 0) {
-    q = q.where("categories", "array-contains-any", categories.slice(0, 10));
-  }
-
-  // Sort
-  if (sortBy === "newest") {
-    q = q.orderBy("createdAt", "desc");
-  } else {
-    // default: score DESC
-    q = q.orderBy("overallScore", "desc");
-  }
-
-  // Pagination cursor
-  if (afterDocId) {
-    const cursorSnap = await db.doc(`${ESTABLISHMENTS_COLLECTION}/${afterDocId}`).get();
-    if (cursorSnap.exists) {
-      q = q.startAfter(cursorSnap);
+      // Map Algolia hits to EstablishmentDoc shape (hits are partial — only indexed fields)
+      pageDocs = algoliaResult.hits as unknown as EstablishmentDoc[];
+      hasMore   = algoliaResult.nbPages > 1;
+      nextCursor = hasMore && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].estId : null;
+    } catch (algoliaErr) {
+      // Log and fall through to Firestore fallback
+      log.warn("searchVenues: Algolia search failed — falling back to Firestore", {
+        traceId,
+        domain: "search",
+        eventId: `searchVenues_algoliaFallback_${uid}`,
+      }, { error: (algoliaErr as Error).message });
+      // pageDocs remains empty → fall through below
     }
   }
 
-  // Fetch extra to support in-memory text filtering while preserving pagination
-  // NOTE: Firestore does not support full-text search — name matching is done in-memory.
-  // TODO: replace with Algolia in I5
-  const fetchLimit = Math.min(limit * 3, 150); // over-fetch for text filter headroom
-  q = q.limit(fetchLimit);
+  // ---------------------------------------------------------------------------
+  // Firestore fallback — used when Algolia unavailable or query is empty
+  // ---------------------------------------------------------------------------
+  if (pageDocs.length === 0) {
+    let q = db
+      .collection(ESTABLISHMENTS_COLLECTION)
+      .where("isActive", "==", true);
 
-  const snap = await q.get();
+    if (city) {
+      q = q.where("city", "==", city);
+    }
+    if (hasReservations === true) {
+      q = q.where("isOpenForReservations", "==", true);
+    }
+    if (categories && categories.length > 0) {
+      q = q.where("categories", "array-contains-any", categories.slice(0, 10));
+    }
 
-  // In-memory text filter
-  let docs = snap.docs.map((d) => d.data() as EstablishmentDoc);
-  if (query) {
-    docs = docs.filter((d) => textMatch(d, query));
+    if (sortBy === "newest") {
+      q = q.orderBy("createdAt", "desc");
+    } else {
+      q = q.orderBy("overallScore", "desc");
+    }
+
+    if (afterDocId) {
+      const cursorSnap = await db.doc(`${ESTABLISHMENTS_COLLECTION}/${afterDocId}`).get();
+      if (cursorSnap.exists) {
+        q = q.startAfter(cursorSnap);
+      }
+    }
+
+    // Over-fetch for in-memory text filter headroom
+    const fetchLimit = Math.min(limit * 3, 150);
+    q = q.limit(fetchLimit);
+
+    const snap = await q.get();
+    let docs = snap.docs.map((d) => d.data() as EstablishmentDoc);
+    if (query) {
+      docs = docs.filter((d) => textMatch(d, query));
+    }
+
+    pageDocs   = docs.slice(0, limit);
+    hasMore    = docs.length > limit;
+    nextCursor = hasMore && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].estId : null;
   }
-
-  const pageDocs = docs.slice(0, limit);
-  const hasMore = docs.length > limit;
-  const nextCursor = hasMore && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].estId : null;
 
   // Attach FPYL scores in parallel if requested
   // PERF: p95 < 500ms Firestore-native; < 100ms post-Algolia (I5)

@@ -1,10 +1,10 @@
 /**
  * searchContent.ts — Authenticated callable: content search (posts / reviews).
  *
- * Text matching is done in-memory on returned docs (Firestore limitation).
- * // TODO: replace with Algolia in I5
+ * Primary path:  Algolia search on zupurb_posts index (I5).
+ * Fallback path: Firestore + in-memory text filter (when credentials absent).
  *
- * Milestone: B9
+ * Milestone: B9 + I5
  */
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
@@ -19,6 +19,7 @@ import {
   Paths,
 } from "../lib/schema";
 import { log, newTraceId } from "../lib/logging";
+import { getSearchClient, INDICES } from "../integrations/algolia/client";
 
 // ---------------------------------------------------------------------------
 // Input schema
@@ -85,17 +86,65 @@ export const searchContent = onCall(async (request) => {
   const db = getFirestore();
   const q_lower = query.toLowerCase();
 
-  // Determine which collections to search
   const includePost   = !contentType || contentType === "post";
   const includeReview = !contentType || contentType === "review";
+  const FETCH_LIMIT   = Math.min(limit * 4, 200);
 
-  const FETCH_LIMIT = Math.min(limit * 4, 200);
+  // ---------------------------------------------------------------------------
+  // Algolia primary path — searches the zupurb_posts index.
+  // Note: reviews are not yet a separate Algolia index; they fall through to
+  // Firestore. If contentType === "post" or undefined, try Algolia first.
+  // ---------------------------------------------------------------------------
+  const algoliaClient = getSearchClient();
+
+  let page: ContentSearchResult[] = [];
+  let hasMore    = false;
+  let nextCursor: string | null = null;
+
+  if (algoliaClient && includePost) {
+    try {
+      const index = algoliaClient.initIndex(INDICES.posts);
+      const filters = contentType === "post" ? "isActive:true" : "isActive:true";
+      const algoliaResult = await index.search<ContentSearchResult>(query, {
+        filters,
+        hitsPerPage: limit,
+        page:        0,
+      });
+
+      const hits = algoliaResult.hits as unknown as ContentSearchResult[];
+
+      // If contentType restricted to post only, return Algolia results directly.
+      if (contentType === "post") {
+        page       = hits;
+        hasMore    = algoliaResult.nbPages > 1;
+        nextCursor = hasMore && page.length > 0 ? page[page.length - 1].id : null;
+
+        log.info("searchContent: complete (Algolia posts)", {
+          traceId,
+          userId: uid,
+          domain: "search",
+          eventId: `searchContent_${uid}`,
+        }, { resultCount: page.length, query, contentType, hasMore });
+
+        return { results: page, hasMore, nextCursor };
+      }
+    } catch (algoliaErr) {
+      log.warn("searchContent: Algolia search failed — falling back to Firestore", {
+        traceId,
+        domain: "search",
+        eventId: `searchContent_algoliaFallback_${uid}`,
+      }, { error: (algoliaErr as Error).message });
+      // fall through to Firestore below
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Firestore fallback (also used for reviews, and when Algolia unavailable)
+  // ---------------------------------------------------------------------------
 
   async function searchPosts(): Promise<ContentSearchResult[]> {
     if (!includePost) return [];
 
-    // NOTE: Full-text search not supported in Firestore — in-memory filter on caption.
-    // TODO: replace with Algolia in I5
     let q = db
       .collection(POSTS_COLLECTION)
       .where("isActive", "==", true)
@@ -132,8 +181,6 @@ export const searchContent = onCall(async (request) => {
   async function searchReviews(): Promise<ContentSearchResult[]> {
     if (!includeReview) return [];
 
-    // NOTE: Full-text search not supported in Firestore — in-memory filter on body/title.
-    // TODO: replace with Algolia in I5
     let q = db
       .collection(REVIEWS_COLLECTION)
       .where("status", "in", ["published"])
@@ -170,15 +217,14 @@ export const searchContent = onCall(async (request) => {
     );
   }
 
-  // Run both searches in parallel, then merge and sort by recency
   const [postResults, reviewResults] = await Promise.all([searchPosts(), searchReviews()]);
 
   let combined = [...postResults, ...reviewResults];
   combined.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
 
-  const page = combined.slice(0, limit);
-  const hasMore = combined.length > limit;
-  const nextCursor = hasMore && page.length > 0 ? page[page.length - 1].id : null;
+  page       = combined.slice(0, limit);
+  hasMore    = combined.length > limit;
+  nextCursor = hasMore && page.length > 0 ? page[page.length - 1].id : null;
 
   log.info("searchContent: complete", {
     traceId,

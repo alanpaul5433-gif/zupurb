@@ -166,3 +166,28 @@ export { processPlusExpirations }  from "./scheduled/processPlusExpirations";
 
 export { runOCRHarnessCallable as runOCRHarness }  from "./http/runOCRHarness";
 export { extractReceiptData }                       from "./http/extractReceiptData";
+
+// ---------------------------------------------------------------------------
+// I5 — Algolia Multi-Index Search
+// ---------------------------------------------------------------------------
+
+export { adminReindexAlgolia } from "./http/adminReindexAlgolia";
+
+// ---------------------------------------------------------------------------
+// I7 — RevenueCat IAP Webhook
+// Receives POST /revenueCatWebhook from RevenueCat.
+// Activates / deactivates Zupurb Plus by calling activatePlus / deactivatePlus.
+// ---------------------------------------------------------------------------
+
+export { revenueCatWebhook } from "./integrations/revenuecat/webhook";
+
+// ---------------------------------------------------------------------------
+// I8 — Gift Cards (Tremendous)
+// tremendousWebhook: POST endpoint for Tremendous order status webhooks
+// syncTremendousOrders: hourly job to reconcile pending orders
+// adminListTremendousProducts: admin callable to browse the Tremendous catalog
+// ---------------------------------------------------------------------------
+
+export { tremendousWebhook }           from "./integrations/tremendous/webhookHandler";
+export { syncTremendousOrders }        from "./scheduled/syncTremendousOrders";
+export { adminListTremendousProducts } from "./http/adminListTremendousProducts";

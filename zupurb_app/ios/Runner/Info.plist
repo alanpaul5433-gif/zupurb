@@ -45,6 +45,9 @@
 	<string>Zupurb uses your location to show nearby restaurants and bars.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Zupurb uses your location to show nearby restaurants and bars.</string>
+	<!-- FCM: enable automatic token registration on launch (I6) -->
+	<key>FirebaseMessagingAutoInitEnabled</key>
+	<true/>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

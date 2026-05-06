@@ -23,6 +23,10 @@ import {
 import { getBalance } from "../lib/ledger";
 import { assertNotAlcoholDeal, assertDealActive } from "../lib/deals";
 import { log, newTraceId } from "../lib/logging";
+import {
+  fulfillGiftCardRedemption,
+  PRODUCT_MAP,
+} from "../integrations/tremendous/fulfillment";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -35,23 +39,6 @@ const DEFAULT_MAX_PER_USER = 1; // RC: deal_default_max_per_user
 
 // RC: deals.qrTtlMinutes — QR code time-to-live in minutes
 const QR_TTL_MINUTES = 120; // RC: deals.qrTtlMinutes
-
-// ---------------------------------------------------------------------------
-// Stubs for integrations not yet wired (B6 — real impl in I8)
-// ---------------------------------------------------------------------------
-
-/**
- * Stub: Enqueue a Cloud Tasks job to call Tremendous API for gift card fulfillment.
- * Real implementation lives in integrations milestone I8.
- */
-async function enqueueTremendousOrder(redemptionId: string): Promise<void> {
-  log.info("enqueueTremendousOrder: stub — Cloud Tasks job would be enqueued here", {
-    traceId: "stub",
-    domain: "deals",
-    eventId: `tremendous_stub_${redemptionId}`,
-  }, { redemptionId });
-  // TODO (I8): enqueue Cloud Tasks job → tremendous.ts integration
-}
 
 // ---------------------------------------------------------------------------
 // Input schema
@@ -293,9 +280,26 @@ export const redeemDeal = onCall(async (request) => {
   let finalStatus: DealRedemptionDoc["status"] = "pending";
 
   if (isGiftCard) {
-    // Enqueue Cloud Tasks job to call Tremendous (stub for now — real impl in I8)
-    await enqueueTremendousOrder(redemptionId);
-    // Status remains 'pending' until Tremendous webhook confirms
+    // Real Tremendous fulfillment (I7)
+    // Resolve Tremendous product ID from deal config or default fallback.
+    // DealDoc.tremendousProductKey is expected as an optional string field —
+    // cast via type assertion since the schema was written before I7 was wired.
+    const productKey = (deal as DealDoc & { tremendousProductKey?: string }).tremendousProductKey ?? "default";
+    const tremendousProductId = PRODUCT_MAP[productKey] ?? PRODUCT_MAP["default"];
+    // valueUsd: use originalValueCents (integer cents) converted to dollars, fallback 10
+    const valueUsd = deal.originalValueCents > 0
+      ? deal.originalValueCents / 100
+      : 10;
+
+    await fulfillGiftCardRedemption({
+      redemptionId,
+      dealId:              deal.dealId,
+      recipientUid:        uid,
+      dealTitle:           deal.title,
+      valueUsd,
+      tremendousProductId,
+    });
+    // Status remains 'pending' until Tremendous confirms (via webhook or sync job)
   } else {
     // Non-gift-card deals are fulfilled immediately (QR payload is ready)
     finalStatus = "fulfilled";

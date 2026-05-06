@@ -1,17 +1,23 @@
 /**
  * onEstablishmentWrite.ts — Firestore trigger on establishments/{eid}.
  *
- * On create:   log Algolia index stub (TODO: wire in I5).
- * On update:   if score fields changed, refresh establishmentScores/{eid} cache.
- * On deactivate (isActive → false): log for removal from search (TODO: Algolia in I5).
+ * On create:   index establishment in Algolia (I5).
+ * On update:   if score fields changed, refresh establishmentScores/{eid} cache;
+ *              also update Algolia record.
+ * On deactivate (isActive → false): remove from Algolia index (I5).
+ * On delete:   remove from Algolia index (I5).
  *
- * Milestone: B9
+ * Milestone: B9 + I5
  */
 
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { EstablishmentDoc, Paths } from "../lib/schema";
 import { log, newTraceId } from "../lib/logging";
+import {
+  indexEstablishment,
+  deindexEstablishment,
+} from "../integrations/algolia/indexing";
 
 export const onEstablishmentWrite = onDocumentWritten(
   "establishments/{eid}",
@@ -23,11 +29,11 @@ export const onEstablishmentWrite = onDocumentWritten(
     const after  = event.data?.after?.data()  as EstablishmentDoc | undefined;
 
     // -----------------------------------------------------------------------
-    // DELETE / hard-deactivate
+    // DELETE / hard-delete — remove from Algolia
     // -----------------------------------------------------------------------
     if (!after) {
-      // TODO: remove from Algolia in I5
-      log.info("[Algolia stub] Remove establishment from index", {
+      await deindexEstablishment(eid);
+      log.info("onEstablishmentWrite: establishment deleted + deindexed", {
         traceId,
         domain: "establishments",
         eventId: `estWrite_delete_${eid}`,
@@ -36,11 +42,11 @@ export const onEstablishmentWrite = onDocumentWritten(
     }
 
     // -----------------------------------------------------------------------
-    // CREATE
+    // CREATE — index in Algolia
     // -----------------------------------------------------------------------
     if (!before) {
-      // TODO: replace with Algolia in I5
-      log.info("[Algolia stub] Index establishment: " + eid, {
+      await indexEstablishment(eid, after);
+      log.info("onEstablishmentWrite: establishment created + indexed", {
         traceId,
         domain: "establishments",
         eventId: `estWrite_create_${eid}`,
@@ -80,22 +86,23 @@ export const onEstablishmentWrite = onDocumentWritten(
     }
 
     // -----------------------------------------------------------------------
-    // UPDATE — isActive toggled to false → deactivate in search
+    // UPDATE — isActive toggled to false → remove from search index
     // -----------------------------------------------------------------------
     if (before.isActive && !after.isActive) {
-      // TODO: remove from Algolia index in I5
-      log.info("[Algolia stub] Deactivate establishment in index: " + eid, {
+      await deindexEstablishment(eid);
+      log.info("onEstablishmentWrite: establishment deactivated + deindexed", {
         traceId,
         domain: "establishments",
         eventId: `estWrite_deactivate_${eid}`,
       }, { eid });
+      return;
     }
 
     // -----------------------------------------------------------------------
-    // UPDATE — any field change → update Algolia record (stub)
+    // UPDATE — any other field change → upsert Algolia record
     // -----------------------------------------------------------------------
-    // TODO: replace with Algolia in I5
-    log.info("[Algolia stub] Update establishment record: " + eid, {
+    await indexEstablishment(eid, after);
+    log.info("onEstablishmentWrite: establishment updated + re-indexed", {
       traceId,
       domain: "establishments",
       eventId: `estWrite_update_${eid}`,

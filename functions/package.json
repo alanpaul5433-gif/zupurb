@@ -16,6 +16,7 @@
   "main": "lib/index.js",
   "dependencies": {
     "@aws-sdk/client-textract": "^3.600.0",
+    "algoliasearch": "^4.24.0",
     "firebase-admin": "^12.0.0",
     "firebase-functions": "^4.9.0",
     "mindee": "^4.12.0",
