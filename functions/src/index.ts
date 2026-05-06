@@ -191,3 +191,14 @@ export { revenueCatWebhook } from "./integrations/revenuecat/webhook";
 export { tremendousWebhook }           from "./integrations/tremendous/webhookHandler";
 export { syncTremendousOrders }        from "./scheduled/syncTremendousOrders";
 export { adminListTremendousProducts } from "./http/adminListTremendousProducts";
+
+// ---------------------------------------------------------------------------
+// D8 — Crashlytics Alerts
+// ---------------------------------------------------------------------------
+
+export {
+  alerts_onNewFatalIssue,
+  alerts_onNewAnrIssue,
+  alerts_onVelocityAlert,
+  alerts_onStabilityDigest,
+} from "./alerts/crashlytics_alerts";
