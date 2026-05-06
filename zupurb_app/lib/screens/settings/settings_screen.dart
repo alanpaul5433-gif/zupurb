@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import '../../state/analytics/analytics_providers.dart';
 import '../../state/iap/iap_providers.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
@@ -17,6 +18,14 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _pushNotifs = true;
   bool _marketing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(analyticsServiceProvider).logScreen('settings');
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

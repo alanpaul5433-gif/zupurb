@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../widgets/app_button.dart';
+import '../../state/analytics/analytics_providers.dart';
 import '../../state/location/location_providers.dart';
 
 // P0-3: Step 10 — Neighborhood / Location preferences (final onboarding step)
@@ -21,6 +22,14 @@ class _OnboardingStep10ScreenState
   final Set<String> _neighborhoods = {};
   String _radius = '5 km';
   bool _locationLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(analyticsServiceProvider).logScreen('onboarding_step_10');
+    });
+  }
 
   final _radiusOptions = ['1 km', '2 km', '5 km', '10 km', '25 km'];
   final _nearbyNeighborhoods = [

@@ -26,6 +26,22 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Android App Links (I10): https deep links verified against
+                 https://zupurb.app/.well-known/assetlinks.json -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="zupurb.app" />
+                <data android:scheme="https" android:host="www.zupurb.app" />
+            </intent-filter>
+            <!-- Custom URI scheme fallback: zupurb://app/... (I10) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="zupurb" android:host="app" />
+            </intent-filter>
         </activity>
         <!-- FCM message receiver service (I6) -->
         <service

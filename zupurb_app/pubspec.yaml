@@ -34,6 +34,10 @@ dependencies:
   purchases_flutter: ^10.0.1   # RevenueCat Flutter SDK (I6 — IAP/subscriptions)
   firebase_messaging: ^15.1.3  # FCM push notifications (I6)
   flutter_local_notifications: ^18.0.1  # Foreground notification display (I6)
+  app_links: ^6.3.2             # Deep linking — Android App Links + iOS Universal Links (I10)
+  shared_preferences: ^2.3.3   # Used by DeepLinkService to store pending_referral_code (I10)
+  firebase_crashlytics: ^4.1.3  # Crash reporting + non-fatal error logging (I12)
+  firebase_analytics: ^11.3.3  # Firebase Analytics — screen tracking, custom events (I11)
 
 dev_dependencies:
   flutter_test:

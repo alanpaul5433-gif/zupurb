@@ -37,6 +37,7 @@ import { sendNotification } from "../lib/notify";
 import { REFERRAL_CODES_COLLECTION, UserDoc } from "../lib/schema";
 import { getTierMultiplier } from "../lib/tiers";
 import { isPlusActive } from "../lib/plus";
+import { moderateContent } from "../lib/moderation";
 
 // ---------------------------------------------------------------------------
 // Zod input schema
@@ -171,6 +172,17 @@ export const submitReview = onCall(
     // 7. Compute bodyHash
     const bodyText = input.writtenReview ?? "";
     const bodyHash = sha256(normaliseText(bodyText));
+
+    // 7b. Moderate written review text (I9 — Perspective API)
+    if (bodyText.length > 0) {
+      const modResult = await moderateContent(bodyText, traceId);
+      if (modResult.flagged) {
+        log.warn("submitReview: content moderation flagged review", {
+          traceId, userId: uid, domain: "moderation", eventId: `submit_${uid}`,
+        }, { reason: modResult.reason });
+        throw new HttpsError("invalid-argument", "Content violates community guidelines.");
+      }
+    }
 
     // 8. Compute per-review score (server-side; client scores are validated but not trusted directly)
     const answers: ReviewAnswerInput[] = input.answers.map((a) => ({

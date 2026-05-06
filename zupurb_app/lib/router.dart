@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'state/auth/auth_providers.dart';
+import 'state/analytics/analytics_providers.dart';
 
 import 'screens/auth/splash_screen.dart';
 import 'screens/auth/login_screen.dart';
@@ -84,9 +85,12 @@ class _AuthNotifier extends ChangeNotifier {
 GoRouter buildRouter(Ref ref) {
   final notifier = _AuthNotifier(ref);
 
+  final analyticsObserver = ref.read(analyticsObserverProvider);
+
   return GoRouter(
     initialLocation: '/splash',
     refreshListenable: notifier,
+    observers: [analyticsObserver],
     redirect: (context, state) {
       final authValue = ref.read(authStateProvider);
 

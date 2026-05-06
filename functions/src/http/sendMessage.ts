@@ -153,7 +153,7 @@ export const sendMessage = onCall(async (request) => {
   // Content moderation stub (real implementation in I9)
   // ---------------------------------------------------------------------------
 
-  const modResult = await moderateContent(text);
+  const modResult = await moderateContent(text, traceId);
   // If flagged, we still write the message but mark it as moderated.
   // Admin is alerted via the onMessageWrite trigger.
 

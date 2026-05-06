@@ -68,7 +68,7 @@ export const onMessageWrite = onDocumentWritten(
       // Content moderation (async, non-blocking for message delivery)
       if (!after.isDeleted && !after.isModerated) {
         try {
-          const modResult = await moderateContent(after.text);
+          const modResult = await moderateContent(after.text, traceId);
           if (modResult.flagged) {
             const msgRef = db
               .collection("conversations")

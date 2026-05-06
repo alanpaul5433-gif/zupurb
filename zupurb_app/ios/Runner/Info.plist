@@ -52,6 +52,23 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Deep link custom scheme (I10): handles zupurb://... URIs.
+	     Universal Links (https://zupurb.app/...) are handled server-side via
+	     apple-app-site-association at https://zupurb.app/.well-known/apple-app-site-association
+	     — no Info.plist entry needed for Universal Links; only the custom scheme is declared here. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>app.zupurb.deeplink</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>zupurb</string>
+			</array>
+		</dict>
+	</array>
 	<!-- SKAdNetworkItems: required placeholder for StoreKit attribution; populate with
 	     RevenueCat-recommended SKAdNetwork IDs before App Store submission. -->
 	<key>SKAdNetworkItems</key>

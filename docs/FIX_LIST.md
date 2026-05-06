@@ -74,6 +74,7 @@ Source: screen-by-screen audit of `Zupurb User App/UI/` against `ZUPURB - SOW V6
 |---|---|---|---|---|
 | I-info-1 | Multiple screens (Phase 1B) | `withOpacity` deprecated (10 instances across splash, discover, home, onboarding, reservation, settings) | Replace with `.withValues(alpha: ...)`. Not introduced by I1; pre-existing. | OPEN |
 | I2-1 | `lib/widgets/establishment_map.dart` | `_openDirections` builds the Google Maps URL but does not launch it — `url_launcher` not yet in pubspec. | Add `url_launcher: ^6.3.0` to pubspec.yaml and wire `launchUrl(uri)` in `_openDirections`. | OPEN |
+| I12-1 | `lib/core/services/analytics_service.dart:74` | Pre-existing parser error: "Expected an identifier" on `_analytics.logEvent(name:…)`. Not introduced by I12. Likely a `firebase_analytics ^11.3.3` API mismatch — `logEvent` parameter names may have changed. | Investigate `FirebaseAnalytics.logEvent` signature in v11 and update call site. | OPEN |
 | I3-1 | `functions/src/integrations/algolia/client.ts` | Pre-existing tsc TS2307: Cannot find module 'algoliasearch' or its corresponding type declarations. `algoliasearch` npm package not installed. | `cd functions && npm install algoliasearch` then verify tsc passes. | OPEN |
 
 ## Backend Fix Register (B-series)
