@@ -1,0 +1,9 @@
+{
+  "@@locale": "en",
+  "appName": "Zupurb",
+  "@appName": { "description": "The name of the application" },
+  "continueButton": "Continue",
+  "@continueButton": { "description": "Generic continue button label" },
+  "cancelButton": "Cancel",
+  "@cancelButton": { "description": "Generic cancel button label" }
+}

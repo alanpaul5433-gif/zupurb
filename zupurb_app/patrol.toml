@@ -1,0 +1,8 @@
+[ios]
+bundle_id = "com.zupurb.app"
+
+[android]
+package_name = "com.zupurb.app"
+
+[general]
+verbose = true

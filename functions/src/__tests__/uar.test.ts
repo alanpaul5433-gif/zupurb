@@ -79,10 +79,6 @@ describe("computeUAR — all-max components", () => {
       },
     };
 
-    const mockGet = jest.fn().mockImplementation(async (ref: { path?: string } = {}) => {
-      return makeSnapshot(true, {});
-    });
-
     const emptyQuery = {
       where: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),

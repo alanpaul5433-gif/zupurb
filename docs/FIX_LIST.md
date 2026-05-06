@@ -77,6 +77,15 @@ Source: screen-by-screen audit of `Zupurb User App/UI/` against `ZUPURB - SOW V6
 | I12-1 | `lib/core/services/analytics_service.dart:74` | Pre-existing parser error: "Expected an identifier" on `_analytics.logEvent(name:…)`. Not introduced by I12. Likely a `firebase_analytics ^11.3.3` API mismatch — `logEvent` parameter names may have changed. | Investigate `FirebaseAnalytics.logEvent` signature in v11 and update call site. | OPEN |
 | I3-1 | `functions/src/integrations/algolia/client.ts` | Pre-existing tsc TS2307: Cannot find module 'algoliasearch' or its corresponding type declarations. `algoliasearch` npm package not installed. | `cd functions && npm install algoliasearch` then verify tsc passes. | OPEN |
 
+## Security Fix Register (T8)
+
+| ID | Pillar | Severity | Issue | Recommendation | Status |
+|---|---|---|---|---|---|
+| BUG-SEC-01 | Backend | P1 | `pointsLedger` Firestore rule allows clients to create earn entries with uncapped `delta`. A malicious client can write arbitrarily large fake earn entries. If any server code sums raw ledger entries instead of reading from the Admin-written `userBalances` projection, the fake entry inflates balance. | Remove `allow create` from the `pointsLedger` rule entirely. All writes go through Cloud Functions via Admin SDK. Implement optimistic UI in Flutter local state only. | OPEN |
+| BUG-SEC-02 | Backend | P1 | `redeemDeal.ts` does not validate Plus entitlement server-side for deals that require Plus (`deal.isPlusRequired`). Plus gating exists only in the Flutter UI. A client calling the function directly bypasses the gate. | In `redeemDeal.ts`, after loading the deal, add: `if (deal.isPlusRequired && !(await isPlusActive(uid))) throw HttpsError('permission-denied', ...)`. | OPEN |
+| BUG-SEC-03 | Frontend | P1 | `firebase_init.dart` uses `AndroidProvider.debug` and `AppleProvider.debug` unconditionally. Production builds do not receive real attestation, leaving all Cloud Function endpoints open to bot/script abuse. | Wrap providers in `kReleaseMode` conditional: PlayIntegrity (Android) + DeviceCheck (iOS) in release; debug otherwise. Must be done before any beta or production distribution. | OPEN |
+| BUG-SEC-04 | Backend | P1 | `submitReview`, `createReservation`, `redeemDeal`, `verifyCheckIn`, `sendMessage`, and ~40 other callables lack `enforceAppCheck: true`. Without it, any HTTP client with a valid Firebase API key can call these functions directly, bypassing device attestation. | Add `enforceAppCheck: true` to the `onCall` options for at minimum the five high-value functions listed. Do this after BUG-SEC-03 is resolved so legitimate clients are not broken. | OPEN |
+
 ## Backend Fix Register (B-series)
 
 | # | Domain | Issue | Fix | Status |

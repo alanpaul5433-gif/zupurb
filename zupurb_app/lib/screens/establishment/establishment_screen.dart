@@ -22,6 +22,7 @@ class EstablishmentScreen extends StatelessWidget {
             backgroundColor: const Color(0xFFF5F0ED),
             leading: IconButton(
               onPressed: () => context.pop(),
+              tooltip: 'Back',
               icon: const CircleAvatar(backgroundColor: Colors.white, child: Icon(Icons.arrow_back_ios, size: 16, color: AppColors.textPrimary)),
             ),
             flexibleSpace: FlexibleSpaceBar(
@@ -140,7 +141,7 @@ class _InfoChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 13, color: AppColors.textSecondary),
+          ExcludeSemantics(child: Icon(icon, size: 13, color: AppColors.textSecondary)),
           const Gap(4),
           Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textPrimary, fontWeight: FontWeight.w500)),
         ],
@@ -177,7 +178,7 @@ class _DealCard extends StatelessWidget {
               Text('$points pts', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
             ],
           )),
-          const Icon(Icons.chevron_right, color: AppColors.textTertiary),
+          const ExcludeSemantics(child: Icon(Icons.chevron_right, color: AppColors.textTertiary)),
         ],
       ),
     );

@@ -39,7 +39,7 @@ jest.mock("../lib/cacheKeys", () => ({
 // Imports
 // ---------------------------------------------------------------------------
 
-import { Timestamp, getFirestore, FieldValue } from "firebase-admin/firestore";
+import { Timestamp, getFirestore } from "firebase-admin/firestore";
 import { getExpiringEntries, expireStalePoints } from "../lib/ledger";
 import { PointsLedgerEntry } from "../lib/schema";
 

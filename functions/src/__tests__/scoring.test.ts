@@ -40,7 +40,6 @@ jest.mock("../lib/cacheKeys", () => ({
 // Imports
 // ---------------------------------------------------------------------------
 
-import { Timestamp } from "firebase-admin/firestore";
 import {
   computeReviewScore,
   ReviewAnswerInput,

@@ -36,7 +36,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 children: [
                   const Text('Search', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A))),
                   const Spacer(),
-                  IconButton(onPressed: () => context.go('/notifications'), icon: const Icon(Icons.notifications_outlined)),
+                  IconButton(onPressed: () => context.go('/notifications'), tooltip: 'Notifications', icon: const Icon(Icons.notifications_outlined)),
                 ],
               ),
               const Gap(12),
@@ -212,7 +212,7 @@ class _RecentSearchItem extends StatelessWidget {
           const Gap(12),
           Text(label, style: const TextStyle(fontSize: 14, color: AppColors.textPrimary)),
           const Spacer(),
-          const Icon(Icons.close, size: 16, color: AppColors.textTertiary),
+          const ExcludeSemantics(child: Icon(Icons.close, size: 16, color: AppColors.textTertiary)),
         ],
       ),
     );

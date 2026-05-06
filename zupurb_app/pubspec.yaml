@@ -10,6 +10,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   cupertino_icons: ^1.0.8
 
@@ -45,6 +47,10 @@ dev_dependencies:
   integration_test:
     sdk: flutter
 
+  # patrol: CLI tool installed separately via 'dart pub global activate patrol_cli'
+  # Run tests with: patrol test
+  patrol: ^3.15.0
+
   flutter_lints: ^6.0.0
   build_runner: ^2.4.15
   riverpod_generator: ^2.6.5
@@ -53,3 +59,4 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  generate: true

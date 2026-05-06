@@ -50,15 +50,17 @@ class PlusPaywall extends ConsumerWidget {
           ),
           child: Column(
             children: [
-              // Drag handle
+              // Drag handle (decorative)
               Padding(
                 padding: const EdgeInsets.only(top: 12, bottom: 8),
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.border,
-                    borderRadius: BorderRadius.circular(2),
+                child: ExcludeSemantics(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
               ),
@@ -326,9 +328,13 @@ class _PackageSelectorState extends State<_PackageSelector> {
           (pkg) {
             final isAnnual = pkg.identifier == kPlusAnnualPackageId;
             final selected = _selectedId == pkg.identifier;
-            return GestureDetector(
-              onTap: () => setState(() => _selectedId = pkg.identifier),
-              child: AnimatedContainer(
+            return Semantics(
+              label: '${isAnnual ? 'Annual' : 'Monthly'} plan — ${pkg.storeProduct.priceString}${isAnnual && savingsBadge != null ? ', $savingsBadge' : ''}',
+              button: true,
+              selected: selected,
+              child: GestureDetector(
+                onTap: () => setState(() => _selectedId = pkg.identifier),
+                child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
                 margin: const EdgeInsets.only(bottom: 10),
                 padding: const EdgeInsets.all(14),
@@ -397,7 +403,7 @@ class _PackageSelectorState extends State<_PackageSelector> {
                   ],
                 ),
               ),
-            );
+            ));
           },
         ),
         const Gap(12),
@@ -516,31 +522,43 @@ class _LegalText extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            GestureDetector(
-              // TODO(I6): replace with real Privacy Policy URL
-              onTap: () {},
-              child: const Text(
-                'Privacy Policy',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppColors.primary,
-                  decoration: TextDecoration.underline,
+            Semantics(
+              label: 'Privacy Policy',
+              button: true,
+              link: true,
+              child: GestureDetector(
+                // TODO(I6): replace with real Privacy Policy URL
+                onTap: () {},
+                child: const Text(
+                  'Privacy Policy',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.primary,
+                    decoration: TextDecoration.underline,
+                  ),
                 ),
               ),
             ),
-            const Text(
-              '  ·  ',
-              style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
+            const ExcludeSemantics(
+              child: Text(
+                '  ·  ',
+                style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
+              ),
             ),
-            GestureDetector(
-              // TODO(I6): replace with real Terms of Service URL
-              onTap: () {},
-              child: const Text(
-                'Terms of Service',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppColors.primary,
-                  decoration: TextDecoration.underline,
+            Semantics(
+              label: 'Terms of Service',
+              button: true,
+              link: true,
+              child: GestureDetector(
+                // TODO(I6): replace with real Terms of Service URL
+                onTap: () {},
+                child: const Text(
+                  'Terms of Service',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.primary,
+                    decoration: TextDecoration.underline,
+                  ),
                 ),
               ),
             ),

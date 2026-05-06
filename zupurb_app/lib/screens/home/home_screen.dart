@@ -43,6 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         const Spacer(),
                         IconButton(
                           onPressed: () => context.go('/notifications'),
+                          tooltip: 'Notifications',
                           icon: const Icon(Icons.notifications_outlined, color: AppColors.textPrimary),
                         ),
                       ],
@@ -89,22 +90,26 @@ class _HomeScreenState extends State<HomeScreen> {
 class _SearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => context.go('/search'),
-      child: Container(
-        height: 48,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(100),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: const Row(
-          children: [
-            Gap(16),
-            Icon(Icons.search, color: AppColors.primary, size: 20),
-            Gap(8),
-            Text('Search experiences, creators...', style: TextStyle(fontSize: 14, color: AppColors.textTertiary)),
-          ],
+    return Semantics(
+      label: 'Search experiences and creators',
+      button: true,
+      child: GestureDetector(
+        onTap: () => context.go('/search'),
+        child: Container(
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(100),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: const Row(
+            children: [
+              Gap(16),
+              Icon(Icons.search, color: AppColors.primary, size: 20),
+              Gap(8),
+              Text('Search experiences, creators...', style: TextStyle(fontSize: 14, color: AppColors.textTertiary)),
+            ],
+          ),
         ),
       ),
     );
@@ -287,15 +292,52 @@ class _ReviewCard extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Row(
               children: [
-                const Icon(Icons.thumb_up_outlined, size: 18, color: AppColors.textSecondary),
-                const Gap(4),
-                const Text('24', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                const Gap(16),
-                const Icon(Icons.thumb_down_outlined, size: 18, color: AppColors.textSecondary),
-                const Gap(16),
-                const Icon(Icons.share_outlined, size: 18, color: AppColors.textSecondary),
+                Semantics(
+                  label: 'Helpful — 24 votes',
+                  button: true,
+                  child: const SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.thumb_up_outlined, size: 18, color: AppColors.textSecondary),
+                        Gap(4),
+                        Text('24', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                      ],
+                    ),
+                  ),
+                ),
+                const Gap(8),
+                Semantics(
+                  label: 'Not helpful',
+                  button: true,
+                  child: const SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: Center(child: Icon(Icons.thumb_down_outlined, size: 18, color: AppColors.textSecondary)),
+                  ),
+                ),
+                const Gap(8),
+                Semantics(
+                  label: 'Share review',
+                  button: true,
+                  child: const SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: Center(child: Icon(Icons.share_outlined, size: 18, color: AppColors.textSecondary)),
+                  ),
+                ),
                 const Spacer(),
-                const Icon(Icons.more_horiz, size: 20, color: AppColors.textTertiary),
+                Semantics(
+                  label: 'More options',
+                  button: true,
+                  child: const SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: Center(child: Icon(Icons.more_horiz, size: 20, color: AppColors.textTertiary)),
+                  ),
+                ),
               ],
             ),
           ),

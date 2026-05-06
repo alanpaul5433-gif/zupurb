@@ -48,7 +48,7 @@ import {
   isUpgrade,
   isDowngrade,
 } from "../lib/tiers";
-import { Timestamp, getFirestore } from "firebase-admin/firestore";
+import { getFirestore } from "firebase-admin/firestore";
 
 // ---------------------------------------------------------------------------
 // computeTier

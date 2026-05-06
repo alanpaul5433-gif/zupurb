@@ -74,16 +74,36 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> {
                           children: [
                             const Text('Party Size', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                             const Spacer(),
-                            GestureDetector(
-                              onTap: () => setState(() { if (_party > 1) _party--; }),
-                              child: const CircleAvatar(radius: 16, backgroundColor: AppColors.border, child: Icon(Icons.remove, size: 16)),
+                            Semantics(
+                              label: 'Decrease party size',
+                              button: true,
+                              child: GestureDetector(
+                                onTap: () => setState(() { if (_party > 1) _party--; }),
+                                child: const SizedBox(
+                                  width: 44,
+                                  height: 44,
+                                  child: Center(
+                                    child: CircleAvatar(radius: 16, backgroundColor: AppColors.border, child: Icon(Icons.remove, size: 16)),
+                                  ),
+                                ),
+                              ),
                             ),
                             const Gap(12),
                             Text('$_party', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                             const Gap(12),
-                            GestureDetector(
-                              onTap: () => setState(() => _party++),
-                              child: const CircleAvatar(radius: 16, backgroundColor: AppColors.primary, child: Icon(Icons.add, size: 16, color: Colors.white)),
+                            Semantics(
+                              label: 'Increase party size',
+                              button: true,
+                              child: GestureDetector(
+                                onTap: () => setState(() => _party++),
+                                child: const SizedBox(
+                                  width: 44,
+                                  height: 44,
+                                  child: Center(
+                                    child: CircleAvatar(radius: 16, backgroundColor: AppColors.primary, child: Icon(Icons.add, size: 16, color: Colors.white)),
+                                  ),
+                                ),
+                              ),
                             ),
                           ],
                         ),
