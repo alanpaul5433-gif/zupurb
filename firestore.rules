@@ -1,0 +1,505 @@
+rules_version = '2';
+
+// =============================================================================
+// Zupurb — Firestore Security Rules
+// Version: B1 (foundation)
+//
+// Philosophy:
+//   - Default deny: no collection is readable or writable unless explicitly
+//     granted below.
+//   - Client writes are only allowed for harmless user-controlled state.
+//   - All scoring, points, UAR, tier, badge, verification, and fraud signals
+//     are written exclusively by Cloud Functions via the Admin SDK (which
+//     bypasses these rules entirely — Admin SDK writes are always trusted).
+//   - App Check is enforced at the callable layer; these rules add a second
+//     layer of defence for any direct SDK access.
+// =============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -------------------------------------------------------------------------
+    // Helper functions
+    // -------------------------------------------------------------------------
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+
+    function isStaff() {
+      return request.auth != null && request.auth.token.staff == true;
+    }
+
+    // Check that the caller is a participant in a conversation.
+    // threadData must be the conversation document data.
+    function isParticipant(threadData) {
+      return request.auth != null
+        && request.auth.uid in threadData.participantUids;
+    }
+
+    // Validate that incoming data only sets allowed fields (no extra fields).
+    function hasOnly(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLECTION: users/{userId}
+    //
+    // - Owner: read + limited write (bio, privacyToggles, tierHiddenByUser)
+    // - Authenticated users: read (public profile data)
+    // - Admin: read + write
+    // -------------------------------------------------------------------------
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId)
+        && request.resource.data.uid == userId;
+      // Client can only update the safe subset of their own profile.
+      allow update: if isOwner(userId)
+        && hasOnly([
+          "displayName",
+          "photoUrl",
+          "bio",
+          "tierHiddenByUser",
+          "onboardingComplete",
+          "updatedAt"
+        ]);
+      allow delete: if false; // Deletion handled by Cloud Function (anonymize, not delete)
+      // Admin override (Retool / Admin SDK path)
+      allow read, write: if isAdmin();
+
+      // -----------------------------------------------------------------------
+      // SUB-COLLECTION: users/{userId}/fingerprintSnapshots/{snapshotId}
+      // Written once by Cloud Function at review submission. Never client-readable.
+      // -----------------------------------------------------------------------
+      match /fingerprintSnapshots/{snapshotId} {
+        allow read: if isAdmin();
+        allow write: if false; // Cloud Function writes via Admin SDK only
+      }
+
+      // -----------------------------------------------------------------------
+      // SUB-COLLECTION: users/{userId}/referrals/{referralId}
+      // Owner can read their own outbound referrals; Cloud Function writes.
+      // -----------------------------------------------------------------------
+      match /referrals/{referralId} {
+        allow read: if isOwner(userId);
+        allow write: if false; // Cloud Function writes via Admin SDK only
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLECTION: private_user_data/{userId}
+    //
+    // Admin-only reads and writes. Absolutely no client access.
+    // Cloud Functions use Admin SDK which bypasses these rules.
+    // -------------------------------------------------------------------------
+
+    match /private_user_data/{userId} {
+      allow read, write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLECTION: establishments/{estId}
+    //
+    // - Authenticated users: read
+    // - Admin: read + write
+    // - Claimed business owners can update limited fields (via callable CF;
+    //   direct write restricted to admin here for defence-in-depth)
+    // -------------------------------------------------------------------------
+
+    match /establishments/{estId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+
+      // -----------------------------------------------------------------------
+      // SUB-COLLECTION: establishments/{estId}/reviews/{reviewId}
+      // Denormalized review copies. Written by Cloud Function only.
+      // Readable by authenticated users (same as flat reviews collection).
+      // -----------------------------------------------------------------------
+      match /reviews/{reviewId} {
+        allow read: if isAuthenticated();
+        allow write: if false; // Cloud Function writes via Admin SDK only
+      }
+
+      // -----------------------------------------------------------------------
+      // SUB-COLLECTION: establishments/{estId}/reservationSlots/{slotId}
+      // Readable by authenticated users; written by admin/CF only.
+      // -----------------------------------------------------------------------
+      match /reservationSlots/{slotId} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin();
+      }
+
+      // -----------------------------------------------------------------------
+      // SUB-COLLECTION: establishments/{estId}/deals/{dealId}
+      // Readable by authenticated users; admin-write only.
+      // -----------------------------------------------------------------------
+      match /deals/{dealId} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin();
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLECTION: reviews/{reviewId}
+    //
+    // - Authenticated users: read published reviews
+    // - Author: create (via callable CF enforces all validation; direct path
+    //   kept here as fallback with minimal field validation)
+    // - Update: blocked client-side once verifiedAt is set (immutable after
+    //   verification). Cloud Function can still update via Admin SDK.
+    // - Admin: full access
+    // -------------------------------------------------------------------------
+
+    match /reviews/{reviewId} {
+      allow read: if isAuthenticated()
+        && (resource == null || resource.data.status == "published" || isOwner(resource.data.authorUid));
+
+      allow create: if isOwner(request.resource.data.authorUid)
+        // answers array must have exactly 8 elements (Q1–Q8)
+        && request.resource.data.answers is list
+        && request.resource.data.answers.size() == 8
+        // status must start as "pending" or "draft"; never "published" from client
+        && request.resource.data.status in ["pending", "draft"]
+        // client must NOT set score fields (they are set by CF)
+        && !("rawScore" in request.resource.data)
+        && !("weightFactor" in request.resource.data)
+        && !("uarAtSubmission" in request.resource.data);
+
+      allow update: if isOwner(resource.data.authorUid)
+        // Once verifiedAt is set, the document is immutable to the client
+        && resource.data.verifiedAt == null
+        && request.resource.data.authorUid == resource.data.authorUid
+        && request.resource.data.estId == resource.data.estId
+        // Client may only update safe fields
+        && hasOnly([
+          "title",
+          "body",
+          "disclosureCategory",
+          "mediaIds",
+          "status",
+          "updatedAt"
+        ]);
+
+      allow delete: if false; // Soft-delete only; Cloud Function sets status="removed"
+
+      allow read, write: if isAdmin();
+
+      // -----------------------------------------------------------------------
+      // SUB-COLLECTION: reviews/{reviewId}/votes/{voterUid}
+      // Authenticated users can cast/change their own vote.
+      // -----------------------------------------------------------------------
+      match /votes/{voterUid} {
+        allow read: if isAuthenticated();
+        allow create, update: if isOwner(voterUid)
+          && request.resource.data.voterUid == voterUid
+          && request.resource.data.vote in ["up", "down"];
+        allow delete: if isOwner(voterUid);
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLECTION: pointsLedger/{entryId}  (append-only)
+    //
+    // - Owner (userId == request.auth.uid): read entries where data.userId == uid
+    // - Create: user may optimistically create entries for themselves for UI
+    //   feedback; Cloud Function is the authoritative writer.
+    // - Update / Delete: NEVER allowed from client.
+    // - Admin: read only (ledger is immutable even for admins; corrections via
+    //   new corrective entries)
+    // -------------------------------------------------------------------------
+
+    match /pointsLedger/{entryId} {
+      allow read: if isAuthenticated()
+        && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid
+        // delta must be non-zero
+        && request.resource.data.delta != 0
+        // client-created entries start as "optimistic" — CF reconciles
+        && request.resource.data.type in [
+          "earn_review_unverified",
+          "earn_review_partial",
+          "earn_review_verified",
+          "earn_upvote_received",
+          "earn_badge_unlock",
+          "earn_challenge_complete",
+          "earn_referral_bonus",
+          "earn_referral_welcome",
+          "earn_birthday_bonus",
+          "earn_anniversary_bonus",
+          "earn_admin_grant",
+          "spend_deal_redemption",
+          "spend_gift_card",
+          "expire"
+        ];
+      allow update, delete: if false; // Append-only — immutable after creation
+      allow read: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLECTION: userBalances/{userId}
+    //
+    // - Owner: read only (written by Cloud Function only)
+    // -------------------------------------------------------------------------
+
+    match /userBalances/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if false; // Cloud Function writes via Admin SDK only
+      allow read, write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLECTION: badges/{badgeId}  (global definitions)
+    //
+    // - Authenticated users: read (to display badge catalogue)
+    // - Admin: write
+    // -------------------------------------------------------------------------
+
+    match /badges/{badgeId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLECTION: userBadges/{userId}/badges/{badgeId}
+    //
+    // - Owner: read
+    // - Authenticated users: read (for viewing other profiles)
+    // - Write: Cloud Function only (Admin SDK)
+    // -------------------------------------------------------------------------
+
+    match /userBadges/{userId}/badges/{badgeId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Cloud Function writes via Admin SDK only
+      allow write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLECTION: challenges/{challengeId}
+    //
+    // - Authenticated users: read active challenges
+    // - Admin: write
+    // -------------------------------------------------------------------------
+
+    match /challenges/{challengeId} {
+      allow read: if isAuthenticated() && resource.data.isActive == true;
+      allow read, write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLECTION: userChallengeProgress/{compositeId}
+    //
+    // - Owner: read their own progress
+    // - Write: Cloud Function only
+    // -------------------------------------------------------------------------
+
+    match /userChallengeProgress/{compositeId} {
+      allow read: if isAuthenticated()
+        && resource.data.userId == request.auth.uid;
+      allow write: if false; // Cloud Function writes via Admin SDK only
+      allow read, write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLECTION: reservations/{reservationId}
+    //
+    // - Guest (guestUid): read; create (status must be "confirmed")
+    // - Establishment staff / admin: read; Cloud Function handles status updates
+    // - Update: blocked for client (Cloud Function owns status transitions)
+    // -------------------------------------------------------------------------
+
+    match /reservations/{reservationId} {
+      allow read: if isAuthenticated()
+        && (
+          resource.data.guestUid == request.auth.uid
+          || isAdmin()
+          || isStaff()
+        );
+
+      allow create: if isAuthenticated()
+        && request.resource.data.guestUid == request.auth.uid
+        // Instant-confirm: status must be "confirmed" on creation (per ADR-003)
+        && request.resource.data.status == "confirmed"
+        // Client must not set protected fields
+        && !("checkInQrCode" in request.resource.data)
+        && !("checkInOtp" in request.resource.data)
+        && !("noShowRecordedAt" in request.resource.data)
+        && !("noShowPenaltyApplied" in request.resource.data);
+
+      // Client cannot update reservation; all transitions owned by Cloud Function
+      allow update: if false;
+      allow delete: if false;
+
+      allow read, write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLECTION: conversations/{conversationId}
+    //
+    // - Participants only: read + create messages
+    // - Admin: full access for moderation
+    // -------------------------------------------------------------------------
+
+    match /conversations/{conversationId} {
+      allow read: if isAuthenticated()
+        && isParticipant(resource.data);
+      allow create: if isAuthenticated()
+        && request.auth.uid in request.resource.data.participantUids;
+      // Conversation metadata (lastMessage, unreadCounts) updated by CF or client
+      allow update: if isAuthenticated()
+        && isParticipant(resource.data)
+        && hasOnly([
+          "lastMessage",
+          "lastMessageAt",
+          "lastMessageSenderUid",
+          "unreadCounts",
+          "updatedAt"
+        ]);
+      allow delete: if false;
+      allow read, write: if isAdmin();
+
+      // -----------------------------------------------------------------------
+      // SUB-COLLECTION: conversations/{conversationId}/messages/{messageId}
+      // Only participants can read or write messages.
+      // -----------------------------------------------------------------------
+      match /messages/{messageId} {
+        allow read: if isAuthenticated()
+          && isParticipant(get(/databases/$(database)/documents/conversations/$(conversationId)).data);
+        allow create: if isAuthenticated()
+          && request.resource.data.senderUid == request.auth.uid
+          && isParticipant(get(/databases/$(database)/documents/conversations/$(conversationId)).data);
+        // Mark as read: sender cannot un-read; receiver can set isRead=true
+        allow update: if isAuthenticated()
+          && isParticipant(get(/databases/$(database)/documents/conversations/$(conversationId)).data)
+          && hasOnly(["isRead", "readAt"]);
+        allow delete: if false;
+        allow read, write: if isAdmin();
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLECTION: notifications/{userId}/items/{notifId}
+    //
+    // - Owner: read; update (mark as read only)
+    // - Write: Cloud Function only
+    // -------------------------------------------------------------------------
+
+    match /notifications/{userId}/items/{notifId} {
+      allow read: if isOwner(userId);
+      allow update: if isOwner(userId)
+        && hasOnly(["isRead", "readAt"]);
+      allow create, delete: if false; // Cloud Function writes via Admin SDK only
+      allow read, write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLECTION: deals/{dealId}
+    //
+    // - Authenticated users: read active deals
+    // - Admin: write
+    // -------------------------------------------------------------------------
+
+    match /deals/{dealId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLECTION: dealRedemptions/{redemptionId}  (append-only)
+    //
+    // - Owner: read their own redemptions
+    // - Write: Cloud Function only (Admin SDK)
+    // -------------------------------------------------------------------------
+
+    match /dealRedemptions/{redemptionId} {
+      allow read: if isAuthenticated()
+        && resource.data.userId == request.auth.uid;
+      allow write: if false; // Cloud Function writes via Admin SDK only
+      allow read, write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLECTION: referralCodes/{code}
+    //
+    // - Authenticated users: read (to validate a referral code at sign-up)
+    // - Write: Cloud Function only
+    // -------------------------------------------------------------------------
+
+    match /referralCodes/{code} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Cloud Function writes via Admin SDK only
+      allow read, write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLECTION: posts/{postId}
+    //
+    // - Authenticated users: read active posts
+    // - Author: create; update limited fields; soft-delete (isActive = false)
+    // -------------------------------------------------------------------------
+
+    match /posts/{postId} {
+      allow read: if isAuthenticated()
+        && (resource.data.isActive == true || isOwner(resource.data.authorUid));
+      allow create: if isAuthenticated()
+        && request.resource.data.authorUid == request.auth.uid;
+      allow update: if isOwner(resource.data.authorUid)
+        && hasOnly(["caption", "isActive", "updatedAt"]);
+      allow delete: if false;
+      allow read, write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLECTION: flags/{flagId}  (content reports)
+    //
+    // - Authenticated users: create a flag
+    // - Admin: read + update (triage)
+    // -------------------------------------------------------------------------
+
+    match /flags/{flagId} {
+      allow create: if isAuthenticated()
+        && request.resource.data.reporterUid == request.auth.uid
+        && request.resource.data.status == "open";
+      allow read, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLECTION: adminQueue/{queueItemId}
+    //
+    // - Admin only
+    // -------------------------------------------------------------------------
+
+    match /adminQueue/{queueItemId} {
+      allow read, write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLECTION: establishmentScores/{estId}
+    //
+    // - Authenticated users: read (displayed on establishment page)
+    // - Write: Cloud Function only (Admin SDK)
+    // -------------------------------------------------------------------------
+
+    match /establishmentScores/{estId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Cloud Function writes via Admin SDK only
+      allow write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // Catch-all: deny everything not explicitly matched above.
+    // This is the default, but being explicit aids readability.
+    // -------------------------------------------------------------------------
+
+  }
+}

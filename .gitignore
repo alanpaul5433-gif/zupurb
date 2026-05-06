@@ -1,0 +1,63 @@
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+database-debug.log
+
+# Cloud Functions
+functions/node_modules/
+functions/lib/
+functions/.env
+functions/.env.*
+functions/service-account*.json
+
+# Flutter
+zupurb_app/.dart_tool/
+zupurb_app/.flutter-plugins
+zupurb_app/.flutter-plugins-dependencies
+zupurb_app/.packages
+zupurb_app/build/
+zupurb_app/.idea/
+zupurb_app/*.iml
+zupurb_app/android/.gradle/
+zupurb_app/android/local.properties
+zupurb_app/android/key.properties
+zupurb_app/android/app/google-services.json
+zupurb_app/ios/Pods/
+zupurb_app/ios/Runner/GoogleService-Info.plist
+zupurb_app/ios/.symlinks/
+zupurb_app/pubspec.lock
+
+# Environment / secrets
+.env
+.env.*
+*.pem
+*.p12
+*.p8
+service-account*.json
+google-services.json
+GoogleService-Info.plist
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docs (keep in repo but exclude large binaries if any)
+# SOW PDF is intentionally excluded — contains client-confidential info
+Zupurb User App/ZUPURB - SOW V6.pdf
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Temp
+tmp/
+*.tmp

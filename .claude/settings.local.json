@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pdfinfo \"C:/Projects/Zupurb/Zupurb User App/ZUPURB - SOW V6.pdf\")",
+      "Bash(python -c \"import PyPDF2\")",
+      "Bash(python -c \"import pypdf\")",
+      "Bash(python -c \"import fitz\")",
+      "PowerShell(Add-Type -AssemblyName System.IO.Compression.FileSystem; $pdf = \"C:\\\\Projects\\\\Zupurb\\\\Zupurb User App\\\\ZUPURB - SOW V6.pdf\"; \\(Get-Item $pdf\\).Length)",
+      "Bash(npm root *)",
+      "Read(//c/tmp/**)",
+      "Bash(npm install *)",
+      "Bash(node C:/Projects/Zupurb/_extract.js)",
+      "Bash(flutter create *)",
+      "Bash(flutter pub *)",
+      "Bash(flutter analyze *)",
+      "Bash(flutter build *)",
+      "Bash(dart analyze *)",
+      "Bash(./android/gradlew --stop)",
+      "Bash(python -c \"import pdfplumber; f=pdfplumber.open\\('C:/Projects/Zupurb/Zupurb User App/ZUPURB - SOW V6.pdf'\\); pages=f.pages; print\\(len\\(pages\\)\\)\")",
+      "Bash(py -3 -c \"import sys; print\\(sys.version\\)\")",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('C:/Projects/Zupurb/firestore.indexes.json','utf8'\\)\\); console.log\\('indexes.json: valid JSON'\\)\")",
+      "Bash(npx tsc *)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(python -c ' *)",
+      "Bash(echo \"Exit: $?\")",
+      "Read(//mnt/c/**)",
+      "Read(//c/Projects//**)",
+      "Bash(git init *)",
+      "Bash(git add *)"
+    ]
+  }
+}
