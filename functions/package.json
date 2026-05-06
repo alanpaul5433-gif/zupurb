@@ -9,7 +9,8 @@
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
-    "test": "jest --passWithNoTests"
+    "test": "jest --passWithNoTests",
+    "seed:staging": "ts-node --project tsconfig.scripts.json scripts/seed_staging.ts"
   },
   "jest": {
     "preset": "ts-jest",
@@ -23,17 +24,20 @@
       "^firebase-functions/v2/https$": "<rootDir>/src/__tests__/__mocks__/firebase-functions.ts"
     },
     "transform": {
-      "^.+\\.tsx?$": ["ts-jest", {
-        "tsconfig": {
-          "module": "commonjs",
-          "esModuleInterop": true,
-          "skipLibCheck": true,
-          "strict": false,
-          "target": "es2020",
-          "noUnusedLocals": false,
-          "noImplicitReturns": false
+      "^.+\\.tsx?$": [
+        "ts-jest",
+        {
+          "tsconfig": {
+            "module": "commonjs",
+            "esModuleInterop": true,
+            "skipLibCheck": true,
+            "strict": false,
+            "target": "es2020",
+            "noUnusedLocals": false,
+            "noImplicitReturns": false
+          }
         }
-      }]
+      ]
     }
   },
   "engines": {
@@ -56,6 +60,7 @@
     "eslint-config-google": "^0.14.0",
     "jest": "^30.3.0",
     "ts-jest": "^29.4.9",
+    "ts-node": "^10.9.2",
     "typescript": "^5.4.0"
   },
   "private": true

@@ -1,0 +1,27 @@
+default_platform(:ios)
+
+platform :ios do
+  desc "Sync certificates and provisioning profiles (read-only)"
+  lane :sync_certs do
+    match(type: "appstore", readonly: true)
+    match(type: "development", readonly: true)
+  end
+
+  desc "Build a release IPA"
+  lane :build_release do
+    sync_certs
+    build_ios_app(
+      scheme: "Runner",
+      workspace: "ios/Runner.xcworkspace",
+      configuration: "Release",
+      export_method: "app-store",
+      output_directory: "build/ios"
+    )
+  end
+
+  desc "Build and upload to TestFlight"
+  lane :beta do
+    build_release
+    upload_to_testflight(skip_waiting_for_build_processing: true)
+  end
+end

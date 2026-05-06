@@ -1,0 +1,91 @@
+name: Functions CI
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'functions/**'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'functions/**'
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: functions
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: functions/node_modules
+          key: ${{ runner.os }}-npm-${{ hashFiles('functions/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm ci
+      - run: npx tsc --noEmit
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: functions
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: functions/node_modules
+          key: ${{ runner.os }}-npm-${{ hashFiles('functions/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm ci
+      - run: npm test
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: functions
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: functions/node_modules
+          key: ${{ runner.os }}-npm-${{ hashFiles('functions/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm ci
+      - run: npx eslint src/ --ext .ts --max-warnings 0

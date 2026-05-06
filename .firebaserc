@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "default": "zupurb-dev",
+    "staging": "zupurb-staging",
+    "production": "zupurb-prod"
+  }
+}

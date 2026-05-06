@@ -1,0 +1,8 @@
+scheme("Runner")
+workspace("Runner.xcworkspace")
+configuration("Release")
+export_method("app-store")
+output_directory("build/ios")
+output_name("Zupurb")
+include_bitcode(false)
+clean(true)

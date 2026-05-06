@@ -1,0 +1,6 @@
+# Copy this file to key.properties and fill in real values
+# key.properties is gitignored — NEVER commit the real file
+storePassword=REPLACE_WITH_KEYSTORE_PASSWORD
+keyPassword=REPLACE_WITH_KEY_PASSWORD
+keyAlias=upload
+storeFile=../upload-keystore.jks

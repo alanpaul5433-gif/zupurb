@@ -96,6 +96,24 @@ Source: screen-by-screen audit of `Zupurb User App/UI/` against `ZUPURB - SOW V6
 
 ---
 
+## D1 — CI Analyze Suppressions (Deployment scope)
+
+`flutter analyze` (run 2026-05-06) exits non-zero under `--fatal-infos`. Root causes are frontend code, logged here for the frontend agent.
+
+| ID | File | Issue | Rule | Status |
+|---|---|---|---|---|
+| CI-1 | `lib/core/services/iap_service.dart:22` | Unused import `flutter/foundation.dart` | `unused_import` (warning) | OPEN |
+| CI-2 | `test/widgets/selection_chip_test.dart:103` | Unused local variable `setStateRef` | `unused_local_variable` (warning) | OPEN |
+| CI-3 | `lib/core/services/deep_link_service.dart` (15 lines) | `print` calls in production code | `avoid_print` (info) | OPEN |
+| CI-4 | Multiple screens | `withOpacity` deprecated; use `.withValues()` | `deprecated_member_use` (info) | OPEN |
+| CI-5 | `lib/widgets/plus_paywall.dart` | `Radio.groupValue` / `onChanged` deprecated | `deprecated_member_use` (info) | OPEN |
+| CI-6 | `lib/main.dart:6` | Unnecessary import `flutter/foundation.dart` | `unnecessary_import` (info) | OPEN |
+| CI-7 | Multiple test files | Multiple leading underscores on unused params | `unnecessary_underscores` (info) | OPEN |
+
+CI workflow uses `flutter analyze` (no `--fatal-infos`) until these are resolved. Re-add `--fatal-infos` once all CI-* items are cleared.
+
+---
+
 ## Adding New Items
 
 When a new fix is identified:

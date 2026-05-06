@@ -1,0 +1,116 @@
+name: Flutter CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: zupurb_app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('zupurb_app/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x'
+          channel: stable
+
+      - run: flutter pub get
+      - run: flutter analyze
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: zupurb_app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('zupurb_app/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x'
+          channel: stable
+
+      - run: flutter pub get
+      - run: flutter test
+
+  build_android:
+    name: Build Android (debug)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: zupurb_app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('zupurb_app/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x'
+          channel: stable
+
+      - run: flutter pub get
+      - run: flutter build apk --debug
+
+  build_ios:
+    name: Build iOS (no-codesign, debug)
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: zupurb_app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('zupurb_app/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x'
+          channel: stable
+
+      - run: flutter pub get
+      - run: flutter build ios --no-codesign --debug
