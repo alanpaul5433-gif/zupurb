@@ -1,0 +1,157 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+concurrency:
+  group: "release-${{ github.ref }}"
+  cancel-in-progress: false
+
+jobs:
+  build_android:
+    name: Build Android (release APK)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: zupurb_app
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('zupurb_app/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x'
+          channel: stable
+
+      - run: flutter pub get
+
+      - name: Build release APK
+        run: flutter build apk --release --dart-define=APP_ENV=production
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: zupurb_app/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
+
+  build_ios:
+    name: Build iOS (no-codesign, release)
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: zupurb_app
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('zupurb_app/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x'
+          channel: stable
+
+      - run: flutter pub get
+
+      - name: Build iOS (compile check, no signing)
+        # Real IPA signing is handled by the beta/submission Fastlane lanes (D4/D7).
+        # This job validates the release build compiles cleanly on every tag push.
+        run: flutter build ios --no-codesign --release --dart-define=APP_ENV=production
+
+      - name: Upload iOS build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-release-build
+          path: zupurb_app/build/ios/
+          retention-days: 30
+
+  github_release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [build_android]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          # Determine previous tag
+          CURRENT_TAG="${{ github.ref_name }}"
+          PREV_TAG="$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || git rev-list --max-parents=0 HEAD)"
+          RANGE="${PREV_TAG}..HEAD"
+
+          # Collect commits
+          COMMITS="$(git log "$RANGE" --pretty=format:"- %s (%h)" --no-merges 2>/dev/null || true)"
+
+          # Categorise
+          FEAT=""; FIX=""; INFRA=""; TEST_OUT=""; OTHER=""
+          while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
+            subject="${line#- }"
+            if [[ "$subject" == feat:* || "$subject" == "feat("* ]]; then
+              FEAT="${FEAT}${line}"$'\n'
+            elif [[ "$subject" == fix:* || "$subject" == "fix("* ]]; then
+              FIX="${FIX}${line}"$'\n'
+            elif [[ "$subject" == deploy:* || "$subject" == ci:* || "$subject" == "ci("* || "$subject" == "deploy("* ]]; then
+              INFRA="${INFRA}${line}"$'\n'
+            elif [[ "$subject" == test:* || "$subject" == "test("* ]]; then
+              TEST_OUT="${TEST_OUT}${line}"$'\n'
+            else
+              OTHER="${OTHER}${line}"$'\n'
+            fi
+          done <<< "$COMMITS"
+
+          # Build body
+          BODY="# Release Notes — ${CURRENT_TAG}"$'\n'$'\n'
+          BODY+="_Changes since ${PREV_TAG}_"$'\n'$'\n'
+          [[ -n "$FEAT" ]]     && BODY+="## New Features"$'\n'$'\n'"${FEAT}"$'\n'
+          [[ -n "$FIX" ]]      && BODY+="## Bug Fixes"$'\n'$'\n'"${FIX}"$'\n'
+          [[ -n "$INFRA" ]]    && BODY+="## Infrastructure"$'\n'$'\n'"${INFRA}"$'\n'
+          [[ -n "$TEST_OUT" ]] && BODY+="## Testing"$'\n'$'\n'"${TEST_OUT}"$'\n'
+          [[ -n "$OTHER" ]]    && BODY+="## Other Changes"$'\n'$'\n'"${OTHER}"$'\n'
+          [[ -z "$COMMITS" ]]  && BODY+="_No commits found in range._"$'\n'
+
+          # Write to file for the release action (avoids shell quoting issues)
+          printf '%s' "$BODY" > /tmp/release_body.md
+          echo "body_file=/tmp/release_body.md" >> "$GITHUB_OUTPUT"
+
+      - name: Download APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: app-release-apk
+          path: /tmp/artifacts/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "Zupurb ${{ github.ref_name }}"
+          body_path: ${{ steps.release_notes.outputs.body_file }}
+          files: /tmp/artifacts/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

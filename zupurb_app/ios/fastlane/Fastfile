@@ -24,4 +24,61 @@ platform :ios do
     build_release
     upload_to_testflight(skip_waiting_for_build_processing: true)
   end
+
+  # ---------------------------------------------------------------
+  # iOS Phased Release (D9)
+  # Submits the already-uploaded build for phased release review.
+  # Run after TestFlight processing and metadata are complete.
+  # ---------------------------------------------------------------
+  desc "Enable phased release for the current App Store version (does not submit for review)"
+  lane :ios_phased_release do
+    deliver(
+      submit_for_review: false,
+      phased_release: true,
+      automatic_release: false
+    )
+  end
+
+  # ---------------------------------------------------------------
+  # Play Store staged rollout lanes (D9)
+  # Prerequisite: SUPPLY_JSON_KEY env var must point to the Play
+  # service-account JSON key (set in CI secrets, never in repo).
+  # AAB must be built before calling these lanes:
+  #   flutter build appbundle --release --dart-define=APP_ENV=production
+  # ---------------------------------------------------------------
+  desc "Play Store rollout — 5%"
+  lane :rollout_5 do
+    supply(
+      track: 'production',
+      rollout: '0.05',
+      aab: '../build/app/outputs/bundle/release/app-release.aab'
+    )
+  end
+
+  desc "Play Store rollout — 20%"
+  lane :rollout_20 do
+    supply(
+      track: 'production',
+      rollout: '0.20',
+      aab: '../build/app/outputs/bundle/release/app-release.aab'
+    )
+  end
+
+  desc "Play Store rollout — 50%"
+  lane :rollout_50 do
+    supply(
+      track: 'production',
+      rollout: '0.50',
+      aab: '../build/app/outputs/bundle/release/app-release.aab'
+    )
+  end
+
+  desc "Play Store rollout — 100% (full production)"
+  lane :rollout_100 do
+    supply(
+      track: 'production',
+      rollout: '1.0',
+      aab: '../build/app/outputs/bundle/release/app-release.aab'
+    )
+  end
 end
