@@ -2,6 +2,7 @@ name: Release
 
 # ---------------------------------------------------------------------------
 # D2 — Signing & Beta Distribution
+# D7/D9 — Staged Rollout
 # ---------------------------------------------------------------------------
 # Required GitHub Actions secrets:
 #
@@ -23,11 +24,41 @@ name: Release
 #     APP_STORE_CONNECT_ISSUER_ID      — Issuer ID from App Store Connect > API Keys
 #     APP_STORE_CONNECT_PRIVATE_KEY    — Full contents of the .p8 private key file
 #
+#   Staged rollout automation (D9 — used if rollout promotion is scripted):
+#     PLAY_STORE_JSON_KEY        — same service account as above; also used for
+#                                  Play Developer API rollout percentage updates
+#     APP_STORE_CONNECT_API_KEY_ID     — same as above; used by Fastlane deliver
+#     APP_STORE_CONNECT_ISSUER_ID      — same as above
+#     APP_STORE_CONNECT_PRIVATE_KEY    — same as above
+#
 # Notes:
 #   - android-release: AAB is uploaded to Play Internal Testing (0% rollout).
 #     Promote to production via Play Console manually after QA sign-off.
 #   - ios-release: IPA is uploaded to TestFlight (internal testers only).
 #     Promote to external testing / App Store in App Store Connect.
+#
+# ---------------------------------------------------------------------------
+# Staged Rollout Plan (see docs/STAGED_ROLLOUT.md for full gate criteria)
+# ---------------------------------------------------------------------------
+# Week 1:  1% (Play manual) / Day 1-2 App Store phased release
+#          Gate: crash-free rate >99.5%, ANR rate <0.5%, no P0 bugs
+# Week 2: 10% (Play manual)
+#          Gate: same + D1 retention measured
+# Week 3: 25% (Play manual) / App Store ~66% automatic
+#          Gate: same + ratings >=4.2 stars, no critical 1-star bug reports
+# Week 4: 100% (Play manual) / App Store Day 7 automatic
+#          Gate: all prior gates green
+#
+# Rollback triggers (halt immediately if any are hit):
+#   - Crash-free rate drops below 98% (crash rate >2%)
+#   - Any confirmed P0 bug in production
+#   - IAP billing failure rate >1%
+#   - Any confirmed Firestore data loss or corruption
+#   - App Check bypass confirmed in production
+#
+# To halt Play rollout: Play Console -> Production -> Manage release -> Halt rollout
+# To pause App Store:   App Store Connect -> Version -> Phased Release -> Pause
+# Full procedures:      docs/ROLLBACK_PROCEDURES.md
 # ---------------------------------------------------------------------------
 
 on:

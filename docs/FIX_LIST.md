@@ -133,6 +133,32 @@ CI workflow may now use `flutter analyze --fatal-infos` — all CI-* items resol
 
 ---
 
+## T2 Widget Test Findings (QA — 2026-05-06)
+
+| ID | File | Severity | Issue | Recommendation | Status |
+|---|---|---|---|---|---|
+| BUG-001 | `lib/widgets/score_badge.dart` | P2 | `ScoreBadge` uses `AppColors.primary` (orange) for all score values. T2 spec and SOW §7 imply green (high) / amber (mid) / red (low) colour ranges to give users an instant quality signal. The widget currently communicates no quality gradient. | In Phase 1B, add a `_colorForScore(double)` helper that returns `AppColors.scoreGreen` (≥4.5), `AppColors.warning` (3.0–4.4), `AppColors.error` (<3.0). All existing `score_badge_test.dart` assertions for colour will need updating when this lands. | OPEN |
+| BUG-002 | `lib/screens/home/home_screen.dart:301` | P1 | `_ReviewCard` contains a `Row` (inside a `SizedBox(w:44, h:44)`) that overflows by 2.5 pixels on the right. Triggers a RenderFlex overflow assertion in every widget test and in debug builds. Root cause: fixed-size `SizedBox` wrapping a Row whose children exceed 44 px. | Wrap the inner content with `Flexible` / `Expanded`, or remove the fixed `SizedBox` constraint. Reproduce: `flutter test test/widgets/review_card_test.dart` without the overflow suppressor in `_pump`. | OPEN |
+
+---
+
+## T6 Accessibility Findings (QA — 2026-05-06)
+
+| ID | File | Severity | Issue | Recommendation | Status |
+|---|---|---|---|---|---|
+| A11Y-001 | `lib/screens/badges/badges_screen.dart` | P1 | Tab selector chips (Badges / Challenges) use bare `GestureDetector` with no `Semantics` wrapper. Selected state is never announced to TalkBack/VoiceOver. Chip height ≈ 30pt — below the 44pt minimum. | Wrap each chip in `Semantics(label: e.value, selected: _tab == e.key, button: true, child: ...)` and set a `constraints: BoxConstraints(minHeight: 44)` on the container, or use Flutter `ChoiceChip` which handles both concerns natively. | OPEN |
+| A11Y-002 | `lib/screens/auth/login_screen.dart`, `lib/screens/auth/signup_screen.dart` | P1 | Social sign-in buttons (Google "G", Facebook "f", Apple icon) use a bare `Container` with a single-letter `Text` or `Icon`. VoiceOver/TalkBack will announce "G" or just "image" — meaningless to screen reader users. | Wrap each `_SocialButton` in `Semantics(label: 'Sign in with Google' / 'Sign in with Facebook' / 'Sign in with Apple', button: true)`. | OPEN |
+| A11Y-003 | `lib/screens/auth/login_screen.dart`, `lib/screens/auth/signup_screen.dart` | P1 | "Remember Me" checkbox (login) and Terms agreement checkbox (sign-up) use raw `GestureDetector` wrapping a `Container` (22×22 / 24×24 logical pixels). No `Semantics` node announces checked/unchecked state; touch target is below 44pt minimum. | Replace with `Semantics(checked: _remember, label: 'Remember me', button: true)` and expand tap area to 44×44 via `GestureDetector` padding or `InkWell` with `materialTapTargetSize`. | OPEN |
+| A11Y-004 | `lib/screens/home/home_screen.dart` | P1 | Home feed tab chips (All / Reviews / Feed / Creators / Deals) use `GestureDetector` with no `Semantics` wrapper. Selected chip is not announced as selected. Chip height ≈ 31pt — below 44pt minimum. | Same fix as A11Y-001: add `Semantics(label: ..., selected: ..., button: true)` wrapper and enforce `minHeight: 44`. | OPEN |
+| A11Y-005 | `lib/screens/points/points_wallet_screen.dart` | P2 | Activity row icons (`Icons.rate_review`, `Icons.local_offer`, `Icons.flash_on`, `Icons.share`) are plain `Icon` widgets with no `Semantics` node. VoiceOver announces "image" giving no context about the activity type. | Wrap the `CircleAvatar`+`Icon` combination in `ExcludeSemantics` (if the sibling title text provides sufficient context) or `Semantics(label: '<activity type>')`. | OPEN |
+| A11Y-006 | `lib/screens/badges/badges_screen.dart` | P2 | `LinearProgressIndicator` for badge milestone progress (23/75) has no semantic label. Screen readers cannot announce the progress percentage. | Wrap in `Semantics(label: '23 of 75 reviews completed, 31%', child: LinearProgressIndicator(...))`. | OPEN |
+| A11Y-007 | `lib/screens/points/points_wallet_screen.dart` | P2 | Balance text `'1,847 pts'` uses a fixed `fontSize: 44`. No `MediaQuery.textScalerOf` guard. At system font scale 2.0× the text likely clips out of the card container. | Constrain the card with `FittedBox` or use `textScaleFactor`-aware sizing so the balance scales gracefully to 1.5× and 2.0× system font sizes. | OPEN |
+| A11Y-008 | `lib/theme/colors.dart` (AppColors.primary) | P1 | `AppColors.primary` (#E07B54 — estimated from orange swatch) on white background has a contrast ratio of approximately 2.7:1. This is below WCAG 2.1 AA requirements for normal text (4.5:1) and large text (3:1). Affects: tab chip labels, text-button labels, score badge text (white on primary), and field prefix icons. | Darken primary to achieve ≥3:1 for large text elements and ≥4.5:1 for body text, or use a darker text colour on primary-coloured backgrounds. Exact hex to be confirmed with a contrast analyser against the final brand colour. | OPEN |
+| A11Y-009 | `lib/screens/auth/login_screen.dart`, `lib/screens/auth/signup_screen.dart` | P2 | Checkbox containers (22×22 and 24×24 px) are too small for comfortable tapping (iOS HIG and Material require ≥44pt). Covered by A11Y-003 fix — listed separately for completeness. | See A11Y-003. | OPEN |
+| A11Y-010 | `lib/screens/points/points_wallet_screen.dart` | P2 | Redeem row navigation arrow: `GestureDetector(onTap: ..., child: Icon(Icons.chevron_right, ...))`. Icon is 24×24 pt with no padding. Below 44pt touch target minimum. No semantic label. | Add `Semantics(label: 'Go to redeem rewards', button: true)` wrapper and expand tap target with `Padding` to at least 44×44. | OPEN |
+
+---
+
 ## Adding New Items
 
 When a new fix is identified:

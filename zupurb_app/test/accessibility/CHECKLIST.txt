@@ -1,0 +1,266 @@
+T6 ACCESSIBILITY CHECKLIST — ZUPURB USER APP
+============================================================
+Milestone: T6
+Last updated: 2026-05-06
+Owner: QA / Testing agent
+
+Each item must be checked on a physical device (or high-fidelity
+simulator) against a staging build before submission. Mark each
+item PASS / FAIL / N/A with tester name and date.
+
+------------------------------------------------------------
+1. TALKBACK — ANDROID (physical device recommended)
+------------------------------------------------------------
+
+Setup:
+  1. Enable TalkBack: Settings > Accessibility > TalkBack > On.
+  2. Install staging APK.
+  3. Navigate with swipe-right (next element) and double-tap (activate).
+
+Screens and checks:
+
+  Auth — Login
+  [ ] All form fields announced with meaningful labels
+      ("Email Address", "Password").
+  [ ] "Remember Me" checkbox announces checked/unchecked state.
+  [ ] "Forget Password?" link is focusable and announces its label.
+  [ ] Social sign-in buttons (Google G, Facebook f, Apple) each
+      announce an accessible label — NOT just a letter glyph.
+      KNOWN ISSUE: these buttons have no semantic label. See A11Y-002.
+  [ ] Login button announces "Login" and has role=button.
+  [ ] Sign Up link announces "Sign Up".
+  [ ] Focus order is top-to-bottom, logical reading order.
+
+  Auth — Sign Up
+  [ ] All five text fields (Full Name, Email, Password, Confirm
+      Password, Phone Number) have distinct labels.
+  [ ] Terms checkbox announces checked/unchecked state and has a label.
+      KNOWN ISSUE: Terms checkbox GestureDetector has no semantic label.
+      See A11Y-003.
+  [ ] "Create Account" button announces correctly.
+  [ ] Social buttons — same concern as Login. See A11Y-002.
+
+  Home Feed
+  [ ] Search bar announces "Search experiences and creators".
+  [ ] Feed tab chips (All, Reviews, Feed, Creators, Deals) announce
+      their name and selected state (selected/not selected).
+      KNOWN ISSUE: Tab chips use GestureDetector, not Chip/Tab widget.
+      Selected state may not be announced. See A11Y-004.
+  [ ] Review card: reviewer name, venue name, score announced.
+  [ ] Score badge announces "Score: X.X out of 5".
+  [ ] Helpful / Not helpful / Share / More options buttons each have
+      a distinct label.
+  [ ] Review text body is readable in one swipe or navigable by
+      character/word.
+  [ ] "Hosted Experience" badge is announced.
+  [ ] Deal banner cards announce venue name and offer text.
+  [ ] Notifications button announces "Notifications".
+
+  Points Wallet
+  [ ] "TOTAL BALANCE" heading is announced.
+  [ ] Balance "1,847 pts" is announced.
+  [ ] Dollar equivalent "$5.54 value" is announced.
+  [ ] Expiry warning ("Points Expiring Soon") is announced.
+  [ ] Expiry detail text is reachable and readable.
+  [ ] Redeem row announces venue and action.
+  [ ] "Buy Points" and "Gift a Deal" action cards are reachable.
+  [ ] Activity items announce icon meaning, title, time, and point delta
+      with positive/negative sign.
+      KNOWN ISSUE: Activity icons (Icons.rate_review, etc.) have no
+      semantic label. See A11Y-005.
+  [ ] "Upgrade Now" button announces correctly.
+  [ ] Back button announces "Back" or "Navigate up".
+
+  Badges & Challenges
+  [ ] Badges / Challenges tab chips announce name and selected state.
+      KNOWN ISSUE: same as Home tabs — see A11Y-004.
+  [ ] Active milestone block announces title and progress ("23 of 75").
+  [ ] Progress bar announces percentage or fraction.
+      KNOWN ISSUE: LinearProgressIndicator has no label. See A11Y-006.
+  [ ] Founder Badge card announces "Founder Badge" and description.
+  [ ] "LIFETIME" chip announces correctly.
+  [ ] Badge grid: each badge announces name and status (EARNED or
+      locked + requirement).
+  [ ] Lock icon on locked badges is excluded from semantics or
+      announces "Locked".
+  [ ] Challenge cards announce title, subtitle, progress, and points.
+
+------------------------------------------------------------
+2. VOICEOVER — iOS (physical device recommended)
+------------------------------------------------------------
+
+Setup:
+  1. Enable VoiceOver: Settings > Accessibility > VoiceOver > On.
+     Or triple-click Side Button if shortcut is configured.
+  2. Install staging IPA via TestFlight or Xcode.
+  3. Navigate with swipe-right (next), double-tap (activate),
+     two-finger swipe up (read all).
+
+Screens and checks (same list as TalkBack above):
+
+  Auth — Login
+  [ ] Email field: VoiceOver reads "Email Address, text field".
+  [ ] Password field: reads "Password, secure text field".
+  [ ] Visibility toggle on password field announces
+      "Show password" / "Hide password".
+  [ ] Login button: "Login, button".
+  [ ] Social buttons: must read full provider name, not just "G" glyph.
+      See A11Y-002.
+
+  Auth — Sign Up
+  [ ] Each of 5 fields has a unique VoiceOver description.
+  [ ] Terms agreement row — GestureDetector wraps the checkbox.
+      VoiceOver may skip it entirely. See A11Y-003.
+
+  Home Feed
+  [ ] Search bar: "Search experiences and creators, button".
+  [ ] Feed tab chips: selected chip reads "selected".
+      See A11Y-004 for known gap.
+
+  Points Wallet
+  [ ] Activity row icons: plain Icon without Semantics wrapper
+      will read as "image". See A11Y-005.
+
+  Badges
+  [ ] Progress bar: no label currently. See A11Y-006.
+  [ ] Locked badge: lock overlay Icon is not excluded from a11y tree;
+      VoiceOver may read a duplicate "image" for each locked card.
+
+------------------------------------------------------------
+3. DYNAMIC TYPE
+------------------------------------------------------------
+
+Test at these system text scale factors on both platforms:
+  - 1.0x (default)
+  - 1.5x (Large Text)
+  - 2.0x (Accessibility XL)
+
+For each scale factor:
+  [ ] No text truncation (ellipsis or clipping) on Login / Sign Up
+      form labels.
+  [ ] Button labels do not overflow their button containers.
+  [ ] Points Wallet balance card ("1,847 pts") does not overflow at 2.0x.
+      KNOWN ISSUE: balance uses fixed fontSize 44 with no MediaQuery
+      textScaler guard. Likely clips at 2.0x. See A11Y-007.
+  [ ] Badges screen badge names legible at 2.0x.
+  [ ] Review card text wraps correctly (no overflow) at 1.5x and 2.0x.
+  [ ] Tab chip labels do not get cut off at 1.5x.
+
+How to set on Android:
+  Settings > Display > Font Size — drag to Largest.
+How to set on iOS:
+  Settings > Accessibility > Display & Text Size > Larger Text.
+
+------------------------------------------------------------
+4. COLOUR CONTRAST (WCAG 2.1 AA)
+------------------------------------------------------------
+
+Minimum ratios:
+  Normal text (< 18pt / < 14pt bold): 4.5:1
+  Large text (>= 18pt / >= 14pt bold): 3:1
+  UI components and graphical objects: 3:1
+
+Key colours to verify (use a contrast analyser such as Colour
+Contrast Analyser or browser DevTools):
+
+  AppColors.primary (#E07B54) on white background:
+  [ ] Verify ratio >= 3:1 for large text (tab chips, button labels).
+      NOTE: #E07B54 on white (#FFFFFF) ≈ 2.7:1 — LIKELY FAILS for
+      normal text. See A11Y-008.
+
+  AppColors.textSecondary on white:
+  [ ] Used for subtitles and meta text. Must be >= 4.5:1.
+
+  White text on AppColors.primary (#E07B54):
+  [ ] Button text, score badge text, deals banner. Verify >= 3:1.
+      NOTE: white on #E07B54 ≈ 2.7:1 — LIKELY FAILS. See A11Y-008.
+
+  AppColors.textTertiary on white background:
+  [ ] Used for placeholder hints in fields. Must be >= 4.5:1.
+
+  Dark theme / night mode:
+  [ ] App does not currently implement a dark theme. N/A for now.
+      File a future story if dark mode is planned.
+
+------------------------------------------------------------
+5. TOUCH TARGETS — ALL INTERACTIVE ELEMENTS >= 44pt
+------------------------------------------------------------
+
+Platform minimum:
+  Apple HIG: 44 x 44 pt
+  Material Design: 48 x 48 dp (Google recommends; 44 is the floor)
+
+Automated: flutter test test/accessibility/accessibility_test.dart
+covers AppButton, search bar, and review card action buttons.
+
+Manual checks for elements not covered by automated tests:
+  [ ] Login / Sign Up social sign-in buttons: 88w x 52h — PASS.
+  [ ] "Remember Me" / Terms checkbox tappable area: currently a
+      Container(22x22) or Container(24x24) inside GestureDetector
+      with no padding. Tap target < 44pt. See A11Y-009.
+  [ ] Home feed tab chips: padding sym(18,9) + text ≈ 31pt tall.
+      Below 44pt. See A11Y-004.
+  [ ] Badges tab chips: padding sym(16,8) + text ≈ 30pt tall.
+      Below 44pt. See A11Y-004.
+  [ ] "View All" TextButton in Badges screen: Flutter TextButton
+      has default min tap size of 48pt; verify.
+  [ ] AppBar back IconButton: Flutter default is 48x48 — PASS.
+  [ ] Notifications IconButton in Home: Flutter default — PASS.
+  [ ] Redeem row chevron (GestureDetector wrapping Icon): Icon is
+      24x24 with no padding expansion. See A11Y-010.
+
+------------------------------------------------------------
+6. FOCUS ORDER
+------------------------------------------------------------
+
+On each screen, Tab/swipe-right through all interactive elements:
+
+  Login: Sign Up link > Email > Password > visibility toggle >
+         Remember Me > Forget Password? > Login > Google > Facebook > Apple.
+  Sign Up: Sign in link > Full Name > Email > Password > toggle >
+           Confirm Password > toggle > Phone > Terms > Create Account >
+           Google > Facebook > Apple.
+  Home: Avatar > Notifications > Search > Tab chips > Deals cards >
+        Review cards (score, Helpful, Not helpful, Share, More options).
+  Points Wallet: Back > Title > Balance card > Expiry warning > Redeem >
+                 Buy Points > Gift a Deal > Recent Activity items >
+                 See All > Elite tier > Upgrade Now.
+  Badges: Back > Title > Tab chips > Milestone card > Founder Badge >
+          Badge grid > Weekly Challenges > View All > Challenge cards.
+
+  [ ] Order is logical and predictable on all listed screens.
+  [ ] No focus trap (user can always navigate forward and back).
+  [ ] Modal dialogs trap focus correctly when open.
+
+------------------------------------------------------------
+7. SCREEN READER ANNOUNCEMENTS FOR STATE CHANGES
+------------------------------------------------------------
+
+  Loading states:
+  [ ] Verify Visit screen loading state: spinner has a semantic label
+      or live-region announcement.
+  [ ] Points Wallet "loading" state (if wired to backend): announces
+      "Loading" or equivalent.
+
+  Error states:
+  [ ] Login wrong password: error text is in the a11y tree and
+      announced immediately (not just shown visually).
+  [ ] Sign Up duplicate email: same as above.
+
+  Success states:
+  [ ] Review submitted screen: "Your review was submitted" is
+      announced on screen load.
+  [ ] Deal redeemed: success state announced.
+
+  Form validation:
+  [ ] Empty-field error messages are exposed via semanticsError or
+      live region so VoiceOver/TalkBack announces them without
+      requiring user to navigate to the field.
+
+  Toggle / checkbox state:
+  [ ] "Remember Me" toggle state change is announced.
+  [ ] Terms checkbox state change is announced.
+
+------------------------------------------------------------
+END OF CHECKLIST
+------------------------------------------------------------

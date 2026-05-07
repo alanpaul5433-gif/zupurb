@@ -1,0 +1,55 @@
+PERCY UPGRADE GUIDE
+===================
+
+Current state (T5): Flutter built-in golden file testing (matchesGoldenFile).
+Target state: Percy visual review dashboard (percy.io) for human-reviewable
+             pixel diffs on every PR, with cross-browser/cross-device snapshots.
+
+STEPS TO UPGRADE
+----------------
+
+1. Obtain a Percy account and project token.
+   - Sign up at https://percy.io
+   - Create a new project (type: "Flutter")
+   - Copy the PERCY_TOKEN from the project settings
+
+2. Add GitHub Actions secret.
+   - In the repo: Settings → Secrets and variables → Actions → New secret
+   - Name:  PERCY_TOKEN
+   - Value: <token from step 1>
+
+3. Add the Percy Flutter SDK to pubspec.yaml dev_dependencies:
+     percy_flutter: ^<latest>   # https://pub.dev/packages/percy_flutter
+   Run: flutter pub get
+
+4. Replace matchesGoldenFile calls in screen_goldens_test.dart.
+   Before:
+     await expectLater(
+       find.byType(MaterialApp),
+       matchesGoldenFile('goldens/splash_screen.png'),
+     );
+   After:
+     await Percy.snapshot(tester, 'Splash Screen');
+
+5. Update the goldens CI job in .github/workflows/flutter_ci.yml:
+   - Remove the --update-goldens logic.
+   - Replace "flutter test test/golden/" with the Percy CLI wrapper:
+       npx percy exec -- flutter test test/golden/
+   - The PERCY_TOKEN env var must be exposed:
+       env:
+         PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
+
+6. Percy will post a PR check ("Percy") with a link to the visual diff.
+   Approve or request changes directly in the Percy dashboard.
+
+7. Remove the test/golden/goldens/ directory and its committed PNG files —
+   Percy stores baselines on their servers; local PNGs are no longer needed.
+
+NOTES
+-----
+- Percy free tier: 5,000 screenshots/month.  9 screens × PRs/month should
+  comfortably fit the free tier for an early-stage app.
+- Applitools Eyes is an alternative: richer AI-based diffing, higher cost.
+  Migration path is the same — swap the snapshot call and CLI wrapper.
+- Until Percy is set up, the matchesGoldenFile approach in CI provides
+  equivalent pixel-exact regression detection at zero cost.

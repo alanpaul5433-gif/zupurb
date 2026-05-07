@@ -1,0 +1,139 @@
+T7 — Memory Profiling Guide
+===========================
+Zupurb User App | Testing Milestone T7
+
+This guide covers how to detect memory leaks and image-cache bloat
+using Flutter DevTools. Run all sessions in --profile mode on a
+physical device; the simulator/emulator heap does not reflect
+real-device constraints.
+
+------------------------------------------------------------------------
+SETUP
+------------------------------------------------------------------------
+1. Connect a physical device:
+     Android: Pixel 4a (or equivalent mid-range, ~4 GB RAM)
+     iOS:     iPhone 11 or newer (represents the installed base)
+
+2. Launch in profile mode:
+     flutter run --profile -d <device-id>
+
+3. Open DevTools:
+     flutter pub global run devtools
+   or paste the printed Observatory URL directly into Chrome.
+
+4. Navigate to the "Memory" tab in DevTools.
+
+------------------------------------------------------------------------
+KEY SCREENS TO PROFILE
+------------------------------------------------------------------------
+
+1. HOME FEED (image-heavy — highest risk)
+   - Load the app and allow the Home feed to fully render.
+   - Trigger garbage collection: DevTools > Memory > GC button.
+   - Note baseline heap (expected: < 80 MB after GC).
+   - Scroll down to load all visible cards (20+ review cards).
+   - GC again. Heap should not exceed 200 MB ceiling (see BUDGETS.txt).
+
+2. ESTABLISHMENT DETAIL SCREEN
+   - Navigate from Home or Discover to any EstablishmentScreen.
+   - The screen loads a header image, gallery thumbnails, and review rows.
+   - After settle: GC + note heap delta from baseline.
+   - Expected delta: < 30 MB for a single establishment detail.
+
+3. REVIEW FLOW (WriteReviewScreen → ReviewSubmittedScreen)
+   - Start the review flow from EstablishmentScreen.
+   - Proceed through: VerifyVisitScreen → RateExperienceScreen →
+     WrittenReviewScreen → ReviewSubmittedScreen.
+   - GC at each screen transition. Heap should return close to baseline
+     after ReviewSubmittedScreen (all captured images released).
+
+------------------------------------------------------------------------
+MEMORY LEAK DETECTION — NAVIGATION STRESS TEST
+------------------------------------------------------------------------
+Goal: verify heap does not grow unboundedly after repeated navigation.
+
+Steps:
+  1. Record baseline heap after first launch and GC.
+  2. Repeat the following loop 10 times:
+       a. Navigate to EstablishmentScreen (tap any venue card).
+       b. Navigate back to HomeScreen.
+       c. Tap GC in DevTools.
+       d. Record heap snapshot number.
+  3. Plot the 10 heap values. They should plateau (not grow linearly).
+
+Pass criterion:
+  - Heap growth across 10 round trips < 5 MB.
+  - No "allocation monitor" event shows a retained object count
+    growing with each navigation.
+
+If heap grows:
+  - Use DevTools "Allocation Tracing" to identify the leaking class.
+  - Common culprits: StreamSubscription not cancelled in dispose(),
+    AnimationController not disposed, GlobalKey held beyond screen lifetime,
+    image cache not evicted.
+
+------------------------------------------------------------------------
+IMAGE CACHE MANAGEMENT
+------------------------------------------------------------------------
+Flutter's image cache (PaintingBinding.instance.imageCache) stores
+decoded pixel data in memory. Unconstrained growth causes OOM crashes
+on low-memory devices.
+
+Verification steps:
+  1. In your flutter app startup code (main.dart or equivalent),
+     confirm cache limits are set:
+
+       PaintingBinding.instance.imageCache.maximumSize = 100;      // items
+       PaintingBinding.instance.imageCache.maximumSizeBytes =
+           100 * 1024 * 1024;  // 100 MB
+
+  2. In DevTools Memory tab, search for "ImageCache" in the class list.
+     After loading the Home feed (20 review cards, each with 3 thumbnails),
+     the currentSizeBytes field must remain under 100 MB.
+
+  3. After navigating away from the Home feed and calling GC,
+     currentSizeBytes should drop significantly (eviction of off-screen
+     images if LRU eviction is working correctly).
+
+  4. Use the "Heap Snapshot" feature to inspect retained ImageInfo
+     objects. Count should stay bounded as you scroll, not grow linearly.
+
+Pass criterion:
+  - imageCache.currentSizeBytes <= 100 MB at any time.
+  - imageCache.currentSize (item count) <= 100 items.
+
+------------------------------------------------------------------------
+ADDITIONAL TOOLS
+------------------------------------------------------------------------
+
+Android:
+  - Android Studio Profiler > Memory → shows native + Dart heap.
+  - adb shell dumpsys meminfo com.zupurb.app → shows RSS / PSS.
+  - Target: PSS < 200 MB during active use.
+
+iOS:
+  - Xcode Instruments → Allocations or Leaks templates.
+  - Filter by "Flutter" or "Dart" in the allocation list.
+  - VM Tracker shows persistent bytes vs resident bytes.
+
+Firebase Performance Monitoring (post-launch):
+  - Instrument navigation transitions with custom traces:
+      final trace = FirebasePerformance.instance.newTrace('home_to_establishment');
+      trace.start();
+      // ... navigation ...
+      trace.stop();
+  - View P50 / P95 durations in Firebase Console > Performance.
+
+------------------------------------------------------------------------
+KNOWN RISK AREAS (Phase 1A)
+------------------------------------------------------------------------
+- HomeScreen _DealsBanner: uses NetworkImage without explicit cache control.
+  Monitor for repeated fetches of the same URL on re-entry.
+- EstablishmentScreen gallery: no lazy loading in Phase 1A; all images load
+  at once. Flag for Phase 1B if OOM risk surfaces in profiling.
+- DiscoverScreen _TrendingCard: six NetworkImage calls on a single screen.
+  May spike memory on entry.
+
+------------------------------------------------------------------------
+END OF GUIDE
+------------------------------------------------------------------------

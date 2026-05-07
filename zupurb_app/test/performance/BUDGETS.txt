@@ -1,0 +1,155 @@
+T7 — Performance Budgets
+========================
+Zupurb User App | Testing Milestone T7
+Last updated: 2026-05-06
+
+These budgets are hard gates before store submission (T9 checklist).
+All measurements are taken on physical devices in --profile mode.
+Simulator / emulator numbers are indicative only and must not be used
+to sign off a release.
+
+Reference devices
+-----------------
+  Android baseline: Pixel 4a (2020) — Snapdragon 730G, 6 GB RAM, Android 13
+  iOS baseline:     iPhone 11 — A13 Bionic, 4 GB RAM, iOS 17
+  Network baseline: 4G LTE, 20 Mbps down / 5 Mbps up, 40 ms RTT
+
+------------------------------------------------------------------------
+BUDGET 1 — COLD START
+------------------------------------------------------------------------
+Metric:   Time from process launch to first meaningful frame
+          (Flutter "firstUsefulFrame" DevTools event)
+Target:   < 2 000 ms  (2 s)  on Android baseline device
+Warn:     > 1 500 ms
+Fail:     > 2 000 ms
+
+Measurement:
+  flutter run --profile --trace-startup -d <device-id>
+  DevTools > Performance > "App startup" section
+
+Notes:
+  - Splash screen (SplashScreen) must be visible within 800 ms.
+  - HomeScreen full paint must complete within 2 000 ms total.
+  - Shader compilation adds ~100–400 ms on first launch; warm up shaders
+    in CI with --cache-sksl and include SkSL bundle in release build.
+  - iOS App Store pre-download may add cold-start overhead; test
+    after a full reinstall (not hot restart).
+
+------------------------------------------------------------------------
+BUDGET 2 — LIST SCROLL (60 FPS)
+------------------------------------------------------------------------
+Metric:   Frame rendering time during continuous scroll
+Target:   16 ms / frame average  (60 fps)
+Jank:     Any single frame > 32 ms  (2× budget) constitutes a jank frame
+Hard fail: > 5% of frames are jank frames during a 10-second scroll
+
+Applicable screens:
+  - HomeScreen: review card feed (vertical CustomScrollView)
+  - DiscoverScreen: nearby venues list + horizontal trending rails
+  - SearchResultsScreen: search results list
+  - MyReservationsScreen: reservation list
+
+Measurement:
+  DevTools > Performance > "Frame rendering" chart
+  Look for red frames (> 16 ms) and dark-red frames (> 32 ms).
+  Target: all frames in the green zone during steady-state scroll.
+
+Widget-test proxy (CI):
+  test/performance/performance_test.dart
+  Asserts no pump() call exceeds 16 ms in the widget-test sandbox.
+  This catches synchronous-work regressions but not GPU regressions.
+
+------------------------------------------------------------------------
+BUDGET 3 — IMAGE-HEAVY SCREEN FIRST PAINT
+------------------------------------------------------------------------
+Metric:   Time from navigation tap to screen fully painted
+Target:   < 500 ms  after navigation gesture completes
+
+Applicable screens:
+  - EstablishmentScreen (header image + gallery)
+  - DiscoverScreen (six _TrendingCard images on entry)
+  - HomeScreen _DealsBanner (two NetworkImages)
+
+Measurement:
+  Use a custom Firebase Performance trace or manual Stopwatch logged
+  to the console in profile mode.
+
+Notes:
+  - Images must load asynchronously; placeholder skeleton must be
+    visible within 100 ms of navigation.
+  - Use CachedNetworkImage (or equivalent) to avoid re-fetching
+    images already in the disk cache. Flag for Phase 1B if not
+    implemented in Phase 1A (P2 priority).
+
+------------------------------------------------------------------------
+BUDGET 4 — MEMORY CEILING
+------------------------------------------------------------------------
+Metric:   Dart heap size (after GC) while the Home feed is visible
+          with 50 review items loaded
+Target:   < 200 MB  Dart heap
+Warn:     > 150 MB
+Fail:     > 200 MB
+
+Additional limits:
+  - PaintingBinding.instance.imageCache.maximumSizeBytes: 100 MB
+    (must be set explicitly at app startup — see MEMORY_PROFILING.txt)
+  - Total RSS (Android): < 300 MB at steady state
+  - No retained leaked objects after 10× round-trip navigation stress test
+
+Measurement:
+  DevTools > Memory tab > GC > read "Dart heap" value
+  See MEMORY_PROFILING.txt for full procedure.
+
+------------------------------------------------------------------------
+BUDGET 5 — NETWORK / FIREBASE READ LATENCY
+------------------------------------------------------------------------
+Metric:   Time from EstablishmentScreen navigation to data rendered
+Target:   < 1 000 ms  on 4G baseline network  (Firebase Firestore read)
+Warn:     > 700 ms
+Fail:     > 1 000 ms
+
+Breakdown target:
+  - Firestore document read (establishment doc):   < 400 ms P95
+  - Firestore collection read (top 5 reviews):     < 300 ms P95
+  - UI render after data received:                 < 100 ms
+
+Measurement:
+  Firebase Console > Performance > Custom Traces
+  Add trace "establishment_detail_load" wrapping the Firestore
+  listener from subscription to first setState() call.
+
+Notes:
+  - Cloud Firestore offline cache should serve repeat visits
+    within < 50 ms (cache hit). Test both cold (no cache) and
+    warm (cache populated) scenarios.
+  - If Firestore reads exceed budget, evaluate:
+      a. Composite indexes (avoid multi-collection joins).
+      b. Pagination: load 5 reviews initially, lazy-load more.
+      c. Denormalise establishment summary into a single document.
+
+------------------------------------------------------------------------
+BUDGET 6 — APP SIZE (bonus; not a CI gate but tracked)
+------------------------------------------------------------------------
+  Android AAB download size:   < 25 MB  (target < 20 MB)
+  iOS IPA download size:       < 30 MB  (target < 25 MB)
+
+Measurement:
+  flutter build appbundle --analyze-size
+  flutter build ipa --analyze-size
+
+------------------------------------------------------------------------
+CI ENFORCEMENT
+------------------------------------------------------------------------
+Budgets 1–5 must be manually verified on physical devices before each
+store submission (T9 checklist gate). The widget-test proxy in
+test/performance/performance_test.dart runs in CI on every PR and
+enforces the synchronous-work regression budget only.
+
+Automated device-farm performance testing (e.g., Firebase Test Lab
+with Robo tests + performance metrics) is a recommended future addition
+once the app reaches production. Log in docs/FIX_LIST.md if not
+implemented before first submission.
+
+------------------------------------------------------------------------
+END OF BUDGETS
+------------------------------------------------------------------------

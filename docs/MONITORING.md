@@ -129,3 +129,84 @@ Replace `[org]` and Statuspage URL before D8 deployment.
 4. If reads are spiking: check `getHomeFeed` / `getDiscoverFeed` functions — these are high-frequency and lack `enforceAppCheck` (known gap: SEC-16 in `SECURITY_AUDIT.md`).
 5. Short-term mitigation: raise quota limit in Firebase Console (Blaze plan) or temporarily disable the offending Cloud Function.
 6. File a P1 fix to add pagination limits and App Check enforcement.
+
+---
+
+## 7. D6 Monitoring Targets & Alert Setup
+
+### 7.1 Firebase Crashlytics
+
+**Target:** Crash-free users rate > 99.5% at all times.
+
+| Alert | Threshold | Channel |
+|---|---|---|
+| Crash rate spike (velocity) | > 0.5% of sessions in any 1-hour window | Slack `#alerts-prod` + PagerDuty |
+| New fatal issue type | Any new fatal issue detected | Slack `#alerts-prod` |
+| Regression | Previously resolved issue re-opens | Slack `#alerts-prod` |
+| ANR (Android) | ANR rate > 0.5% | Slack `#alerts-prod` |
+
+Setup: Firebase Console → Crashlytics → Alerts tab → enable "Velocity alerts" with threshold 500 affected users or 0.5% of daily active users, whichever is lower.
+
+### 7.2 Firebase Performance Monitoring
+
+| Metric | Target | Alert threshold |
+|---|---|---|
+| App cold start (iOS + Android) | < 2 000 ms | > 2 500 ms |
+| Network latency P95 | < 500 ms | > 750 ms |
+| Firestore read P95 | < 300 ms | > 500 ms |
+
+Custom traces to instrument (owned by backend/frontend pillars):
+
+| Trace name | Trigger |
+|---|---|
+| `feed_load` | Home feed first render |
+| `search_results` | Search results screen painted |
+| `review_submit` | Review submission round-trip |
+| `reservation_create` | Reservation confirmation received |
+| `ocr_receipt_scan` | OCR request start → result received |
+
+Setup: Firebase Console → Performance → Configure alerts → set per-metric thresholds above.
+
+### 7.3 Firebase Analytics — Key Events
+
+| Event name | Trigger |
+|---|---|
+| `screen_view` | Automatic (FlutterFire Analytics) |
+| `review_submitted` | User completes review submission flow |
+| `reservation_created` | Reservation confirmed by venue |
+| `points_earned` | Points credited to user ledger |
+| `plus_subscribed` | Zupurb Plus IAP purchase completed |
+| `referral_used` | Referral code redeemed at sign-up |
+| `deal_viewed` | Deals tab item tapped |
+| `check_in_completed` | QR or OTP check-in confirmed |
+
+Validate via DebugView on a test device before and after every release.
+
+### 7.4 Cloud Functions — Error Rate Monitoring
+
+**Target:** Error rate < 1% on any individual function.
+
+GCP Console → Monitoring → Alerting → Create Policy:
+- Metric: `cloudfunctions.googleapis.com/function/execution_count`, filtered `status != "ok"`.
+- Condition: ratio (errors / total) > 0.01 over a 5-minute rolling window.
+- Notification: PagerDuty + on-call email.
+- Label policy: `zupurb-functions-error-rate`.
+
+High-risk functions requiring individual monitoring: `processReview`, `creditPoints`, `validateOcr`, `createReservation`, `verifyIap`.
+
+### 7.5 Firestore Cost Monitoring
+
+| Tier | Monthly spend | Action |
+|---|---|---|
+| Warning | $80 | Email to engineering lead |
+| Critical | $100 | Email + PagerDuty page |
+
+Setup: GCP Console → Billing → Budgets & Alerts → Create Budget → scope to `zupurb-production`, services: Firestore → set $80 (80%) and $100 (100%) thresholds.
+
+Note: Firebase does not enforce a hard spending cap. If runaway reads are detected, short-term mitigation is to disable the offending function (see §6.3) or temporarily tighten Firestore security rules.
+
+### 7.6 Uptime
+
+Firebase-managed infrastructure (Firestore, Cloud Functions, Auth, Storage) does not require a separate uptime URL check. Monitor at https://status.firebase.google.com.
+
+App Check enforced in production acts as the primary DDoS mitigation layer — unauthorized clients are blocked before reaching quota. Confirm App Check enforcement is active on all production resources before D7 submission (see POST_LAUNCH_CHECKLIST.md).

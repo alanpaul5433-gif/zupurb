@@ -1,0 +1,76 @@
+ZUPURB — SCREENSHOT PLACEHOLDER
+=================================
+
+This directory is reserved for production screenshots that must be captured manually.
+
+WHY THIS DIRECTORY EXISTS
+--------------------------
+The App Store and Google Play do not accept computer-generated placeholder images.
+Screenshots must be actual renders of the running application captured from:
+  - A physical iOS or Android device, OR
+  - Xcode Simulator (iOS) or Android Emulator in release mode
+
+"Release mode" means:
+  - Flutter debug banner is off (use `flutter run --release` or a release build)
+  - No overlay debugger panels visible
+  - No system alerts or notification banners in the status bar
+
+WHEN TO CAPTURE
+---------------
+Screenshots should be captured after Phase 1A frontend is approved and mock data
+has been loaded. Do not capture from a broken or partially-built UI.
+
+RECOMMENDED NAMING CONVENTION
+------------------------------
+Use the following pattern so screenshots are unambiguous during upload:
+
+  [platform]_[device-class]_[screenshot-number]_[subject].png
+
+Examples:
+  ios_6.9in_01_onboarding.png
+  ios_6.9in_02_home_feed.png
+  ios_6.9in_03_establishment_detail.png
+  ios_6.9in_04_write_review.png
+  ios_6.9in_05_points_wallet.png
+  ios_6.9in_06_rewards_badges.png
+  ios_6.9in_07_zupurb_plus.png
+  ios_6.9in_08_profile.png
+
+  android_phone_01_onboarding.png
+  android_phone_02_home_feed.png
+  ... (same pattern)
+
+  ios_ipad_13in_01_onboarding.png
+  ... (same pattern)
+
+REQUIRED DEVICE CLASSES (see SCREENSHOT_SPECS.md for full dimensions)
+----------------------------------------------------------------------
+App Store (iOS):
+  - iPhone 6.9" — 1320 x 2868 px   [MANDATORY]
+  - iPhone 6.5" — 1284 x 2778 px   [MANDATORY]
+  - iPhone 5.5" — 1242 x 2208 px   [RECOMMENDED]
+  - iPad Pro 13" — 2064 x 2752 px  [REQUIRED if iPad is supported]
+
+Google Play (Android):
+  - Phone         — 1080 x 1920 px or 1080 x 2340 px  [MANDATORY, min 2]
+  - 7" tablet     — 1200 x 1920 px                    [RECOMMENDED]
+  - 10" tablet    — 1600 x 2560 px                    [RECOMMENDED]
+
+SUBMISSION CHECKLIST (complete before uploading to App Store Connect / Play Console)
+-------------------------------------------------------------------------------------
+[ ] 8 screenshots captured for each required device class
+[ ] All screenshots show release build (no debug banners)
+[ ] Status bar cleaned (time set to 9:41 AM for App Store; any clean time for Play)
+[ ] Realistic mock data visible (no "Lorem Ipsum" or "Test User" strings)
+[ ] No system notification alerts visible in any screenshot
+[ ] Portrait orientation confirmed for all screenshots
+[ ] App Store: device frames and marketing overlays applied (optional but recommended)
+[ ] Play Store: feature graphic (1024 x 500 px) prepared separately
+
+FILES IN THIS DIRECTORY
+-----------------------
+This directory currently contains only this PLACEHOLDER.txt file.
+Replace it with actual screenshots before submission.
+Do not commit screenshots to the git repository — they are binary assets and
+should be distributed via a shared drive or asset management system.
+Add *.png, *.jpg, and *.jpeg to .gitignore for this directory.

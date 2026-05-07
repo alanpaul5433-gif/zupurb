@@ -63,6 +63,60 @@ jobs:
       - run: flutter pub get
       - run: flutter test
 
+  goldens:
+    name: Visual Regression (Goldens)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: zupurb_app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('zupurb_app/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x'
+          channel: stable
+
+      - run: flutter pub get
+
+      # PRs: compare against committed baselines — any pixel diff fails the job.
+      - name: Run golden tests (PR — no update)
+        if: github.event_name == 'pull_request'
+        run: flutter test test/golden/
+
+      # Pushes to main/master: regenerate baselines so they stay current.
+      - name: Run golden tests (main — update baselines)
+        if: github.event_name == 'push'
+        run: flutter test test/golden/ --update-goldens
+
+      # Commit updated goldens back to the branch on push (baseline refresh).
+      - name: Commit updated golden baselines
+        if: github.event_name == 'push'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add test/golden/goldens/
+          git diff --cached --quiet || git commit -m "chore: refresh golden baselines [skip ci]"
+          git push
+
+      # On PR failure: upload the golden images so reviewers can inspect diffs.
+      - name: Upload golden images on failure
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-diff-${{ github.run_number }}
+          path: zupurb_app/test/golden/goldens/
+          retention-days: 14
+
   build_android:
     name: Build Android (debug)
     runs-on: ubuntu-latest
