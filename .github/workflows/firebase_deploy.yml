@@ -1,0 +1,110 @@
+# Required GitHub secrets:
+#   WIF_PROVIDER        — Workload Identity Federation provider resource name
+#                         e.g. projects/123456789/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+#   WIF_SERVICE_ACCOUNT — Service account email authorised to deploy
+#                         e.g. firebase-deployer@zupurb-dev.iam.gserviceaccount.com
+#
+# The service account needs the following IAM roles on the zupurb-dev GCP project:
+#   roles/firebase.admin
+#   roles/firebasehosting.admin  (if Hosting is later added)
+#   roles/cloudconfig.admin      (Remote Config)
+#   roles/datastore.owner        (Firestore rules + indexes)
+#   roles/storage.admin          (Storage rules)
+#
+# Workload Identity Federation setup (one-time, not automated here):
+#   https://github.com/google-github-actions/auth?tab=readme-ov-file#workload-identity-federation-through-a-service-account
+
+name: Firebase Deploy
+
+on:
+  push:
+    branches: [master]
+    # Also trigger on main if repo is renamed
+    # branches: [main, master]
+
+concurrency:
+  group: "firebase-deploy-${{ github.ref }}"
+  cancel-in-progress: false
+
+jobs:
+  deploy-functions:
+    name: Deploy Cloud Functions
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # Required for Workload Identity Federation
+    defaults:
+      run:
+        working-directory: functions
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud via WIF
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: functions/node_modules
+          key: ${{ runner.os }}-npm-${{ hashFiles('functions/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Deploy Cloud Functions
+        run: firebase deploy --only functions --project zupurb-dev --non-interactive
+
+  deploy-rules:
+    name: Deploy Firestore + Storage Rules and Indexes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud via WIF
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Deploy Firestore rules, indexes, and Storage rules
+        run: firebase deploy --only firestore,storage --project zupurb-dev --non-interactive
+
+  deploy-remoteconfig:
+    name: Deploy Remote Config
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud via WIF
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Deploy Remote Config
+        run: firebase deploy --only remoteconfig --project zupurb-dev --non-interactive

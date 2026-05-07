@@ -317,6 +317,7 @@ describe("expireStalePoints — expiry date is server-side Firestore data only",
   let mockDoc: jest.Mock;
   let mockDocGet: jest.Mock;
   let mockDocUpdate: jest.Mock;
+  let mockTxUpdate: jest.Mock;
 
   function setupFirestoreMock(expiredEntries: PointsLedgerEntry[], balance = 500) {
     mockBatchCommit = jest.fn().mockResolvedValue(undefined);
@@ -354,10 +355,29 @@ describe("expireStalePoints — expiry date is server-side Firestore data only",
 
     mockCollection = jest.fn().mockReturnValue(chainable);
 
+    // Build a lookup so tx.get(ref) can return the correct snapshot
+    const entryById = new Map(
+      expiredEntries.map((e) => [e.entryId, e])
+    );
+    mockTxUpdate = jest.fn().mockResolvedValue(undefined);
+    const mockTx = {
+      get: jest.fn().mockImplementation((ref: { id?: string }) => {
+        const entry = ref.id ? entryById.get(ref.id) : undefined;
+        return Promise.resolve(
+          entry
+            ? { exists: true, data: () => entry, ref }
+            : { exists: false, data: () => ({}), ref }
+        );
+      }),
+      update: mockTxUpdate,
+      set: jest.fn().mockResolvedValue(undefined),
+    };
+
     (getFirestore as jest.Mock).mockReturnValue({
       collection: mockCollection,
       doc: mockDoc,
       batch: mockBatch,
+      runTransaction: jest.fn().mockImplementation(async (fn: (tx: typeof mockTx) => Promise<unknown>) => fn(mockTx)),
     });
   }
 
@@ -389,8 +409,8 @@ describe("expireStalePoints — expiry date is server-side Firestore data only",
 
     // Function must have attempted to process the expired entry
     expect(mockGet).toHaveBeenCalledTimes(1);
-    // batch.commit must have been called to write the expiry
-    expect(mockBatchCommit).toHaveBeenCalled();
+    // tx.update must have been called to write the expiry (ledger uses runTransaction, not batch)
+    expect(mockTxUpdate).toHaveBeenCalled();
     // Total expired must equal the entry's delta
     expect(result).toBe(100);
   });
