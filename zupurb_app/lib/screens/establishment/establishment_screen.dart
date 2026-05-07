@@ -1,13 +1,47 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/score_badge.dart';
+import '../../core/utils/age_gate_guard.dart';
 
-class EstablishmentScreen extends StatelessWidget {
+// ── Mock establishment data used in Phase 1A ─────────────────────────────────
+// Replace with real Firestore model during backend integration.
+const bool _kMockHasAlcohol = true;
+const List<String> _kMockTags = ['bar', 'lounge'];
+
+// Tags that require age verification.
+const _kRestrictedTags = {'nightlife', 'bar', 'club', 'lounge'};
+
+bool _requiresAgeGate() {
+  if (_kMockHasAlcohol) return true;
+  return _kMockTags.any(
+    (tag) => _kRestrictedTags.contains(tag.toLowerCase()),
+  );
+}
+
+class EstablishmentScreen extends ConsumerStatefulWidget {
   const EstablishmentScreen({super.key});
+
+  @override
+  ConsumerState<EstablishmentScreen> createState() =>
+      _EstablishmentScreenState();
+}
+
+class _EstablishmentScreenState extends ConsumerState<EstablishmentScreen> {
+  @override
+  void initState() {
+    super.initState();
+    if (_requiresAgeGate()) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final allowed = await checkAgeGate(context, ref);
+        if (!allowed && mounted) Navigator.of(context).pop();
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
