@@ -7,7 +7,7 @@
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <application
-        android:label="zupurb_app"
+        android:label="Zupurb"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -63,6 +63,21 @@
             android:value="2" />
         <meta-data android:name="com.google.android.geo.API_KEY"
                    android:value="${MAPS_API_KEY}"/>
+        <!-- Facebook SDK — must be present or ContentProvider crashes app before Flutter starts -->
+        <meta-data android:name="com.facebook.sdk.ApplicationId"
+                   android:value="@string/facebook_app_id"/>
+        <meta-data android:name="com.facebook.sdk.ClientToken"
+                   android:value="@string/facebook_client_token"/>
+
+        <!-- Branch.io deep linking keys (I10).
+             Replace with real keys from Branch dashboard before production.
+             Without these entries the Branch SDK crashes the app on launch. -->
+        <meta-data android:name="io.branch.sdk.BranchKey"
+                   android:value="${BRANCH_LIVE_KEY}"/>
+        <meta-data android:name="io.branch.sdk.BranchKey.test"
+                   android:value="${BRANCH_TEST_KEY}"/>
+        <meta-data android:name="io.branch.sdk.TestMode"
+                   android:value="false"/>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

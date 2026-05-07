@@ -16,25 +16,105 @@ import 'state/push/push_providers.dart';
 import 'theme/theme.dart';
 import 'router.dart';
 
+// Captures any startup error so it can be shown on screen instead of
+// silently crashing. Cleared once the app boots successfully.
+String? _startupError;
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initializeFirebase();
 
-  // Initialise Crashlytics — must run after Firebase.initializeApp().
-  // Uses a direct instance here because ProviderScope is not yet available.
-  await CrashlyticsService().initialize();
+  try {
+    await initializeFirebase();
+  } catch (e, st) {
+    _startupError = 'initializeFirebase failed:\n$e\n\n$st';
+    runApp(_ErrorApp(_startupError!));
+    return;
+  }
 
-  // Catch platform-level errors (outside the Flutter framework) and report
-  // them as fatal crashes.
+  try {
+    await CrashlyticsService().initialize();
+  } catch (e) {
+    // Non-fatal — continue without Crashlytics
+    debugPrint('[Crashlytics] Init failed: $e');
+  }
+
   PlatformDispatcher.instance.onError = (error, stack) {
-    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    try {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    } catch (_) {}
     return true;
   };
 
-  // Register the FCM background handler before runApp (Flutter requirement:
-  // must be a top-level function and registered before the isolate is spawned).
-  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  try {
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  } catch (e) {
+    debugPrint('[FCM] Background handler registration failed: $e');
+  }
+
   runApp(const ProviderScope(child: ZupurbApp()));
+}
+
+/// Shown instead of a blank crash when startup fails.
+/// Displays the exact error so it can be reported without USB debugging.
+class _ErrorApp extends StatelessWidget {
+  const _ErrorApp(this.message);
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: const Color(0xFF1A1A2E),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
+                const SizedBox(height: 16),
+                const Text(
+                  'Startup Error',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'The app crashed during initialization.\n'
+                  'Screenshot this and send it for diagnosis.',
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: SelectableText(
+                        message,
+                        style: const TextStyle(
+                          color: Colors.greenAccent,
+                          fontSize: 11,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class ZupurbApp extends ConsumerWidget {
@@ -42,17 +122,9 @@ class ZupurbApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Watch pushInitProvider so FCM initialises automatically when the user
-    // signs in and tears down on logout.
     ref.watch(pushInitProvider);
-    // Watch deepLinkInitProvider so the deep-link stream is active whenever
-    // the user is authenticated (I10).
     ref.watch(deepLinkInitProvider);
-    // Activate Crashlytics user identity sync — keeps the UID attached to
-    // crash reports whenever auth state changes (I12).
     ref.watch(crashlyticsAuthSyncProvider);
-    // Warm up the analytics singleton on app start so it's available
-    // immediately when the first screen fires logScreen (I11).
     ref.read(analyticsServiceProvider);
     final router = ref.watch(appRouterProvider);
     return MaterialApp.router(

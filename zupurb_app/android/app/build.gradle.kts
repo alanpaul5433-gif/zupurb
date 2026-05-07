@@ -40,6 +40,8 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         manifestPlaceholders["MAPS_API_KEY"] = project.findProperty("MAPS_API_KEY") ?: "PLACEHOLDER_MAPS_KEY"
+        manifestPlaceholders["BRANCH_LIVE_KEY"] = project.findProperty("BRANCH_LIVE_KEY") ?: "key_live_placeholder_replace_with_real"
+        manifestPlaceholders["BRANCH_TEST_KEY"] = project.findProperty("BRANCH_TEST_KEY") ?: "key_test_placeholder_replace_with_real"
     }
 
     // ---------------------------------------------------------------------------

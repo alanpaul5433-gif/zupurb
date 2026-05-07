@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Zupurb</string>
+
+    <!-- Facebook SDK — required at startup to prevent ContentProvider crash.
+         Replace with real values from developers.facebook.com before release. -->
+    <string name="facebook_app_id">000000000000000</string>
+    <string name="facebook_client_token">placeholder_facebook_client_token</string>
+    <string name="fb_login_protocol_scheme">fb000000000000000</string>
+</resources>
