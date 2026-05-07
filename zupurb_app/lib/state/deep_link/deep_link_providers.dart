@@ -9,6 +9,7 @@
 //                              service when the user is authenticated and
 //                              injects the GoRouter; disposes on logout.
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/services/deep_link_service.dart';
@@ -40,6 +41,7 @@ final deepLinkServiceProvider = Provider<DeepLinkService>(
 /// [onDeepLink] can navigate without requiring a BuildContext.
 final deepLinkInitProvider = FutureProvider.autoDispose<void>(
   (ref) async {
+    if (kIsWeb) return; // flutter_branch_sdk not supported on web
     final uid = ref.watch(currentUidProvider);
     if (uid == null) return;
 

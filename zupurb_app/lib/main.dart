@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/material.dart';
 import 'l10n/app_localizations.dart';
@@ -31,24 +32,26 @@ void main() async {
     return;
   }
 
-  try {
-    await CrashlyticsService().initialize();
-  } catch (e) {
-    // Non-fatal — continue without Crashlytics
-    debugPrint('[Crashlytics] Init failed: $e');
-  }
-
-  PlatformDispatcher.instance.onError = (error, stack) {
+  if (!kIsWeb) {
     try {
-      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-    } catch (_) {}
-    return true;
-  };
+      await CrashlyticsService().initialize();
+    } catch (e) {
+      // Non-fatal — continue without Crashlytics
+      debugPrint('[Crashlytics] Init failed: $e');
+    }
 
-  try {
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-  } catch (e) {
-    debugPrint('[FCM] Background handler registration failed: $e');
+    PlatformDispatcher.instance.onError = (error, stack) {
+      try {
+        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      } catch (_) {}
+      return true;
+    };
+
+    try {
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    } catch (e) {
+      debugPrint('[FCM] Background handler registration failed: $e');
+    }
   }
 
   runApp(const ProviderScope(child: ZupurbApp()));
@@ -122,9 +125,11 @@ class ZupurbApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    ref.watch(pushInitProvider);
-    ref.watch(deepLinkInitProvider);
-    ref.watch(crashlyticsAuthSyncProvider);
+    if (!kIsWeb) {
+      ref.watch(pushInitProvider);
+      ref.watch(deepLinkInitProvider);
+      ref.watch(crashlyticsAuthSyncProvider);
+    }
     ref.read(analyticsServiceProvider);
     final router = ref.watch(appRouterProvider);
     return MaterialApp.router(

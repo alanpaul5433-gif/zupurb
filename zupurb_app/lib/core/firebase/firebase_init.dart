@@ -41,19 +41,22 @@ Future<void> initializeFirebase() async {
   // RevenueCat — initialized after Firebase so the SDK is ready before auth
   // resolves. User identity is linked later via IAPService.logIn(uid) when
   // authStateProvider emits a non-null user (see iap_providers.dart).
-  await IAPService.initialize('');
+  // Not supported on web — purchases_flutter uses StoreKit/Play Billing only.
+  if (!kIsWeb) {
+    await IAPService.initialize('');
 
-  // Non-blocking Plus status prefetch — warms the local RevenueCat cache so
-  // the first [plusStatusProvider] read is fast. Intentionally unawaited;
-  // a failure here is non-fatal (UI degrades to PlusStatus.none).
-  unawaited(
-    IAPService()
-        .getPlusStatus()
-        // ignore: avoid_print
-        .then((_) => print('[IAP] Plus status prefetch ok'))
-        // ignore: avoid_print
-        .catchError((Object e) => print('[IAP] Plus status prefetch err: $e')),
-  );
+    // Non-blocking Plus status prefetch — warms the local RevenueCat cache so
+    // the first [plusStatusProvider] read is fast. Intentionally unawaited;
+    // a failure here is non-fatal (UI degrades to PlusStatus.none).
+    unawaited(
+      IAPService()
+          .getPlusStatus()
+          // ignore: avoid_print
+          .then((_) => print('[IAP] Plus status prefetch ok'))
+          // ignore: avoid_print
+          .catchError((Object e) => print('[IAP] Plus status prefetch err: $e')),
+    );
+  }
 
   // App Check — enforces that requests come from legitimate app instances.
   // Blocks API abuse from non-app clients (bots, reverse-engineered calls).
@@ -68,14 +71,18 @@ Future<void> initializeFirebase() async {
   // regardless of APP_ENV. This allows physical device testing with a debug APK
   // without needing Play Integrity attestation.
   // Release builds always use the production attestation providers.
-  await FirebaseAppCheck.instance.activate(
-    androidProvider: kDebugMode
-        ? AndroidProvider.debug
-        : AndroidProvider.playIntegrity,
-    appleProvider: kDebugMode
-        ? AppleProvider.debug
-        : AppleProvider.deviceCheck,
-  );
+  // App Check is mobile-only for now. On web it requires a reCAPTCHA site key
+  // which is not yet configured — skip to avoid hanging the browser tab.
+  if (!kIsWeb) {
+    await FirebaseAppCheck.instance.activate(
+      androidProvider: kDebugMode
+          ? AndroidProvider.debug
+          : AndroidProvider.playIntegrity,
+      appleProvider: kDebugMode
+          ? AppleProvider.debug
+          : AppleProvider.deviceCheck,
+    );
+  }
 
   // Analytics (I12) — initialize AnalyticsService with Mixpanel dual-tracking.
   // Non-blocking: analytics failure must never delay app startup.

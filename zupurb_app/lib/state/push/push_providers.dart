@@ -7,6 +7,7 @@
 //   pushInitProvider      → FutureProvider.autoDispose — initialises FCM when
 //                           the user is authenticated; tears down when they log out
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/services/push_service.dart';
@@ -27,6 +28,7 @@ final pushServiceProvider = Provider<PushService>(
 /// is tied to the authenticated session.
 final pushInitProvider = FutureProvider.autoDispose<void>(
   (ref) async {
+    if (kIsWeb) return; // flutter_local_notifications not supported on web
     final uid = ref.watch(currentUidProvider);
     if (uid == null) return;
     final pushService = ref.read(pushServiceProvider);

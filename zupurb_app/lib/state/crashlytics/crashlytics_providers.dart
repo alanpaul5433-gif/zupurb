@@ -12,6 +12,7 @@
 //   ref.watch(crashlyticsAuthSyncProvider); // activate in ZupurbApp.build()
 //   ref.read(crashlyticsServiceProvider).recordError(e, stack);
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/services/crashlytics_service.dart';
 import '../auth/auth_providers.dart';
@@ -31,6 +32,7 @@ final crashlyticsServiceProvider = Provider<CrashlyticsService>(
 /// Watch this provider once in [ZupurbApp.build] to activate it.
 final crashlyticsAuthSyncProvider = Provider<void>(
   (ref) {
+    if (kIsWeb) return; // firebase_crashlytics not supported on web
     final service = ref.watch(crashlyticsServiceProvider);
     final authState = ref.watch(authStateProvider);
 

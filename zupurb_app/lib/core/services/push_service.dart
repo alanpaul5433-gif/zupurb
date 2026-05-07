@@ -29,6 +29,7 @@ import 'dart:io';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:go_router/go_router.dart';
 
@@ -244,16 +245,17 @@ class PushService {
 
   Future<void> _registerToken(String token, String uid) async {
     try {
+      final platform = (!kIsWeb && Platform.isIOS) ? 'ios' : 'android';
       await _functions.call(
         'registerFCMToken',
         {
           'token': token,
-          'platform': Platform.isIOS ? 'ios' : 'android',
+          'platform': platform,
         },
         (_) => null,
       );
       // ignore: avoid_print
-      print('[PushService] FCM token registered uid=$uid platform=${Platform.isIOS ? "ios" : "android"}');
+      print('[PushService] FCM token registered uid=$uid platform=$platform');
     } catch (e) {
       // Non-fatal — registration failure is logged but does not surface to the user.
       // ignore: avoid_print
