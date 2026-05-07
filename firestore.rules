@@ -61,13 +61,25 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
     // COLLECTION: users/{userId}
     //
-    // - Owner: read + limited write (bio, privacyToggles, tierHiddenByUser)
-    // - Authenticated users: read (public profile data)
+    // - Owner: read own document (full); limited write (bio, privacyToggles, etc.)
+    // - Authenticated users: read public fields only; deleted accounts not readable
     // - Admin: read + write
+    //
+    // NOTE: accountStatus=deleted documents are blocked from non-admin reads.
+    //       Cloud Function soft-delete sets isDeleted=true before returning;
+    //       these rules provide a second layer of defense.
     // -------------------------------------------------------------------------
 
+    // Helper: returns true if the document is soft-deleted (PII already wiped)
+    function isDeletedUser(data) {
+      return data != null && data.isDeleted == true;
+    }
+
     match /users/{userId} {
-      allow read: if isAuthenticated();
+      // Owner can always read their own doc; authenticated users can read
+      // only if the account is not soft-deleted.
+      allow read: if isOwner(userId)
+        || (isAuthenticated() && !isDeletedUser(resource.data));
       allow create: if isOwner(userId)
         && request.resource.data.uid == userId;
       // Client can only update the safe subset of their own profile.
@@ -182,7 +194,16 @@ service cloud.firestore {
         // client must NOT set score fields (they are set by CF)
         && !("rawScore" in request.resource.data)
         && !("weightFactor" in request.resource.data)
-        && !("uarAtSubmission" in request.resource.data);
+        && !("uarAtSubmission" in request.resource.data)
+        // B3: client must NOT set sandbox / quarantine / fraud fields — CF Admin SDK only
+        && !("sandboxed" in request.resource.data)
+        && !("quarantined" in request.resource.data)
+        && !("quarantineReason" in request.resource.data)
+        && !("quarantinedAt" in request.resource.data)
+        && !("isFraudFlagged" in request.resource.data)
+        && !("isAnomalous" in request.resource.data)
+        && !("hasQ8Contradiction" in request.resource.data)
+        && !("isCoordinatedAttack" in request.resource.data);
 
       allow update: if isOwner(resource.data.authorUid)
         // Once verifiedAt is set, the document is immutable to the client
@@ -190,6 +211,8 @@ service cloud.firestore {
         && request.resource.data.authorUid == resource.data.authorUid
         && request.resource.data.estId == resource.data.estId
         // Client may only update safe fields
+        // B3: sandboxed / quarantined / fraud fields are NOT in this list —
+        //     they can only be written by Cloud Functions via Admin SDK.
         && hasOnly([
           "title",
           "body",
@@ -219,39 +242,18 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
     // COLLECTION: pointsLedger/{entryId}  (append-only)
     //
-    // - Owner (userId == request.auth.uid): read entries where data.userId == uid
-    // - Create: user may optimistically create entries for themselves for UI
-    //   feedback; Cloud Function is the authoritative writer.
-    // - Update / Delete: NEVER allowed from client.
-    // - Admin: read only (ledger is immutable even for admins; corrections via
-    //   new corrective entries)
+    // B6: All writes are server-only (Cloud Functions via Admin SDK).
+    //     Client receives balance/history only through the getWallet callable.
+    //
+    // - Owner (userId == request.auth.uid): read own entries
+    // - Create / Update / Delete: NEVER from client — Admin SDK only
+    // - Admin: read all entries (for support / audit)
     // -------------------------------------------------------------------------
 
     match /pointsLedger/{entryId} {
       allow read: if isAuthenticated()
         && resource.data.userId == request.auth.uid;
-      allow create: if isAuthenticated()
-        && request.resource.data.userId == request.auth.uid
-        // delta must be non-zero
-        && request.resource.data.delta != 0
-        // client-created entries start as "optimistic" — CF reconciles
-        && request.resource.data.type in [
-          "earn_review_unverified",
-          "earn_review_partial",
-          "earn_review_verified",
-          "earn_upvote_received",
-          "earn_badge_unlock",
-          "earn_challenge_complete",
-          "earn_referral_bonus",
-          "earn_referral_welcome",
-          "earn_birthday_bonus",
-          "earn_anniversary_bonus",
-          "earn_admin_grant",
-          "spend_deal_redemption",
-          "spend_gift_card",
-          "expire"
-        ];
-      allow update, delete: if false; // Append-only — immutable after creation
+      allow write: if false;  // Cloud Function writes via Admin SDK only (B6)
       allow read: if isAdmin();
     }
 
@@ -322,12 +324,19 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
     // COLLECTION: reservations/{reservationId}
     //
-    // - Guest (guestUid): read; create (status must be "confirmed")
-    // - Establishment staff / admin: read; Cloud Function handles status updates
-    // - Update: blocked for client (Cloud Function owns status transitions)
+    // B8 rules:
+    //   - Guest (guestUid): read own reservation doc (but NOT sensitive fields —
+    //     checkInQrCode, checkInOtpHash, otpExpiresAt are server-write-only).
+    //     Reads return the whole doc; sensitive fields must be stripped in
+    //     the getMyReservations callable before returning to the client.
+    //   - Establishment owners (staff claim): read reservations for their venue.
+    //   - Admin: full read + write.
+    //   - Create / Update / Delete: Cloud Functions via Admin SDK ONLY.
+    //     No direct client write path — callable enforces all validation.
     // -------------------------------------------------------------------------
 
     match /reservations/{reservationId} {
+      // Owner read (guest) or establishment staff or admin
       allow read: if isAuthenticated()
         && (
           resource.data.guestUid == request.auth.uid
@@ -335,20 +344,15 @@ service cloud.firestore {
           || isStaff()
         );
 
-      allow create: if isAuthenticated()
-        && request.resource.data.guestUid == request.auth.uid
-        // Instant-confirm: status must be "confirmed" on creation (per ADR-003)
-        && request.resource.data.status == "confirmed"
-        // Client must not set protected fields
-        && !("checkInQrCode" in request.resource.data)
-        && !("checkInOtp" in request.resource.data)
-        && !("noShowRecordedAt" in request.resource.data)
-        && !("noShowPenaltyApplied" in request.resource.data);
-
-      // Client cannot update reservation; all transitions owned by Cloud Function
+      // All writes are Admin SDK only (callable functions).
+      // Direct client create/update/delete is blocked for defense-in-depth.
+      // The callable layer enforces slot availability, 48h cancel policy,
+      // QR/OTP generation, and status transitions.
+      allow create: if false;
       allow update: if false;
       allow delete: if false;
 
+      // Admin override — Retool / Admin SDK path
       allow read, write: if isAdmin();
     }
 
@@ -513,6 +517,34 @@ service cloud.firestore {
     }
 
     // -------------------------------------------------------------------------
+    // COLLECTION: claimRequests/{requestId}
+    //
+    // B4: Business claiming workflow.
+    //
+    // - Authenticated users: create (own uid only) + read own requests
+    // - Admins: read + write all (approve / reject)
+    // - Updates: only via Cloud Function (Admin SDK) or admin; never by the
+    //   claimant (status transitions are server-side only)
+    // -------------------------------------------------------------------------
+
+    match /claimRequests/{requestId} {
+      // Claimant can read their own requests; admin reads all.
+      allow read: if (isAuthenticated() && resource.data.uid == request.auth.uid)
+        || isAdmin();
+
+      // Authenticated users may create a claim request for themselves only.
+      // Status must start as "pending"; reviewedBy and reviewNotes must be null.
+      allow create: if isAuthenticated()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.status == "pending"
+        && request.resource.data.reviewedBy == null
+        && request.resource.data.reviewNotes == null;
+
+      // Update and delete are admin-only (approve / reject transitions).
+      allow update, delete: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
     // COLLECTION: adminQueue/{queueItemId}
     //
     // - Admin only
@@ -534,6 +566,19 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow write: if false; // Cloud Function writes via Admin SDK only
       allow write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLECTION: _scheduled_deletes/{uid}
+    //
+    // Written by deleteAccount Cloud Function (Admin SDK).
+    // No client access — Admin SDK bypasses these rules.
+    // Admin can read for ops/support visibility.
+    // -------------------------------------------------------------------------
+
+    match /_scheduled_deletes/{uid} {
+      allow read, write: if false;  // Cloud Function + Admin SDK only
+      allow read: if isAdmin();
     }
 
     // -------------------------------------------------------------------------

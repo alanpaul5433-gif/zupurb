@@ -17,28 +17,66 @@ initializeApp();
 // B2 — Identity & Profile
 // ---------------------------------------------------------------------------
 
-export { onUserCreate } from "./triggers/onUserCreate";
-export { onUserDelete } from "./triggers/onUserDelete";
-export { completeOnboarding } from "./http/completeOnboarding";
-export { updateProfile } from "./http/updateProfile";
-export { checkUsernameAvailable } from "./http/checkUsernameAvailable";
+export { onUserCreate }     from "./triggers/onUserCreate";
+export { onUserDelete }     from "./triggers/onUserDelete";
+export { completeOnboarding }       from "./http/completeOnboarding";
+export { updateProfile }            from "./http/updateProfile";
+export { checkUsernameAvailable }   from "./http/checkUsernameAvailable";
+
+// B2 — Profile domain callables
+export { getProfile, deleteAccount, exportUserData } from "./users/profile";
+
+// B2 — Account cleanup jobs
+export {
+  purgeExpiredAccounts,
+  onScheduledDeleteCreated,
+} from "./users/cleanup";
 
 // ---------------------------------------------------------------------------
 // B3 — UAR & Anti-Fraud
 // ---------------------------------------------------------------------------
 
 export { onReviewWriteFraudCheck } from "./triggers/onReviewWrite";
+export { onReviewWritten }         from "./reviews/triggers";
 export { adminFlagUser }           from "./http/adminFlagUser";
 export { recomputeUAR }            from "./scheduled/recomputeUAR";
+
+// B3 — Moderation helpers (callable by other domains; not exported as Cloud Functions)
+// Exported here so other domains can import from index.ts as a single barrel.
+// These are library functions, not Cloud Function registrations.
+export { maybeSandboxUser }        from "./moderation/sandbox";
+export { checkWeeklyReviewCap, incrementWeeklyReviewCount } from "./moderation/caps";
+export { quarantineReview }        from "./moderation/quarantine";
 
 // ---------------------------------------------------------------------------
 // B4 — Review Submission & Fan-Out
 // ---------------------------------------------------------------------------
 
-export { submitReview }               from "./http/submitReview";
+// B5 canonical callable (supersedes ./http/submitReview for new clients).
+// B4 legacy kept as submitReview_b4 for backward compatibility — remove in B6 cleanup (FIX_LIST P1).
+export { submitReview }               from "./reviews/submit";
+export { updateEstablishmentScore }   from "./reviews/aggregation";
+export { generateReviewSummary }      from "./reviews/aiSummary";
+export { submitReview as submitReview_b4 } from "./http/submitReview";
 export { recomputeEstablishmentScore } from "./http/recomputeEstablishmentScore";
 export { getEstablishmentScore }       from "./http/getEstablishmentScore";
 export { voteReview }                  from "./http/voteReview";
+
+// ---------------------------------------------------------------------------
+// B4 — Establishments (venue schema, Algolia indexing, claiming, geo queries)
+// ---------------------------------------------------------------------------
+
+// Algolia search indexing trigger (re-exported from B9 trigger; registered here for B4)
+export { onEstablishmentWrite }          from "./establishments/search";
+
+// Claiming workflow
+export { submitClaimRequest }            from "./establishments/claiming";
+export { reviewClaimRequest }            from "./establishments/claiming";
+export { addEstablishment }              from "./establishments/claiming";
+
+// Geo queries
+export { getNearbyEstablishments }       from "./establishments/geo";
+export { getEstablishmentById }          from "./establishments/geo";
 
 // ---------------------------------------------------------------------------
 // B5 — Points Ledger, Badges & Challenges
@@ -49,6 +87,13 @@ export { getLedgerHistory } from "./http/getLedgerHistory";
 export { getChallenges }    from "./http/getChallenges";
 export { expirePoints }     from "./scheduled/expirePoints";
 export { recomputeTiers }   from "./scheduled/recomputeTiers";
+
+// ---------------------------------------------------------------------------
+// B6 — Points Engine (Earn / Spend / Expiry / Multipliers / Eligibility)
+// ---------------------------------------------------------------------------
+
+export { getWallet, redeemPoints } from "./domains/points/index";
+export { runPointsExpiry }         from "./domains/points/expiry";
 
 // ---------------------------------------------------------------------------
 // B6 — Deals & Redemptions
@@ -74,6 +119,38 @@ export { processNoShows }            from "./scheduled/processNoShows";
 export { sendReservationReminders }  from "./scheduled/sendReservationReminders";
 
 // ---------------------------------------------------------------------------
+// B7 — Badges & Challenges
+// ---------------------------------------------------------------------------
+
+// Callables
+export { getBadges }                from "./badges/getBadges";
+// getChallenges already exported under B5 above (http/getChallenges.ts)
+
+// Scheduled cron — daily 04:00 UTC; deactivates expired challenges + awards badge rewards
+export { badges_challengesCron }    from "./badges/challengeCron";
+
+// ---------------------------------------------------------------------------
+// B8 — Reservations (canonical module — supersedes B7 http/ stubs for new clients)
+//
+// The new callables live in reservations/ and are exported with a namespaced
+// prefix to avoid collisions with the B7 http/ stubs (kept for backward compat).
+// ---------------------------------------------------------------------------
+
+export {
+  createReservation  as reservations_createReservation,
+  cancelReservation  as reservations_cancelReservation,
+  getMyReservations  as reservations_getMyReservations,
+}                    from "./reservations/booking";
+
+export {
+  checkInByQR        as reservations_checkInByQR,
+  checkInByOTP       as reservations_checkInByOTP,
+}                    from "./reservations/checkin";
+
+export { refreshOTP  as reservations_refreshOTP }   from "./reservations/verification";
+export { markNoShows as reservations_markNoShows }  from "./reservations/noshow";
+
+// ---------------------------------------------------------------------------
 // B8 — Messaging (in-house Firestore chat)
 // ---------------------------------------------------------------------------
 
@@ -86,6 +163,17 @@ export { deleteMessage }         from "./http/deleteMessage";
 export { onMessageWrite }        from "./triggers/onMessageWrite";
 
 // ---------------------------------------------------------------------------
+// B9 — Deals (matching engine, redemption flow, anti-abuse, expiry)
+// ---------------------------------------------------------------------------
+
+export { getDealsForUser, getDealsByEstablishment } from "./domains/deals/index";
+export {
+  initiateDealRedemption,
+  confirmDealRedemption,
+  expireUnredeemedDeals,
+} from "./domains/deals/index";
+
+// ---------------------------------------------------------------------------
 // B9 — Search & Discovery
 // ---------------------------------------------------------------------------
 
@@ -95,7 +183,7 @@ export { searchContent }            from "./http/searchContent";
 export { getDiscoverFeed }          from "./http/getDiscoverFeed";
 export { getHomeFeed }              from "./http/getHomeFeed";
 export { getEstablishmentDetail }   from "./http/getEstablishmentDetail";
-export { onEstablishmentWrite }     from "./triggers/onEstablishmentWrite";
+// onEstablishmentWrite exported under B4 — Establishments above
 export { refreshDiscoverCache }     from "./scheduled/refreshDiscoverCache";
 
 // ---------------------------------------------------------------------------
@@ -161,11 +249,12 @@ export { adminAdjustTier }         from "./http/adminAdjustTier";
 export { processPlusExpirations }  from "./scheduled/processPlusExpirations";
 
 // ---------------------------------------------------------------------------
-// I4 — OCR Vendor Harness & Production Receipt Extraction
+// I4 — OCR Vendor Harness, Production Receipt Extraction & Verification
 // ---------------------------------------------------------------------------
 
 export { runOCRHarnessCallable as runOCRHarness }  from "./http/runOCRHarness";
 export { extractReceiptData }                       from "./http/extractReceiptData";
+export { verifyReceiptForReview }                   from "./integrations/ocr/verifyReceipt";
 
 // ---------------------------------------------------------------------------
 // I5 — Algolia Multi-Index Search
@@ -191,6 +280,12 @@ export { revenueCatWebhook } from "./integrations/revenuecat/webhook";
 export { tremendousWebhook }           from "./integrations/tremendous/webhookHandler";
 export { syncTremendousOrders }        from "./scheduled/syncTremendousOrders";
 export { adminListTremendousProducts } from "./http/adminListTremendousProducts";
+
+// ---------------------------------------------------------------------------
+// I2 — Storage & Media (image moderation trigger)
+// ---------------------------------------------------------------------------
+
+export { onPhotoUploaded } from "./media/photoTrigger";
 
 // ---------------------------------------------------------------------------
 // D8 — Crashlytics Alerts

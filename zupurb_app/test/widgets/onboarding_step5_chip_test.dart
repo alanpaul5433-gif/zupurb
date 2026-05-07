@@ -12,7 +12,7 @@ GoRouter _buildRouter() => GoRouter(
       routes: [
         GoRoute(
           path: '/onboarding/:step',
-          builder: (_, __) => const OnboardingStep5Screen(),
+          builder: (context, state) => const OnboardingStep5Screen(),
         ),
       ],
     );

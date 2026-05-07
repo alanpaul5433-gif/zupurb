@@ -105,14 +105,14 @@ class EstablishmentScreen extends StatelessWidget {
                   const Gap(10),
                   _ReviewRow(
                     name: 'Sarah M.',
-                    score: 8.4,
+                    score: 4.2,
                     text: 'Had an incredible dinner here last night...',
                     time: '2d ago',
                   ),
                   const Gap(8),
                   _ReviewRow(
                     name: 'Marcus T.',
-                    score: 9.0,
+                    score: 4.5,
                     text: 'Excellent cocktails and great atmosphere...',
                     time: '5d ago',
                   ),

@@ -19,7 +19,6 @@
 //   await IAPService.logOut();                 // on user sign-out
 
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 

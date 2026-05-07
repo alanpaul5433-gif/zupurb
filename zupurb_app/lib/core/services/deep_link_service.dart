@@ -53,19 +53,19 @@ class DeepLinkService {
     // Handle the URI that launched a cold start (app was not already running).
     final initialUri = await _appLinks.getInitialLink();
     if (initialUri != null) {
-      print('[DeepLinkService] cold-start URI: $initialUri');
+      debugPrint('[DeepLinkService] cold-start URI: $initialUri');
       _handleUri(initialUri);
     }
 
     // Subscribe to subsequent URIs while the app is running.
     _sub = _appLinks.uriLinkStream.listen(
       (uri) {
-        print('[DeepLinkService] incoming URI: $uri');
+        debugPrint('[DeepLinkService] incoming URI: $uri');
         _handleUri(uri);
       },
       onError: (Object err) {
         // Convert vendor error to a generic log — callers never see app_links types.
-        print('[DeepLinkService] stream error: $err');
+        debugPrint('[DeepLinkService] stream error: $err');
       },
     );
   }
@@ -87,7 +87,7 @@ class DeepLinkService {
     final segments = uri.pathSegments;
 
     if (segments.isEmpty) {
-      print('[DeepLinkService] empty path — ignored');
+      debugPrint('[DeepLinkService] empty path — ignored');
       return;
     }
 
@@ -96,44 +96,44 @@ class DeepLinkService {
       case 'venue':
         if (segments.length >= 2) {
           final id = segments[1];
-          print('[DeepLinkService] routing to establishment: $id');
+          debugPrint('[DeepLinkService] routing to establishment: $id');
           _context?.go('/establishment/$id');
         } else {
-          print('[DeepLinkService] /venue missing id — ignored');
+          debugPrint('[DeepLinkService] /venue missing id — ignored');
         }
 
       // /profile/{uid}  →  /profile/{uid}
       case 'profile':
         if (segments.length >= 2) {
           final uid = segments[1];
-          print('[DeepLinkService] routing to profile: $uid');
+          debugPrint('[DeepLinkService] routing to profile: $uid');
           _context?.go('/profile/$uid');
         } else {
-          print('[DeepLinkService] /profile missing uid — ignored');
+          debugPrint('[DeepLinkService] /profile missing uid — ignored');
         }
 
       // /reservation/{id}  →  /reservation/pass?id={id}
       case 'reservation':
         if (segments.length >= 2) {
           final id = segments[1];
-          print('[DeepLinkService] routing to reservation pass: $id');
+          debugPrint('[DeepLinkService] routing to reservation pass: $id');
           _context?.go('/reservation/pass', extra: id);
         } else {
-          print('[DeepLinkService] /reservation missing id — ignored');
+          debugPrint('[DeepLinkService] /reservation missing id — ignored');
         }
 
       // /referral/{code}  →  store in SharedPreferences for post-login pickup
       case 'referral':
         if (segments.length >= 2) {
           final code = segments[1];
-          print('[DeepLinkService] storing referral code: $code');
+          debugPrint('[DeepLinkService] storing referral code: $code');
           _storePendingReferral(code);
         } else {
-          print('[DeepLinkService] /referral missing code — ignored');
+          debugPrint('[DeepLinkService] /referral missing code — ignored');
         }
 
       default:
-        print('[DeepLinkService] unrecognised path "${uri.path}" — ignored');
+        debugPrint('[DeepLinkService] unrecognised path "${uri.path}" — ignored');
     }
   }
 
@@ -141,9 +141,9 @@ class DeepLinkService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(kPendingReferralCodeKey, code);
-      print('[DeepLinkService] referral code stored: $code');
+      debugPrint('[DeepLinkService] referral code stored: $code');
     } catch (e) {
-      print('[DeepLinkService] failed to store referral code: $e');
+      debugPrint('[DeepLinkService] failed to store referral code: $e');
     }
   }
 }

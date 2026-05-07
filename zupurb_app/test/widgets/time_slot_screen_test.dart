@@ -9,9 +9,9 @@ GoRouter _buildRouter() => GoRouter(
       routes: [
         GoRoute(
           path: '/slots',
-          builder: (_, __) => const TimeSlotScreen(),
+          builder: (context, state) => const TimeSlotScreen(),
         ),
-        GoRoute(path: '/reservation/confirm', builder: (_, __) => const Scaffold()),
+        GoRoute(path: '/reservation/confirm', builder: (context, state) => const Scaffold()),
       ],
     );
 

@@ -998,6 +998,30 @@ export interface ReportedContentDoc {
 }
 
 // ---------------------------------------------------------------------------
+// SUB-COLLECTION: users/{userId}/iapEvents/{transactionId}  (I7 — RevenueCat webhook)
+// Append-only audit log of every RevenueCat event processed by the webhook handler.
+// Used for idempotency checks (never process the same transactionId twice).
+// ---------------------------------------------------------------------------
+
+export const IAP_EVENTS_SUBCOLLECTION = "iapEvents";
+
+export interface IAPEventDoc {
+  /** RevenueCat event type, e.g. "INITIAL_PURCHASE", "RENEWAL", "EXPIRATION". */
+  type: string;
+  /** RevenueCat product identifier, e.g. "$rc_monthly". */
+  productId: string;
+  /** Platform transaction ID — document ID; unique per purchase event. */
+  transactionId: string;
+  /** Server timestamp when this event was processed by the webhook handler. */
+  processedAt: Timestamp;
+  /** Purchase revenue in USD cents (integer). Absent for non-purchase events. */
+  revenue?: number;
+  /** ISO 4217 currency code, e.g. "USD". Absent when not provided by RevenueCat. */
+  currency?: string;
+  schemaVersion: 1;
+}
+
+// ---------------------------------------------------------------------------
 // Collection path helpers — return typed Firestore path strings
 // ---------------------------------------------------------------------------
 
@@ -1040,4 +1064,6 @@ export const Paths = {
   reportedContent: (reportId: string) => `${REPORTED_CONTENT_COLLECTION}/${reportId}`,
   tierHistoryEvent: (uid: string, eventId: string) =>
     `${USERS_COLLECTION}/${uid}/${TIER_HISTORY_SUBCOLLECTION}/${eventId}`,
+  iapEvent: (uid: string, transactionId: string) =>
+    `${USERS_COLLECTION}/${uid}/${IAP_EVENTS_SUBCOLLECTION}/${transactionId}`,
 } as const;

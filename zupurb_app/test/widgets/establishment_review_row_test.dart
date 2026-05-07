@@ -12,10 +12,10 @@ GoRouter _buildRouter() => GoRouter(
       routes: [
         GoRoute(
           path: '/establishment',
-          builder: (_, __) => const EstablishmentScreen(),
+          builder: (context, state) => const EstablishmentScreen(),
         ),
-        GoRoute(path: '/review/verify', builder: (_, __) => const Scaffold()),
-        GoRoute(path: '/reservation/slots', builder: (_, __) => const Scaffold()),
+        GoRoute(path: '/review/verify', builder: (context, state) => const Scaffold()),
+        GoRoute(path: '/reservation/slots', builder: (context, state) => const Scaffold()),
       ],
     );
 

@@ -7,9 +7,9 @@ import 'package:zupurb_app/screens/auth/phone_otp_screen.dart';
 GoRouter _buildRouter() => GoRouter(
       initialLocation: '/otp',
       routes: [
-        GoRoute(path: '/otp', builder: (_, __) => const PhoneOtpScreen()),
+        GoRoute(path: '/otp', builder: (context, state) => const PhoneOtpScreen()),
         // Stub destination so go('/onboarding/1') doesn't throw a routing error.
-        GoRoute(path: '/onboarding/:step', builder: (_, __) => const Scaffold()),
+        GoRoute(path: '/onboarding/:step', builder: (context, state) => const Scaffold()),
       ],
     );
 

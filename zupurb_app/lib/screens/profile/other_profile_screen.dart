@@ -101,7 +101,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen> {
                   _ReviewItem(
                     venue: 'The Gilded Shaker',
                     type: 'Cocktails · West Village',
-                    score: 8.0,
+                    score: 4.0,
                     text: '"The Mezcal Negroni here is life-changing. Come for the drinks, stay for the velvet- drenched atmosphere. Perfect for a first date."',
                     likes: 24,
                     comments: 6,
@@ -112,7 +112,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen> {
                   _ReviewItem(
                     venue: 'Komorebi Sushi',
                     type: 'Japanese · Soho',
-                    score: 8.0,
+                    score: 4.0,
                     text: '"Authentic Omakase experience that rivals anything in Ginza. The attention to detail is just staggering."',
                     likes: 0,
                     comments: 0,

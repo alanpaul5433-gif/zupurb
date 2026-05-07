@@ -51,7 +51,7 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> {
                     ),
                     child: Container(
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withOpacity(0.7)]),
+                        gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withValues(alpha: 0.7)]),
                       ),
                       padding: const EdgeInsets.all(14),
                       alignment: Alignment.bottomLeft,

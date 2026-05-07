@@ -100,14 +100,12 @@ void main() {
 
     testWidgets('selection toggle changes background when rebuilt', (tester) async {
       bool selected = false;
-      late StateSetter setStateRef;
 
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: StatefulBuilder(
               builder: (ctx, setState) {
-                setStateRef = setState;
                 return SelectionChip(
                   label: 'Toggle',
                   selected: selected,

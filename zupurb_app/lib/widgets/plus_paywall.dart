@@ -324,7 +324,10 @@ class _PackageSelectorState extends State<_PackageSelector> {
       }
     }
 
-    return Column(
+    return RadioGroup<String>(
+      groupValue: _selectedId,
+      onChanged: (v) => setState(() => _selectedId = v ?? _selectedId),
+      child: Column(
       children: [
         ...displayPackages.map(
           (pkg) {
@@ -352,10 +355,7 @@ class _PackageSelectorState extends State<_PackageSelector> {
                   children: [
                     Radio<String>(
                       value: pkg.identifier,
-                      groupValue: _selectedId,
                       activeColor: AppColors.primary,
-                      onChanged: (v) =>
-                          setState(() => _selectedId = v ?? pkg.identifier),
                     ),
                     const Gap(4),
                     Expanded(
@@ -461,7 +461,7 @@ class _PackageSelectorState extends State<_PackageSelector> {
           ),
         ),
       ],
-    );
+    ));
   }
 }
 

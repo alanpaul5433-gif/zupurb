@@ -46,6 +46,18 @@ Source: screen-by-screen audit of `Zupurb User App/UI/` against `ZUPURB - SOW V6
 | P1-20 | Home Feed | "Share Your Latest Discovery" composer not in SOW §3.2 | Removed `_EmptyFeedCard` widget and its usage from home_screen | DONE |
 | P1-21 | `Reservation Check-In-2.png` | Plus creator analytics shown on public profile (SOW: Plus-only personal dashboard) | Removed "Creator Insights" block from `other_profile_screen.dart` | DONE |
 
+## Backend Issues (discovered during B3 implementation)
+
+| # | File | Issue | Fix | Status |
+|---|---|---|---|---|
+| BE-1 | `functions/src/integrations/rekognition/client.ts` | `@aws-sdk/client-rekognition` package missing from `package.json` — build error (pre-existing, not B3) | Run `npm install @aws-sdk/client-rekognition` in functions/ or stub the import if Rekognition is not yet in scope | P1 — Open |
+| BE-2 | `functions/src/reviews/triggers.ts` + `triggers/onReviewWrite.ts` | Two Firestore triggers registered on `reviews/{reviewId}` causes double-reads (UAR, fraud, sandbox). Should be merged into a single fan-out orchestrator in B5. | Merge into single trigger in B5 | P1 — Open (B5 kept separation to avoid scope creep; merge in next pass) |
+| BE-4 | `functions/src/http/submitReview.ts` | B4 legacy callable now superseded by `reviews/submit.ts` (B5). Kept as `submitReview_b4` export in index.ts for backward compatibility. | Remove legacy export once client app updates to B5 callable name | P1 — Open |
+| BE-3 | `algorithms/uar.ts` `socialProofScore` | Uses `reviewCount` as a proxy for `helpfulVotes` (UserDoc lacks a `helpfulVotesTotal` field). Should add a rolled-up `helpfulVotesTotal` field to UserDoc and update UAR. | Add field + fan-out in B5 | P2 — Open |
+| BE-5 | `reviews/triggers.ts` | `updateEstablishmentScore` import flagged as unused by TS `noUnusedLocals` (false-positive resolved by linter auto-fix at B6 build). Root cause: prior autosave removed the import and the usage at line 105 references a stale declaration. Fixed by linter during B6 build. | None — resolved | P1 — Resolved (B6) |
+| BE-6 | `integrations/ocr/client.ts` (lines 129, 155, 201, 224) | log.info/warn calls missing required `traceId` field in LogContext — TS2345 build error. Pre-existing before B7. | Pass `traceId: "no-trace"` or thread a real traceId into the OCR client. | P1 — Open |
+| BE-7 | `reservations/verification.ts` (line 18) + `reservations/booking.ts` (line 15) | Unused imports `RESERVATIONS_COLLECTION` and `FieldValue` — TS6133 build errors. Pre-existing before B7. | Remove unused imports. | P2 — Open |
+
 ## P2 — Polish (Copy, Typos, Minor)
 
 | # | Screen | Issue | Fix | Status |
@@ -102,15 +114,15 @@ Source: screen-by-screen audit of `Zupurb User App/UI/` against `ZUPURB - SOW V6
 
 | ID | File | Issue | Rule | Status |
 |---|---|---|---|---|
-| CI-1 | `lib/core/services/iap_service.dart:22` | Unused import `flutter/foundation.dart` | `unused_import` (warning) | OPEN |
-| CI-2 | `test/widgets/selection_chip_test.dart:103` | Unused local variable `setStateRef` | `unused_local_variable` (warning) | OPEN |
-| CI-3 | `lib/core/services/deep_link_service.dart` (15 lines) | `print` calls in production code | `avoid_print` (info) | OPEN |
-| CI-4 | Multiple screens | `withOpacity` deprecated; use `.withValues()` | `deprecated_member_use` (info) | OPEN |
-| CI-5 | `lib/widgets/plus_paywall.dart` | `Radio.groupValue` / `onChanged` deprecated | `deprecated_member_use` (info) | OPEN |
-| CI-6 | `lib/main.dart:6` | Unnecessary import `flutter/foundation.dart` | `unnecessary_import` (info) | OPEN |
-| CI-7 | Multiple test files | Multiple leading underscores on unused params | `unnecessary_underscores` (info) | OPEN |
+| CI-1 | `lib/core/services/iap_service.dart:22` | Unused import `flutter/foundation.dart` | `unused_import` (warning) | DONE |
+| CI-2 | `test/widgets/selection_chip_test.dart:103` | Unused local variable `setStateRef` | `unused_local_variable` (warning) | DONE |
+| CI-3 | `lib/core/services/deep_link_service.dart` (15 lines) | `print` calls in production code | `avoid_print` (info) | DONE |
+| CI-4 | Multiple screens | `withOpacity` deprecated; use `.withValues()` | `deprecated_member_use` (info) | DONE |
+| CI-5 | `lib/widgets/plus_paywall.dart` | `Radio.groupValue` / `onChanged` deprecated | `deprecated_member_use` (info) | DONE |
+| CI-6 | `lib/main.dart:6` | Unnecessary import `flutter/foundation.dart` | `unnecessary_import` (info) | DONE |
+| CI-7 | Multiple test files | Multiple leading underscores on unused params | `unnecessary_underscores` (info) | DONE |
 
-CI workflow uses `flutter analyze` (no `--fatal-infos`) until these are resolved. Re-add `--fatal-infos` once all CI-* items are cleared.
+CI workflow may now use `flutter analyze --fatal-infos` — all CI-* items resolved 2026-05-06.
 
 ---
 

@@ -116,7 +116,7 @@ class _PlusActiveCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.primaryLight,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -145,6 +145,11 @@ class _PlusActiveCard extends StatelessWidget {
             'Enjoy 1.25× points on every visit, exclusive partner deals, '
             'early access to new venues, and a Plus badge on your profile.',
             style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+          const Gap(6),
+          const Text(
+            'Active until Dec 31, 2026',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary),
           ),
           const Gap(12),
           ElevatedButton(

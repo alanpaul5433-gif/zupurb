@@ -29,7 +29,7 @@ class OnboardingStep1Screen extends StatelessWidget {
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [Colors.transparent, const Color(0xFF2A1F1A).withOpacity(0.95)],
+                      colors: [Colors.transparent, const Color(0xFF2A1F1A).withValues(alpha: 0.95)],
                       stops: const [0.4, 1.0],
                     ),
                   ),

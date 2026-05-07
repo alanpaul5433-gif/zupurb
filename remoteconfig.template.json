@@ -1,0 +1,398 @@
+{
+  "conditions": [],
+
+  "parameters": {
+
+    "score_weights_restaurant": {
+      "defaultValue": {
+        "value": "{\"q1\":0.20,\"q2\":0.20,\"q3\":0.15,\"q4\":0.15,\"q5\":0.10,\"q6\":0.10,\"q7\":0.10}"
+      },
+      "description": "Per-question weight map for restaurant reviews (Q1-Q7 only; Q8 excluded from scoring). Weights must sum to 1.0. JSON-encoded map. Naming: score.weights.restaurant",
+      "valueType": "STRING"
+    },
+
+    "score_weights_bar": {
+      "defaultValue": {
+        "value": "{\"q1\":0.15,\"q2\":0.15,\"q3\":0.20,\"q4\":0.20,\"q5\":0.10,\"q6\":0.10,\"q7\":0.10}"
+      },
+      "description": "Per-question weight map for bar/nightclub reviews. JSON-encoded map. Naming: score.weights.bar",
+      "valueType": "STRING"
+    },
+
+    "score_weights_cafe": {
+      "defaultValue": {
+        "value": "{\"q1\":0.20,\"q2\":0.20,\"q3\":0.15,\"q4\":0.10,\"q5\":0.10,\"q6\":0.15,\"q7\":0.10}"
+      },
+      "description": "Per-question weight map for cafe/coffee shop reviews. JSON-encoded map. Naming: score.weights.cafe",
+      "valueType": "STRING"
+    },
+
+    "score_weights_default": {
+      "defaultValue": {
+        "value": "{\"q1\":0.175,\"q2\":0.175,\"q3\":0.15,\"q4\":0.15,\"q5\":0.10,\"q6\":0.10,\"q7\":0.15}"
+      },
+      "description": "Fallback weight map for establishment types without a specific config. JSON-encoded map. Naming: score.weights.default",
+      "valueType": "STRING"
+    },
+
+    "score_answer_map": {
+      "defaultValue": {
+        "value": "{\"a\":1.0,\"b\":2.5,\"c\":3.5,\"d\":5.0}"
+      },
+      "description": "Conversion from answer choice (A/B/C/D) to numeric score per ARCHITECTURE.md. A=1.0, B=2.5, C=3.5, D=5.0. Naming: score.answerMap",
+      "valueType": "STRING"
+    },
+
+    "score_verification_weight_verified": {
+      "defaultValue": { "value": "1.0" },
+      "description": "weightFactor multiplier for Fully Verified reviews (receipt + photo match). Naming: score.verificationWeight.verified",
+      "valueType": "NUMBER"
+    },
+
+    "score_verification_weight_partial": {
+      "defaultValue": { "value": "0.75" },
+      "description": "weightFactor multiplier for Partially Verified reviews (photo only). Naming: score.verificationWeight.partial",
+      "valueType": "NUMBER"
+    },
+
+    "score_verification_weight_unverified": {
+      "defaultValue": { "value": "0.50" },
+      "description": "weightFactor multiplier for Unverified reviews. Naming: score.verificationWeight.unverified",
+      "valueType": "NUMBER"
+    },
+
+    "score_time_decay_12mo": {
+      "defaultValue": { "value": "1.0" },
+      "description": "Time-decay multiplier for reviews aged 0-12 months. Naming: score.timeDecay.12mo",
+      "valueType": "NUMBER"
+    },
+
+    "score_time_decay_24mo": {
+      "defaultValue": { "value": "0.7" },
+      "description": "Time-decay multiplier for reviews aged 12-24 months. Naming: score.timeDecay.24mo",
+      "valueType": "NUMBER"
+    },
+
+    "score_time_decay_36mo": {
+      "defaultValue": { "value": "0.4" },
+      "description": "Time-decay multiplier for reviews aged 24-36 months. Naming: score.timeDecay.36mo",
+      "valueType": "NUMBER"
+    },
+
+    "score_time_decay_old": {
+      "defaultValue": { "value": "0.2" },
+      "description": "Time-decay multiplier for reviews older than 36 months. Naming: score.timeDecay.old",
+      "valueType": "NUMBER"
+    },
+
+    "fingerprint_similarity_threshold": {
+      "defaultValue": { "value": "0.75" },
+      "description": "Minimum cosine similarity [0,1] for a reviewer to be included in From People Like You score. Naming: fingerprint.similarityThreshold",
+      "valueType": "NUMBER"
+    },
+
+    "uar_default_on_creation": {
+      "defaultValue": { "value": "0.5" },
+      "description": "Initial UAR (User Authenticity Rating) assigned at account creation. Naming: uar.defaultOnCreation",
+      "valueType": "NUMBER"
+    },
+
+    "uar_delta_verified_review": {
+      "defaultValue": { "value": "0.05" },
+      "description": "UAR increase when a fully verified review is published. Naming: uar.delta.verifiedReview",
+      "valueType": "NUMBER"
+    },
+
+    "uar_delta_partial_review": {
+      "defaultValue": { "value": "0.02" },
+      "description": "UAR increase when a partially verified review is published. Naming: uar.delta.partialReview",
+      "valueType": "NUMBER"
+    },
+
+    "uar_delta_upvote_received": {
+      "defaultValue": { "value": "0.01" },
+      "description": "UAR increase per helpful upvote received on a review. Naming: uar.delta.upvoteReceived",
+      "valueType": "NUMBER"
+    },
+
+    "uar_delta_flag_received": {
+      "defaultValue": { "value": "-0.05" },
+      "description": "UAR decrease per confirmed user report/flag. Naming: uar.delta.flagReceived",
+      "valueType": "NUMBER"
+    },
+
+    "uar_delta_inauthentic_detection": {
+      "defaultValue": { "value": "-0.10" },
+      "description": "UAR decrease when fraud detection (layer 2/3/4) marks a review as inauthentic. Naming: uar.delta.inauthenticDetection",
+      "valueType": "NUMBER"
+    },
+
+    "uar_sandbox_threshold": {
+      "defaultValue": { "value": "0.3" },
+      "description": "If UAR drops below this value the user enters sandbox mode: reviews are silently held for admin review before publishing. Naming: uar.sandboxThreshold",
+      "valueType": "NUMBER"
+    },
+
+    "uar_max": {
+      "defaultValue": { "value": "1.0" },
+      "description": "Maximum UAR value. UAR is clamped to [0, uar_max] after every adjustment. Naming: uar.max",
+      "valueType": "NUMBER"
+    },
+
+    "points_earn_review_verified": {
+      "defaultValue": { "value": "100" },
+      "description": "Points awarded for submitting a Fully Verified review. Naming: points.earn.review.verified",
+      "valueType": "NUMBER"
+    },
+
+    "points_earn_review_partial": {
+      "defaultValue": { "value": "25" },
+      "description": "Points awarded for Partially Verified review. Same as Unverified per ADR-008 (25 pts flat). Naming: points.earn.review.partial",
+      "valueType": "NUMBER"
+    },
+
+    "points_earn_review_unverified": {
+      "defaultValue": { "value": "25" },
+      "description": "Points awarded for an Unverified review. Naming: points.earn.review.unverified",
+      "valueType": "NUMBER"
+    },
+
+    "points_earn_upvote_received": {
+      "defaultValue": { "value": "5" },
+      "description": "Points awarded when another user upvotes one of your reviews. Naming: points.earn.upvoteReceived",
+      "valueType": "NUMBER"
+    },
+
+    "points_earn_badge_unlock": {
+      "defaultValue": { "value": "150" },
+      "description": "Points bonus awarded on first badge unlock (e.g., Taster, Explorer). Naming: points.earn.badgeUnlock",
+      "valueType": "NUMBER"
+    },
+
+    "points_earn_onboarding_complete": {
+      "defaultValue": { "value": "150" },
+      "description": "Points awarded on completing all onboarding steps. Naming: points.earn.onboardingComplete",
+      "valueType": "NUMBER"
+    },
+
+    "points_earn_referral_referrer": {
+      "defaultValue": { "value": "500" },
+      "description": "Points awarded to the referrer when referred user completes first verified review. Per ADR-006. Naming: points.earn.referral.referrer",
+      "valueType": "NUMBER"
+    },
+
+    "points_earn_referral_referred": {
+      "defaultValue": { "value": "250" },
+      "description": "Points awarded to the referred user on completing first verified review. Per ADR-006. Naming: points.earn.referral.referred",
+      "valueType": "NUMBER"
+    },
+
+    "points_earn_birthday_bonus": {
+      "defaultValue": { "value": "200" },
+      "description": "Points awarded to a user on their birthday. Naming: points.earn.birthdayBonus",
+      "valueType": "NUMBER"
+    },
+
+    "points_earn_anniversary_bonus": {
+      "defaultValue": { "value": "100" },
+      "description": "Points awarded on each account anniversary (yearly). Naming: points.earn.anniversaryBonus",
+      "valueType": "NUMBER"
+    },
+
+    "points_earn_add_venue": {
+      "defaultValue": { "value": "150" },
+      "description": "Points awarded for adding a new venue that gets approved. Naming: points.earn.addVenue",
+      "valueType": "NUMBER"
+    },
+
+    "points_cost_deal_dessert": {
+      "defaultValue": { "value": "750" },
+      "description": "Point cost to redeem the Free Dessert deal. Per P0-6 fix. Naming: points.cost.deal.dessert",
+      "valueType": "NUMBER"
+    },
+
+    "points_cost_deal_gift_card_10": {
+      "defaultValue": { "value": "3500" },
+      "description": "Point cost for a $10 gift card deal. Per P0-6 fix. Naming: points.cost.deal.giftCard10",
+      "valueType": "NUMBER"
+    },
+
+    "points_cost_deal_weekend_warrior": {
+      "defaultValue": { "value": "150" },
+      "description": "Point cost for the Weekend Warrior deal. Per P0-6 fix. Naming: points.cost.deal.weekendWarrior",
+      "valueType": "NUMBER"
+    },
+
+    "points_expiry_days": {
+      "defaultValue": { "value": "365" },
+      "description": "Days after earning before points expire. Warning at 60 days, final warning at 7 days. Naming: points.expiryDays",
+      "valueType": "NUMBER"
+    },
+
+    "points_multiplier_plus": {
+      "defaultValue": { "value": "1.25" },
+      "description": "Points earning multiplier for active Zupurb Plus subscribers (earn 1.25x on all actions). Naming: points.multiplier.plus",
+      "valueType": "NUMBER"
+    },
+
+    "tier_threshold_bronze": {
+      "defaultValue": { "value": "0" },
+      "description": "Minimum rolling 12-month points for Bronze tier (entry level). Naming: tier.thresholds.bronze",
+      "valueType": "NUMBER"
+    },
+
+    "tier_threshold_silver": {
+      "defaultValue": { "value": "1000" },
+      "description": "Minimum rolling 12-month points for Silver tier. Naming: tier.thresholds.silver",
+      "valueType": "NUMBER"
+    },
+
+    "tier_threshold_gold": {
+      "defaultValue": { "value": "5000" },
+      "description": "Minimum rolling 12-month points for Gold tier. Naming: tier.thresholds.gold",
+      "valueType": "NUMBER"
+    },
+
+    "tier_threshold_elite": {
+      "defaultValue": { "value": "15000" },
+      "description": "Minimum rolling 12-month points for Elite tier. Naming: tier.thresholds.elite",
+      "valueType": "NUMBER"
+    },
+
+    "founder_badge_cap": {
+      "defaultValue": { "value": "150" },
+      "description": "Maximum Founder badges that can be awarded. First 150 users to verify a review qualify. Per ADR-007 / SOW 13.1. Naming: founder.badgeCap",
+      "valueType": "NUMBER"
+    },
+
+    "review_weekly_cap": {
+      "defaultValue": { "value": "7" },
+      "description": "Maximum reviews a user can submit per rolling 7-day window. Anti-fraud velocity control. Naming: review.weeklyCap",
+      "valueType": "NUMBER"
+    },
+
+    "fraud_q8_contradiction_threshold": {
+      "defaultValue": { "value": "2" },
+      "description": "Number of Q8 contradictions vs Q1-Q7 required to flag a review for fraud (Layer 3). Naming: fraud.q8ContradictionThreshold",
+      "valueType": "NUMBER"
+    },
+
+    "fraud_coordinated_attack_window_minutes": {
+      "defaultValue": { "value": "60" },
+      "description": "Time window in minutes for the coordinated attack detector (Layer 4) to cluster suspicious reviews. Naming: fraud.coordinatedAttack.windowMinutes",
+      "valueType": "NUMBER"
+    },
+
+    "fraud_coordinated_attack_cluster_size": {
+      "defaultValue": { "value": "5" },
+      "description": "Minimum suspicious reviews in the time window to trigger a coordinated attack alert. Naming: fraud.coordinatedAttack.clusterSize",
+      "valueType": "NUMBER"
+    },
+
+    "fraud_similarity_sandbox": {
+      "defaultValue": { "value": "0.70" },
+      "description": "Average pairwise text-similarity score above which a user is silently sandboxed (shill signal). Naming: fraud.similarity.sandboxThreshold",
+      "valueType": "NUMBER"
+    },
+
+    "fraud_similarity_recent_reviews_n": {
+      "defaultValue": { "value": "10" },
+      "description": "Number of most-recent reviews used when computing average pairwise text similarity for the fraud similarity batch scorer. Naming: fraud.similarity.recentReviewsN",
+      "valueType": "NUMBER"
+    },
+
+    "fraud_max_reviews_per_est_30days": {
+      "defaultValue": { "value": "1" },
+      "description": "Maximum reviews a user can submit for a single establishment within a rolling 30-day window. Naming: fraud.maxReviewsPerEst30Days",
+      "valueType": "NUMBER"
+    },
+
+    "reservation_cancellation_cutoff_hours": {
+      "defaultValue": { "value": "48" },
+      "description": "Hours before a reservation at which cancellation is no longer permitted. Within this window, no-show penalty applies. Per ADR-004. Naming: reservation.cancellationCutoffHours",
+      "valueType": "NUMBER"
+    },
+
+    "reservation_no_show_uar_penalty": {
+      "defaultValue": { "value": "-0.10" },
+      "description": "UAR penalty applied when a user is marked as a no-show for a reservation. Naming: reservation.noShowUarPenalty",
+      "valueType": "NUMBER"
+    },
+
+    "messaging_business_initial_message_limit": {
+      "defaultValue": { "value": "1" },
+      "description": "Maximum messages a business can send to a user before the user must reply (anti-spam gate). Naming: messaging.businessInitialMessageLimit",
+      "valueType": "NUMBER"
+    },
+
+    "search_algolia_hits_per_page": {
+      "defaultValue": { "value": "20" },
+      "description": "Number of search results returned per page from Algolia. Naming: search.algolia.hitsPerPage",
+      "valueType": "NUMBER"
+    },
+
+    "feed_page_size": {
+      "defaultValue": { "value": "20" },
+      "description": "Default page size for home feed and discover feed Firestore pagination. Naming: feed.pageSize",
+      "valueType": "NUMBER"
+    },
+
+    "ocr_confidence_threshold": {
+      "defaultValue": { "value": "0.80" },
+      "description": "Minimum OCR confidence score [0,1] to promote a review from Partially Verified to Fully Verified. Naming: ocr.confidenceThreshold",
+      "valueType": "NUMBER"
+    },
+
+    "feature_creator_monetization_phase2": {
+      "defaultValue": { "value": "false" },
+      "description": "Feature flag: enable creator monetization features. Off at launch, on in a future phase. Naming: feature.creatorMonetizationPhase2",
+      "valueType": "BOOLEAN"
+    },
+
+    "feature_reels_enabled": {
+      "defaultValue": { "value": "false" },
+      "description": "Feature flag: enable short-form video (Reels) upload and feed. Off at launch. Naming: feature.reelsEnabled",
+      "valueType": "BOOLEAN"
+    },
+
+    "feature_gift_cards_enabled": {
+      "defaultValue": { "value": "true" },
+      "description": "Feature flag: enable gift card redemptions via Tremendous. Naming: feature.giftCardsEnabled",
+      "valueType": "BOOLEAN"
+    },
+
+    "feature_referrals_enabled": {
+      "defaultValue": { "value": "true" },
+      "description": "Feature flag: enable the referral code system (B13). Naming: feature.referralsEnabled",
+      "valueType": "BOOLEAN"
+    },
+
+    "feature_tier_system_enabled": {
+      "defaultValue": { "value": "true" },
+      "description": "Feature flag: enable loyalty tier progression (B14). Naming: feature.tierSystemEnabled",
+      "valueType": "BOOLEAN"
+    },
+
+    "feature_plus_subscription_enabled": {
+      "defaultValue": { "value": "true" },
+      "description": "Feature flag: enable Zupurb Plus IAP subscription. Naming: feature.plusSubscriptionEnabled",
+      "valueType": "BOOLEAN"
+    },
+
+    "maintenance_mode": {
+      "defaultValue": { "value": "false" },
+      "description": "When true, all callable functions return a maintenance error and the app shows a maintenance screen. Naming: maintenance.mode",
+      "valueType": "BOOLEAN"
+    }
+
+  },
+
+  "version": {
+    "versionNumber": "1",
+    "updateTime": "2026-05-06T00:00:00Z",
+    "updateUser": { "email": "alanpaul5433@gmail.com" },
+    "updateOrigin": "REST_API",
+    "updateType": "INCREMENTAL_UPDATE",
+    "description": "B1 Foundation: initial Remote Config defaults. Scoring weights, UAR deltas, point costs, tier thresholds, similarity threshold, feature flags. All values from ARCHITECTURE.md. NEVER hardcode these values in Cloud Functions or Flutter app — always read from Remote Config."
+  }
+}

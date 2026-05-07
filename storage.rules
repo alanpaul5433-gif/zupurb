@@ -1,0 +1,99 @@
+// storage.rules — I2: Firebase Storage security rules
+//
+// Rule philosophy (mirrors Firestore): default deny.
+// Only authenticated users may write, and only to paths they own.
+// Public read is allowed for review and establishment photos (CDN-served).
+//
+// Max file size: 10 MB (enforced below).
+// Allowed content types: image/jpeg, image/png, image/webp only.
+//
+// Storage path layout:
+//   users/{uid}/profile.jpg              ← profile photos
+//   reviews/{reviewId}/{uid}/{file}      ← review photos
+//   establishments/{estId}/{file}        ← establishment photos
+
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // -------------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------------
+
+    // Returns true if the request carries a valid Firebase Auth token.
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Returns true if the authenticated user's UID matches [uid].
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    // Returns true if the uploaded file is within the 10 MB size limit.
+    function withinSizeLimit() {
+      return request.resource.size <= 10 * 1024 * 1024;
+    }
+
+    // Returns true if the content type is an accepted image format.
+    function isAllowedImageType() {
+      return request.resource.contentType in [
+        'image/jpeg',
+        'image/png',
+        'image/webp'
+      ];
+    }
+
+    // Combined write guard: authenticated + size + content type.
+    function canWriteImage() {
+      return isAuthenticated()
+          && withinSizeLimit()
+          && isAllowedImageType();
+    }
+
+    // -------------------------------------------------------------------------
+    // users/{uid}/profile.jpg
+    // -------------------------------------------------------------------------
+    // Only the owning user may read or write their own profile photo.
+
+    match /users/{uid}/profile.jpg {
+      allow read:  if isOwner(uid);
+      allow write: if isOwner(uid) && withinSizeLimit() && isAllowedImageType();
+    }
+
+    // Deny all other paths under users/ (e.g. attempted path-traversal).
+    match /users/{uid}/{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // reviews/{reviewId}/{uid}/{filename}
+    // -------------------------------------------------------------------------
+    // Authenticated users may write to their own sub-path.
+    // Public read so review photos can be served via Firebase Storage CDN.
+
+    match /reviews/{reviewId}/{uid}/{filename} {
+      allow read:  if true; // Public — review photos are user-generated content
+      allow write: if isOwner(uid) && withinSizeLimit() && isAllowedImageType();
+    }
+
+    // -------------------------------------------------------------------------
+    // establishments/{estId}/{filename}
+    // -------------------------------------------------------------------------
+    // Any authenticated user may upload an establishment photo (crowd-sourced).
+    // Public read for CDN delivery.
+
+    match /establishments/{estId}/{filename} {
+      allow read:  if true; // Public — establishment photos are public content
+      allow write: if canWriteImage();
+    }
+
+    // -------------------------------------------------------------------------
+    // Default deny — nothing else is readable or writable.
+    // -------------------------------------------------------------------------
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
