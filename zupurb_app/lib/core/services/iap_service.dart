@@ -23,6 +23,18 @@ import 'package:flutter/services.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 
 // ---------------------------------------------------------------------------
+// PlusStatus — entitlement state visible to the Flutter layer
+// ---------------------------------------------------------------------------
+
+/// Client-side representation of the user's Plus subscription state.
+///
+/// [active]  — entitlement is live and not expired.
+/// [grace]   — in a billing grace period (platform still granting access).
+/// [expired] — had Plus in the past but entitlement is no longer active.
+/// [none]    — never subscribed.
+enum PlusStatus { active, grace, expired, none }
+
+// ---------------------------------------------------------------------------
 // Build-time constants — injected via --dart-define
 // ---------------------------------------------------------------------------
 
@@ -202,6 +214,43 @@ class IAPService {
   Future<bool> hasActivePlus() async {
     final info = await getCustomerInfo();
     return info.entitlements.active.containsKey(kPlusEntitlementId);
+  }
+
+  /// Initiates a StoreKit / Play Billing purchase for [package].
+  ///
+  /// Convenience alias for [purchasePackage] — satisfies the I6 contract name.
+  /// Returns updated [CustomerInfo] on success.
+  /// Throws [IAPException] on failure; check [IAPException.isUserCancelled].
+  Future<CustomerInfo> purchasePlus(Package package) => purchasePackage(package);
+
+  /// Derives a [PlusStatus] from the current [CustomerInfo].
+  ///
+  /// Logic:
+  /// - active entitlement → [PlusStatus.active]
+  /// - all entitlements list contains [kPlusEntitlementId] but not active →
+  ///   check willRenew; if billing grace period, return [PlusStatus.grace];
+  ///   otherwise [PlusStatus.expired]
+  /// - never seen → [PlusStatus.none]
+  ///
+  /// This is a CLIENT-SIDE check. The backend `getPlusStatus` callable is the
+  /// authoritative source; call it via [FunctionsService.getPlusStatus] and
+  /// invalidate [plusStatusProvider] after any purchase or restore.
+  Future<PlusStatus> getPlusStatus() async {
+    final info = await getCustomerInfo();
+
+    // Active entitlement — subscription is live.
+    if (info.entitlements.active.containsKey(kPlusEntitlementId)) {
+      return PlusStatus.active;
+    }
+
+    // Check all (non-active) entitlements to distinguish expired vs. grace.
+    final allEntitlement = info.entitlements.all[kPlusEntitlementId];
+    if (allEntitlement != null) {
+      // willRenew is true during a billing grace period.
+      return allEntitlement.willRenew ? PlusStatus.grace : PlusStatus.expired;
+    }
+
+    return PlusStatus.none;
   }
 
   // -------------------------------------------------------------------------

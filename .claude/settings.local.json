@@ -35,7 +35,32 @@
       "Bash(powershell.exe -Command \"Set-Location 'C:\\\\Projects\\\\Zupurb\\\\functions'; npx tsc --noEmit 2>&1\")",
       "Read(//c//**)",
       "Read(//cygdrive/c/Projects/Zupurb/**)",
-      "Bash(powershell.exe -Command \"Set-Location C:\\\\Projects\\\\Zupurb\\\\functions; npx tsc --noEmit 2>&1\")"
+      "Bash(powershell.exe -Command \"Set-Location C:\\\\Projects\\\\Zupurb\\\\functions; npx tsc --noEmit 2>&1\")",
+      "Bash(npx jest *)",
+      "Bash(flutter test *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(flutter devices *)",
+      "Bash(flutter emulators *)",
+      "Bash(firebase use *)",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(d['project_info']['project_id']\\)\")",
+      "Bash(node -e \"const d=require\\('./android/app/google-services.json'\\); console.log\\(d.project_info.project_id\\);\")",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "mcp__Claude_in_Chrome__browser_batch",
+      "mcp__Claude_in_Chrome__computer",
+      "Read(//c/Users/**)",
+      "Read(//c/Users/Sandeed Bin Hashim/Downloads/**)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('project_id:', d['project_info']['project_id']\\); print\\('package:', d['client'][0]['client_info']['android_client_info']['package_name']\\)\")",
+      "Bash(node -e \"const fs=require\\('fs'\\); const d=JSON.parse\\(fs.readFileSync\\('C:/Projects/Zupurb/zupurb_app/android/app/google-services.json','utf8'\\)\\); console.log\\('project_id:', d.project_info.project_id\\); console.log\\('package:', d.client[0].client_info.android_client_info.package_name\\);\")",
+      "mcp__Claude_in_Chrome__find",
+      "mcp__Claude_in_Chrome__javascript_tool",
+      "Bash(dart pub *)",
+      "Bash(wmic logicaldisk *)",
+      "Bash(wait)",
+      "Bash(powershell -Command \"\\(Get-PSDrive C\\).Free / 1GB\")",
+      "Bash(powershell -Command \"\\(Get-PSDrive C\\).Used / 1GB\")",
+      "Bash(./gradlew --stop)",
+      "Bash(npm run *)"
     ]
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -6,6 +7,8 @@ import 'package:flutter/foundation.dart';
 import 'firebase_options.dart';
 import '../config/app_environment.dart';
 import '../services/iap_service.dart';
+import '../services/analytics_service.dart';
+import '../providers/analytics_providers.dart';
 
 /// Initializes Firebase and App Check.
 ///
@@ -40,12 +43,52 @@ Future<void> initializeFirebase() async {
   // authStateProvider emits a non-null user (see iap_providers.dart).
   await IAPService.initialize('');
 
+  // Non-blocking Plus status prefetch — warms the local RevenueCat cache so
+  // the first [plusStatusProvider] read is fast. Intentionally unawaited;
+  // a failure here is non-fatal (UI degrades to PlusStatus.none).
+  unawaited(
+    IAPService()
+        .getPlusStatus()
+        // ignore: avoid_print
+        .then((_) => print('[IAP] Plus status prefetch ok'))
+        // ignore: avoid_print
+        .catchError((Object e) => print('[IAP] Plus status prefetch err: $e')),
+  );
+
   // App Check — enforces that requests come from legitimate app instances.
   // Blocks API abuse from non-app clients (bots, reverse-engineered calls).
+  //
+  // Provider selection is environment-aware:
+  //   development / staging → DebugProvider (allows local/CI testing)
+  //   production            → PlayIntegrity (Android) + DeviceCheck (iOS)
+  //
+  // Debug tokens are issued per device via the Firebase console and are
+  // automatically revoked in production environments.
   await FirebaseAppCheck.instance.activate(
-    // TODO(D1): change to AndroidProvider.playIntegrity in release build
-    androidProvider: AndroidProvider.debug,
-    // TODO(D1): change to AppleProvider.deviceCheck in release build
-    appleProvider: AppleProvider.debug,
+    androidProvider: AppEnvironment.current.isDevelopment
+        ? AndroidProvider.debug
+        : AndroidProvider.playIntegrity,
+    appleProvider: AppEnvironment.current.isDevelopment
+        ? AppleProvider.debug
+        : AppleProvider.deviceCheck,
   );
+
+  // Analytics (I12) — initialize AnalyticsService with Mixpanel dual-tracking.
+  // Non-blocking: analytics failure must never delay app startup.
+  // MIXPANEL_TOKEN is injected via --dart-define=MIXPANEL_TOKEN=<token>.
+  // The provider returns a no-op Firebase-only instance until this resolves.
+  unawaited(
+    AnalyticsService.create().then((service) {
+      setAnalyticsServiceInstance(service);
+      debugPrint('[Analytics] AnalyticsService initialized (I12).');
+    }).catchError((Object e) {
+      debugPrint('[Analytics] Init error — continuing Firebase-only: $e');
+    }),
+  );
+
+  // TODO(auth-wiring): After auth state is wired, call:
+  //   analyticsService.identify(user.uid);
+  // in the authStateProvider listener when the user signs in, and
+  //   analyticsService.reset();
+  // in the sign-out path.  See analytics_providers.dart for the provider.
 }

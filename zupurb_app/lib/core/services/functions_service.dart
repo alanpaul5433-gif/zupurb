@@ -132,4 +132,14 @@ class FunctionsService {
 
   Future<Map<String, dynamic>> getConversations() =>
       call('getConversations', {}, (r) => Map<String, dynamic>.from(r as Map));
+
+  /// Calls the `getPlusStatus` callable to sync and retrieve the server-side
+  /// Plus entitlement state for the current user.
+  ///
+  /// Expected response shape: `{ "status": "active" | "grace" | "expired" | "none" }`
+  ///
+  /// Used after purchase / restore to confirm the backend has received the
+  /// RevenueCat webhook and updated Firestore (R8.3 — server is authoritative).
+  Future<Map<String, dynamic>> getPlusStatus() =>
+      call('getPlusStatus', {}, (r) => Map<String, dynamic>.from(r as Map));
 }

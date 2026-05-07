@@ -8,9 +8,12 @@
  */
 
 import { getFirestore, Timestamp, FieldValue } from "firebase-admin/firestore";
+import { getAuth } from "firebase-admin/auth";
 import {
   REFERRAL_CODES_COLLECTION,
+  PRIVATE_USER_DATA_COLLECTION,
   ReferralCodeDoc,
+  PrivateUserDataDoc,
   Paths,
 } from "./schema";
 import { log, newTraceId } from "./logging";
@@ -23,6 +26,7 @@ const REFERRAL_CODE_EXPIRY_DAYS = 30;     // RC: referral_code_expiry_days
 const REFERRAL_CODE_PREFIX = "Z";
 const REFERRAL_CODE_LENGTH = 8;           // total chars including prefix
 const MAX_GENERATION_RETRIES = 5;
+const REFERRAL_CAP_PER_30_DAYS = 10;     // RC: referrals.rollingCapPer30Days
 
 const ALPHANUMERIC = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
@@ -113,15 +117,17 @@ export async function validateReferralCode(
  * verified review (anti-fraud, locked Phase 0 decision).
  *
  * Anti-fraud:
- *   - Cannot self-refer
+ *   - Cannot self-refer (same uid, same email, same phone, overlapping device fingerprint)
  *   - Code must be valid and active (not expired)
  *   - Referee must not already have a referral relationship
+ *   - Referrer must not have hit the 10/30-day rolling cap
  */
 export async function applyReferral(
   refereeUid: string,
   referralCode: string
 ): Promise<{ success: boolean; referrerUid?: string; error?: string }> {
   const db = getFirestore();
+  const auth = getAuth();
 
   // 1. Validate code
   const validation = await validateReferralCode(referralCode);
@@ -134,12 +140,75 @@ export async function applyReferral(
 
   const referrerUid = validation.referrerUid;
 
-  // 2. Self-refer check (anti-fraud)
+  // 2. Self-refer check — same uid
   if (referrerUid === refereeUid) {
     return { success: false, error: "Cannot apply your own referral code." };
   }
 
-  // 3. Check referee doesn't already have a referral relationship
+  // 3. Fetch both users' Auth records for email + phone self-referral check
+  let referrerEmail: string | undefined;
+  let refereeEmail: string | undefined;
+  let referrerPhone: string | undefined;
+  let refereePhone: string | undefined;
+
+  try {
+    const [referrerAuthUser, refereeAuthUser] = await Promise.all([
+      auth.getUser(referrerUid),
+      auth.getUser(refereeUid),
+    ]);
+    referrerEmail = referrerAuthUser.email?.toLowerCase();
+    refereeEmail  = refereeAuthUser.email?.toLowerCase();
+    referrerPhone = referrerAuthUser.phoneNumber;
+    refereePhone  = refereeAuthUser.phoneNumber;
+  } catch (err) {
+    log.warn("applyReferral: could not fetch Auth records for self-referral check", {
+      traceId: newTraceId(),
+      domain: "referrals",
+      userId: refereeUid,
+      eventId: `apply_${referralCode}`,
+    }, { error: String(err) });
+    // Non-fatal: proceed; uid check already done above
+  }
+
+  // Same email self-referral check
+  if (referrerEmail && refereeEmail && referrerEmail === refereeEmail) {
+    return { success: false, error: "Cannot apply a referral code from the same email address." };
+  }
+
+  // Same phone self-referral check
+  if (referrerPhone && refereePhone && referrerPhone === refereePhone) {
+    return { success: false, error: "Cannot apply a referral code from the same phone number." };
+  }
+
+  // 4. Device fingerprint self-referral check (private_user_data)
+  try {
+    const [referrerPrivSnap, refereePrivSnap] = await Promise.all([
+      db.doc(`${PRIVATE_USER_DATA_COLLECTION}/${referrerUid}`).get(),
+      db.doc(`${PRIVATE_USER_DATA_COLLECTION}/${refereeUid}`).get(),
+    ]);
+
+    if (referrerPrivSnap.exists && refereePrivSnap.exists) {
+      const referrerPriv = referrerPrivSnap.data() as PrivateUserDataDoc;
+      const refereePriv  = refereePrivSnap.data() as PrivateUserDataDoc;
+      const referrerFPs  = new Set<string>(referrerPriv.deviceFingerprints ?? []);
+      const refereeFPs   = refereePriv.deviceFingerprints ?? [];
+
+      const overlap = refereeFPs.some((fp) => referrerFPs.has(fp));
+      if (overlap) {
+        return { success: false, error: "Cannot apply a referral code from the same device." };
+      }
+    }
+  } catch (err) {
+    log.warn("applyReferral: could not check device fingerprints", {
+      traceId: newTraceId(),
+      domain: "referrals",
+      userId: refereeUid,
+      eventId: `apply_${referralCode}`,
+    }, { error: String(err) });
+    // Non-fatal: proceed
+  }
+
+  // 5. Check referee doesn't already have a referral relationship
   const userSnap = await db.doc(Paths.user(refereeUid)).get();
   if (userSnap.exists) {
     const userData = userSnap.data() as { referredBy?: string | null };
@@ -148,9 +217,22 @@ export async function applyReferral(
     }
   }
 
+  // 6. 10/30-day rolling cap check: count pending entries applied in past 30 days
+  const codeSnap = await db.collection(REFERRAL_CODES_COLLECTION).doc(referralCode).get();
+  if (codeSnap.exists) {
+    const codeData = codeSnap.data() as ReferralCodeDoc;
+    const cutoffMs = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const recentCount = (codeData.referees ?? []).filter(
+      (r) => r.appliedAt.toMillis() >= cutoffMs
+    ).length;
+    if (recentCount >= REFERRAL_CAP_PER_30_DAYS) {
+      return { success: false, error: "Referral cap reached. Try again next month." };
+    }
+  }
+
   const now = Timestamp.now();
 
-  // 4. Write to referralCodes/{code} — add referee entry
+  // 7. Write to referralCodes/{code} — add referee entry
   const refereeEntry: RefereeEntry = {
     uid: refereeUid,
     appliedAt: now,
@@ -162,7 +244,7 @@ export async function applyReferral(
     totalReferrals: FieldValue.increment(1),
   });
 
-  // 5. Update users/{refereeUid}
+  // 8. Update users/{refereeUid}
   await db.doc(Paths.user(refereeUid)).update({
     referredBy: referrerUid,
     referralCode: referralCode,

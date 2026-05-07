@@ -11,6 +11,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getFirestore } from "firebase-admin/firestore";
 import { z } from "zod";
 import { applyReferral } from "../lib/referral";
+import { writeReferralDoc } from "../domains/referrals/attribution";
 import { UserDoc, Paths } from "../lib/schema";
 import { log, newTraceId } from "../lib/logging";
 
@@ -83,6 +84,17 @@ export const applyReferralCode = onCall(
 
     if (!result.success) {
       throw new HttpsError("failed-precondition", result.error ?? "Failed to apply referral code.");
+    }
+
+    // Write flat attribution doc (referrals/{referralId}) — non-fatal if it fails
+    if (result.referrerUid) {
+      try {
+        await writeReferralDoc(result.referrerUid, uid, referralCode, traceId);
+      } catch (err) {
+        log.error("applyReferralCode: writeReferralDoc failed (non-fatal)", {
+          traceId, userId: uid, domain: "referrals",
+        }, { error: String(err) });
+      }
     }
 
     log.info("applyReferralCode: complete", {

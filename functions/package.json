@@ -45,6 +45,7 @@
   },
   "main": "lib/index.js",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.95.1",
     "@aws-sdk/client-rekognition": "^3.1044.0",
     "@aws-sdk/client-textract": "^3.600.0",
     "@sendgrid/mail": "^8.1.6",

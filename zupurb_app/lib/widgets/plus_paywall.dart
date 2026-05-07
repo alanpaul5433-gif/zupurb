@@ -19,8 +19,8 @@ import 'package:gap/gap.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../core/config/legal_urls.dart';
+import '../core/providers/iap_providers.dart';
 import '../core/services/iap_service.dart';
-import '../state/iap/iap_providers.dart';
 import '../theme/colors.dart';
 
 class PlusPaywall extends ConsumerWidget {
@@ -152,9 +152,19 @@ class PlusPaywall extends ConsumerWidget {
     final iap = ref.read(iapServiceProvider);
     try {
       await iap.purchasePackage(package);
-      // Refresh entitlement providers
+      // Refresh all entitlement providers.
       ref.invalidate(isPlusActiveProvider);
       ref.invalidate(customerInfoProvider);
+      ref.invalidate(plusStatusProvider);
+
+      // Trigger server-side sync — non-blocking, best-effort.
+      // The backend getPlusStatus callable confirms the RevenueCat webhook
+      // has been processed and updates Firestore (R8.3).
+      ref
+          .read(iapFunctionsProvider)
+          .getPlusStatus()
+          // ignore: avoid_print
+          .catchError((Object _) => <String, dynamic>{});
 
       if (context.mounted) {
         Navigator.of(context).pop();
@@ -184,6 +194,7 @@ class PlusPaywall extends ConsumerWidget {
       final info = await iap.restorePurchases();
       ref.invalidate(isPlusActiveProvider);
       ref.invalidate(customerInfoProvider);
+      ref.invalidate(plusStatusProvider);
 
       final isPlus = info.entitlements.active.containsKey(kPlusEntitlementId);
       if (context.mounted) {

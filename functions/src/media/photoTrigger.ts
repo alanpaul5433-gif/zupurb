@@ -23,6 +23,7 @@ import { onObjectFinalized } from "firebase-functions/v2/storage";
 import { getStorage } from "firebase-admin/storage";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { moderateImage } from "../integrations/rekognition/client";
+import { validateReviewPhoto } from "../integrations/ai/photoValidation";
 
 // ---------------------------------------------------------------------------
 // Trigger
@@ -91,7 +92,43 @@ export const onPhotoUploaded = onObjectFinalized(
     }
 
     if (safe) {
-      // Nothing to do — image is clean.
+      // I5: Rekognition safety check passed — now validate photo context via Claude Vision.
+      // Only relevant for review photos (not establishment hero shots).
+      if (isReview) {
+        const parts = filePath.split("/");
+        const reviewId = parts.length >= 2 ? parts[1] : "unknown";
+        try {
+          const validationResult = await validateReviewPhoto(
+            downloadUrl,
+            "photoTrigger",
+            reviewId
+          );
+          if (!validationResult.valid) {
+            const db = getFirestore();
+            await db.collection("reviews").doc(reviewId).update({
+              photoContextInvalid: true,
+              photoContextInvalidAt: FieldValue.serverTimestamp(),
+            });
+            console.log(
+              JSON.stringify({
+                event: "review_photo_context_invalid",
+                reviewId,
+                reason: validationResult.reason,
+                confidence: validationResult.confidence,
+              })
+            );
+          }
+        } catch (err) {
+          // Non-fatal — never block or delete on vision validation failure.
+          console.error(
+            JSON.stringify({
+              event: "photo_validation_error",
+              filePath,
+              error: (err as Error).message,
+            })
+          );
+        }
+      }
       return;
     }
 

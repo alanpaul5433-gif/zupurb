@@ -166,6 +166,12 @@ export interface UserDoc {
   // B12: Last active signal — updated on any authenticated callable
   lastActiveAt: Timestamp | null;
 
+  // B14: Birthday & anniversary bonus claim tracking
+  // dateOfBirth stored as MM-DD string (e.g., "03-15"); year not stored for privacy.
+  dateOfBirth: string | null;               // "MM-DD" format; user-supplied at onboarding or profile
+  birthdayBonusClaimedYear: number | null;  // calendar year the birthday bonus was last claimed
+  anniversaryBonusClaimedYear: number | null; // calendar year the anniversary bonus was last claimed
+
   // Timestamps
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -234,6 +240,31 @@ export interface UserReferralDoc {
   pointsAwardedToReferrer: number; // RC: referrals.pointsReferrer (default 500)
   pointsAwardedToReferee: number;  // RC: referrals.pointsReferee  (default 250)
   createdAt: Timestamp;
+}
+
+// ---------------------------------------------------------------------------
+// COLLECTION: referrals/{referralId}  (B13 — flat attribution log)
+// One doc per referral relationship. Created when a referee successfully
+// applies a referral code. Status moves pending → completed on first verified
+// review, or pending → rejected by admin/fraud.
+// Write: Cloud Function only. Read: referrer + referee + admin.
+// ---------------------------------------------------------------------------
+
+export const REFERRALS_COLLECTION = "referrals";
+
+export interface ReferralDoc {
+  referralId: string;
+  referrerUid: string;
+  refereeUid: string;
+  codeUsed: string;
+  /** pending = waiting for first verified review; completed = reward paid; rejected = fraud/admin */
+  status: "pending" | "completed" | "rejected";
+  refereeFirstVerifiedReviewId: string | null;
+  referrerPointsAwarded: number;   // RC: referrals.pointsReferrer (500)
+  refereePointsAwarded: number;    // RC: referrals.pointsReferee  (250)
+  createdAt: Timestamp;
+  completedAt: Timestamp | null;
+  schemaVersion: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -723,6 +754,8 @@ export type NotificationType =
   | "challenge_complete"
   | "tier_upgrade"
   | "tier_downgrade"
+  | "birthday_bonus"
+  | "anniversary_bonus"
   | "reservation_confirmed"
   | "reservation_reminder_24h"
   | "reservation_reminder_2h"
@@ -876,6 +909,20 @@ export interface ReferralCodeDoc {
   // RC: referrals.rollingCapPer30Days (10)
   successfulReferralsLast30Days: number;
   rollingWindowStart: Timestamp;
+}
+
+// ---------------------------------------------------------------------------
+// COLLECTION: follows/{followerId}__{followeeId}
+// B10: follow graph. ID format: "{followerId}__{followeeId}" (double underscore).
+// ---------------------------------------------------------------------------
+
+export const FOLLOWS_COLLECTION = "follows";
+
+export interface FollowDoc {
+  followId: string;       // "{followerId}__{followeeId}"
+  followerId: string;
+  followeeId: string;
+  createdAt: Timestamp;
 }
 
 // ---------------------------------------------------------------------------
@@ -1057,6 +1104,8 @@ export const Paths = {
     `${ESTABLISHMENTS_COLLECTION}/${estId}/${EST_DEALS_SUBCOLLECTION}/${dealId}`,
   dealRedemption: (redemptionId: string) => `${DEAL_REDEMPTIONS_COLLECTION}/${redemptionId}`,
   referralCode: (code: string) => `${REFERRAL_CODES_COLLECTION}/${code}`,
+  referral: (referralId: string) => `${REFERRALS_COLLECTION}/${referralId}`,
+  follow: (followerId: string, followeeId: string) => `${FOLLOWS_COLLECTION}/${followerId}__${followeeId}`,
   post: (postId: string) => `${POSTS_COLLECTION}/${postId}`,
   flag: (flagId: string) => `${FLAGS_COLLECTION}/${flagId}`,
   adminQueueItem: (itemId: string) => `${ADMIN_QUEUE_COLLECTION}/${itemId}`,

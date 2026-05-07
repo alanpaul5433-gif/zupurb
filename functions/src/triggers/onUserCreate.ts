@@ -95,6 +95,10 @@ export const onUserCreate = functionsV1
       fcmTokenDetails: {},
       notificationPreferences: {},    // all types enabled by default (empty = all on)
       unreadNotificationCount: 0,
+      // B14: birthday / anniversary bonus tracking
+      dateOfBirth: null,
+      birthdayBonusClaimedYear: null,
+      anniversaryBonusClaimedYear: null,
       // B12: ban state (defaults)
       isBanned: false,
       bannedAt: null,

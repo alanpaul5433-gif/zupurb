@@ -219,6 +219,7 @@ Total estimate: ~6 months for User App alone with a small focused team.
 |---|---|---|---|
 | 2026-05-05 | **Stack confirmed: Flutter + Firebase** | Client (Alan) | Existing Flutter SDK + Firebase CLI on dev machine; SOW maps cleanly to Firestore + Cloud Functions |
 | 2026-05-05 | **Chat: In-house on Firestore** | Client (Alan) | Vendor lock-in avoidance; data sovereignty; accepts ~6–10 wks build cost |
+| 2026-05-07 | **ADR-002 upheld** — Stream Chat rejected, in-house Firestore chat confirmed. Flutter service + providers wired to `social_sendMessage`, `social_getConversations`, `createConversation`, `markConversationRead` callables. | integrations-dev | Flutter wrappers at `lib/core/services/chat_service.dart` + `lib/core/providers/chat_providers.dart`. |
 | 2026-05-05 | **Loyalty tiers: INCLUDED at launch — spec approved** | Client (Alan) | 4 tiers (Bronze/Silver/Gold/Platinum), rolling 12-month points, quarter-end downgrade. Full spec in §11.1. B14 unblocked |
 | 2026-05-05 | **Reservation flow: Instant-confirm** | Client (Alan) | Matches SOW §11; remove "Requested" status from UI in Phase 1B |
 | 2026-05-05 | **Cancellation policy: hard cutoff 48 hours before reservation** | Client (Alan) | No financial penalty; cancel allowed >48hrs out, blocked within 48hrs (counts as no-show per SOW §11.2 if user fails to attend) |

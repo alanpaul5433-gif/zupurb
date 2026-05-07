@@ -24,6 +24,7 @@ import {
   REVIEWS_COLLECTION,
 } from "../lib/schema";
 import { log, newTraceId } from "../lib/logging";
+import { summariseReviews } from "../integrations/ai/claudeSummary";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -132,25 +133,19 @@ export async function generateReviewSummary(
     );
   }
 
-  // Step 2: Concatenate review bodies (I5 will pass this to the LLM)
+  // Step 2: Concatenate review bodies
   const reviewTexts: string[] = reviewsWithText.map((r) => r.body);
 
-  // Step 3: Call Claude Haiku — NOT YET IMPLEMENTED.
-  // ---------------------------------------------------------------
-  // I5 replacement point:
-  //   import { summariseReviews } from "../integrations/claude";
-  //   const summary = await summariseReviews(reviewTexts, tid);
-  //   return { summary, reviewsUsed: reviewTexts.length, generatedAt: Timestamp.now() };
-  // ---------------------------------------------------------------
-  void reviewTexts; // suppress unused-variable warning until I5 wires this
+  // Step 3: Call Claude Haiku (I5 — wired)
+  const summary = await summariseReviews(reviewTexts, tid);
 
-  log.warn("generateReviewSummary: Claude Haiku not yet wired (I5 stub)", {
+  log.info("generateReviewSummary: summary generated", {
     traceId: tid,
     domain: "reviews",
     eventId: `aiSummary_${establishmentId}`,
-  }, { reviewsAvailable: reviewsWithText.length });
+  }, { reviewsUsed: reviewTexts.length, summaryLength: summary.length });
 
-  throw new UnimplementedError("AI summary — wire Claude Haiku in I5");
+  return { summary, reviewsUsed: reviewTexts.length, generatedAt: Timestamp.now() };
 }
 
 // ---------------------------------------------------------------------------

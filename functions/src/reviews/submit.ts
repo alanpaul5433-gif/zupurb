@@ -37,7 +37,6 @@ import {
   EstablishmentDoc,
   REVIEWS_COLLECTION,
   UserDoc,
-  REFERRAL_CODES_COLLECTION,
 } from "../lib/schema";
 import { requireAuth } from "../lib/auth";
 import { computeReviewScore, type ReviewAnswerInput } from "../algorithms/scoring";
@@ -50,9 +49,12 @@ import { onReviewSubmittedChallenges } from "../lib/challenges";
 import { getTierMultiplier } from "../lib/tiers";
 import { isPlusActive } from "../lib/plus";
 import { moderateContent } from "../lib/moderation";
-import { sendNotification } from "../lib/notify";
+// sendNotification removed from this file — referral notifications are sent
+// via domains/referrals/rewards.ts (onFirstVerifiedReview)
 import { updateEstablishmentScore } from "./aggregation";
+import { onFirstVerifiedReview } from "../domains/referrals/rewards";
 import { log, newTraceId } from "../lib/logging";
+import { scoreTextToxicity } from "../integrations/ai/perspective";
 
 // ---------------------------------------------------------------------------
 // Zod input schema
@@ -218,6 +220,31 @@ export const submitReview = onCall(
         throw new HttpsError("invalid-argument", "Content violates community guidelines.");
       }
     }
+    // 9b. Perspective toxicity check — non-blocking; sets moderationFlag if toxic
+    let moderationFlag = false;
+    if (bodyText.length > 0) {
+      try {
+        const toxResult = await scoreTextToxicity(bodyText, traceId, `submit_${uid}`);
+        if (toxResult.toxic) {
+          moderationFlag = true;
+          log.warn("submitReview: toxicity flag set", {
+            traceId,
+            userId: uid,
+            domain: "moderation",
+            eventId: `submit_${uid}`,
+          }, { toxicityScore: toxResult.score });
+        }
+      } catch (err) {
+        // Non-fatal — never block submission on toxicity check failure.
+        log.error("submitReview: toxicity check failed (non-fatal)", {
+          traceId,
+          userId: uid,
+          domain: "moderation",
+          eventId: `submit_${uid}`,
+        }, { error: String(err) });
+      }
+    }
+
     const bodyHash = sha256(normaliseText(bodyText));
 
     // 10. Compute per-review score (server-side)
@@ -296,6 +323,8 @@ export const submitReview = onCall(
       bodyHash,
       // Sandboxed flag: true = excluded from scoring and public feeds.
       ...(userIsSandboxed ? { sandboxed: true } : {}),
+      // I5: toxicity flag from Perspective API — does not block submission.
+      ...(moderationFlag ? { moderationFlag: true } : {}),
     };
 
     // 16. Batch write: flat reviews collection + denormalized subcollection
@@ -434,72 +463,18 @@ export const submitReview = onCall(
       }, { error: String(err) });
     }
 
-    // 23. Referral reward check (first verified review only)
+    // 23. Referral reward check — delegated to domains/referrals/rewards.ts
+    // Fires only on first verified review (verifiedReviewCount was 0 before this submission).
     try {
       if (verificationTier !== "unverified") {
-        const referredBy: string | null = userData?.referredBy ?? null;
-        const rewardClaimed: boolean = userData?.referralRewardClaimed ?? false;
-
-        if (referredBy && !rewardClaimed) {
-          const verifiedReviewsSnap = await db
-            .collection(REVIEWS_COLLECTION)
-            .where("authorUid", "==", uid)
-            .where("verificationTier", "!=", "unverified")
-            .get();
-
-          if (verifiedReviewsSnap.size === 1) {
-            const referralCode: string | null = userData?.referralCode ?? null;
-
-            await awardPoints(uid, {
-              amount: 250,
-              type: "earn_referral_bonus",
-              description: "Referral reward — first verified review",
-              relatedEntityType: "referral",
-            });
-            totalPointsAwarded += 250;
-
-            await awardPoints(referredBy, {
-              amount: 500,
-              type: "earn_referral_bonus",
-              description: "Referral reward — your friend posted their first verified review",
-              relatedEntityType: "referral",
-            });
-
-            await db.doc(Paths.user(uid)).update({
-              referralRewardClaimed: true,
-              updatedAt: now,
-            } as Record<string, unknown>);
-
-            if (referralCode) {
-              const referralCodeRef = db.collection(REFERRAL_CODES_COLLECTION).doc(referralCode);
-              const referralCodeSnap = await referralCodeRef.get();
-              if (referralCodeSnap.exists) {
-                type RefereeEntry = { uid: string; rewardStatus: string; appliedAt: unknown; rewardedAt?: unknown };
-                const referralDocData = referralCodeSnap.data() as { referees?: RefereeEntry[] };
-                const updatedReferees = (referralDocData.referees ?? []).map((entry) =>
-                  entry.uid === uid ? { ...entry, rewardStatus: "awarded", rewardedAt: now } : entry
-                );
-                await referralCodeRef.update({
-                  successfulReferrals: FieldValue.increment(1),
-                  referees: updatedReferees,
-                });
-              }
-            }
-
-            await sendNotification(uid, {
-              type: "points_earned",
-              title: "Referral reward!",
-              body: "You earned 250 pts — your referral is complete!",
-              relatedEntityType: "referral",
-            });
-
-            await sendNotification(referredBy, {
-              type: "points_earned",
-              title: "Referral reward!",
-              body: `${userData?.displayName ?? "Your friend"} just posted their first review — you earned 500 pts!`,
-              relatedEntityType: "referral",
-            });
-          }
+        const preSubmitVerifiedCount = (userData?.verifiedReviewCount ?? 0);
+        // verifiedReviewCount was incremented in step 18 — so preSubmit value is stored in userData
+        // which was fetched in step 19, before the increment. If it was 0 then, this is the first.
+        if (preSubmitVerifiedCount === 0 && !userData?.referralRewardClaimed) {
+          await onFirstVerifiedReview(uid, reviewId, db, traceId);
+          // Note: onFirstVerifiedReview awards 250 pts to referee internally.
+          // We add it to totalPointsAwarded for the response.
+          totalPointsAwarded += 250;
         }
       }
     } catch (err) {

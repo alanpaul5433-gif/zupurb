@@ -83,6 +83,10 @@ service cloud.firestore {
       allow create: if isOwner(userId)
         && request.resource.data.uid == userId;
       // Client can only update the safe subset of their own profile.
+      // Plus subscription fields (isPlusSubscriber, plusExpiresAt, plusActive,
+      // plusActivatedAt, plusActiveUntil, plusSource) are intentionally absent
+      // from this list — they are written exclusively by Cloud Functions via
+      // Admin SDK (RevenueCat webhook, processPlusExpirations cron).
       allow update: if isOwner(userId)
         && hasOnly([
           "displayName",
@@ -90,6 +94,7 @@ service cloud.firestore {
           "bio",
           "tierHiddenByUser",
           "onboardingComplete",
+          "dateOfBirth",   // B14: user sets MM-DD for birthday bonus eligibility
           "updatedAt"
         ]);
       allow delete: if false; // Deletion handled by Cloud Function (anonymize, not delete)
@@ -466,6 +471,22 @@ service cloud.firestore {
     }
 
     // -------------------------------------------------------------------------
+    // COLLECTION: referrals/{referralId}   (B13 — flat attribution log)
+    //
+    // - Referrer and referee can read their own referral doc.
+    // - Write: Cloud Function only (Admin SDK bypasses rules).
+    // - Admin: full read + write.
+    // -------------------------------------------------------------------------
+
+    match /referrals/{referralId} {
+      allow read: if isAuthenticated()
+        && (request.auth.uid == resource.data.referrerUid
+            || request.auth.uid == resource.data.refereeUid);
+      allow write: if false; // Cloud Function writes via Admin SDK only
+      allow read, write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
     // COLLECTION: posts/{postId}
     //
     // - Authenticated users: read active posts
@@ -547,11 +568,21 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
     // COLLECTION: adminQueue/{queueItemId}
     //
-    // - Admin only
+    // - Authenticated users: create only (for user-submitted flags / reports)
+    //   Server enforces ban check and rate limits via the callable layer.
+    //   Direct client creates are gated: status must be 'pending', no assignedTo.
+    // - Admin/staff: read + write (triage, resolve, escalate — Retool / Admin SDK)
     // -------------------------------------------------------------------------
 
     match /adminQueue/{queueItemId} {
-      // No client access — admin and staff only (Retool / Admin SDK path)
+      // Authenticated users may create a queue item for content flagging.
+      // The callable (flagReviewForModeration) is the intended path; this rule
+      // provides a defence-in-depth fallback for direct SDK access.
+      allow create: if isAuthenticated()
+        && request.resource.data.status == "pending"
+        && request.resource.data.assignedTo == null
+        // Banned users cannot submit flags
+        && isNotBanned();
       allow read, write: if isAdmin() || isStaff();
     }
 
@@ -579,6 +610,94 @@ service cloud.firestore {
     match /_scheduled_deletes/{uid} {
       allow read, write: if false;  // Cloud Function + Admin SDK only
       allow read: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLECTION: plusSubscriptions/{uid}
+    //
+    // B11: Stores the full RevenueCat subscription document for a user.
+    //
+    // - Owner: read only (view own subscription state)
+    // - Write: Cloud Function only (Admin SDK — RevenueCat webhook handler)
+    //   No direct client writes are permitted.
+    // - Admin: full access for support / audit
+    // -------------------------------------------------------------------------
+
+    match /plusSubscriptions/{uid} {
+      allow read: if isOwner(uid);
+      allow write: if false; // Cloud Function writes via Admin SDK only
+      allow read, write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLECTION: follows/{followId}  (B10 — follow graph)
+    //
+    // Document ID format: "{followerId}__{followeeId}"
+    //
+    // - Authenticated create: caller must be the followerId (own follow)
+    // - Authenticated delete: caller must be the followerId (own unfollow)
+    // - Public read: any authenticated user (profile page follow counts, gate checks)
+    // - Update: never — create or delete only
+    // -------------------------------------------------------------------------
+
+    match /follows/{followId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+        && request.resource.data.followerId == request.auth.uid
+        && followId == request.resource.data.followerId + "__" + request.resource.data.followeeId;
+      allow delete: if isAuthenticated()
+        && resource.data.followerId == request.auth.uid;
+      allow update: if false; // immutable
+      allow read, write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLECTION: userTiers/{uid}  (B14 — Loyalty Tier state)
+    //
+    // Dedicated tier document: current tier, rolling 12-month points cache,
+    // last transition info, next evaluation date, inactivity tracking.
+    //
+    // - Owner: read only (their own tier data)
+    // - Write: Cloud Function only (Admin SDK — tier engine, quarterly cron)
+    // - Admin: full access for support / audit
+    // -------------------------------------------------------------------------
+
+    match /userTiers/{uid} {
+      allow read: if isOwner(uid);
+      allow write: if false; // Cloud Function writes via Admin SDK only
+      allow read, write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // SUB-COLLECTION: users/{userId}/tierHistory/{eventId}
+    //
+    // Tier transition history. Written by handleTierTransition in lib/tiers.ts.
+    //
+    // - Owner: read only
+    // - Write: Cloud Function only (Admin SDK)
+    // - Admin: full access
+    // -------------------------------------------------------------------------
+
+    match /users/{userId}/tierHistory/{eventId} {
+      allow read: if isOwner(userId);
+      allow write: if false; // Cloud Function writes via Admin SDK only
+      allow read, write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLECTION: giftCardRedemptions/{uid}/redemptions/{redemptionId}
+    //
+    // I7: Gift card redemption records. Subcollection per user.
+    //
+    // - Owner: read own redemption history
+    // - Write: Cloud Function only (Admin SDK) — redeemGiftCard callable
+    // - Admin: full access for support / audit
+    // -------------------------------------------------------------------------
+
+    match /giftCardRedemptions/{uid}/redemptions/{redemptionId} {
+      allow read: if isOwner(uid);
+      allow write: if false; // Cloud Function writes via Admin SDK only (I7)
+      allow read, write: if isAdmin();
     }
 
     // -------------------------------------------------------------------------

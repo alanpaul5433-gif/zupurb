@@ -57,6 +57,11 @@ Source: screen-by-screen audit of `Zupurb User App/UI/` against `ZUPURB - SOW V6
 | BE-5 | `reviews/triggers.ts` | `updateEstablishmentScore` import flagged as unused by TS `noUnusedLocals` (false-positive resolved by linter auto-fix at B6 build). Root cause: prior autosave removed the import and the usage at line 105 references a stale declaration. Fixed by linter during B6 build. | None — resolved | P1 — Resolved (B6) |
 | BE-6 | `integrations/ocr/client.ts` (lines 129, 155, 201, 224) | log.info/warn calls missing required `traceId` field in LogContext — TS2345 build error. Pre-existing before B7. | Pass `traceId: "no-trace"` or thread a real traceId into the OCR client. | P1 — Open |
 | BE-7 | `reservations/verification.ts` (line 18) + `reservations/booking.ts` (line 15) | Unused imports `RESERVATIONS_COLLECTION` and `FieldValue` — TS6133 build errors. Pre-existing before B7. | Remove unused imports. | P2 — Open |
+| BE-8 | `reviews/submit.ts` (line 226) | `reviewId` (const at line 269) used before declaration — TS2448/TS2454 build errors. Pre-existing before B11. | Move `const reviewId = crypto.randomUUID()` to before line 226. | P1 — Open |
+| BE-9 | `reviews/submit.ts` (line 223) | `moderationFlag` declared but TypeScript reports it as never read — TS6133. The spread `...(moderationFlag ? ...)` at line 326 is not recognized as a read. Pre-existing before B11. | Use `void moderationFlag` or refactor the spread to avoid strict-mode false positive. | P2 — Open |
+| BE-10 | `social/notifications.ts` (line 24) | `FieldValue` imported but never used — TS6133 build error. Pre-existing before B11. | Remove unused import. | P2 — Open |
+
+| BE-11 | `triggers/onUserCreate.ts` (line 58) | `UserDoc` missing `dateOfBirth`, `birthdayBonusClaimedYear`, `anniversaryBonusClaimedYear` fields added to schema in B14 but not populated in the trigger. TS2739 build error. | Fixed during B12 build — added three null-default fields. | P1 — Resolved (B12) |
 
 ## P2 — Polish (Copy, Typos, Minor)
 
@@ -86,7 +91,9 @@ Source: screen-by-screen audit of `Zupurb User App/UI/` against `ZUPURB - SOW V6
 |---|---|---|---|---|
 | I-info-1 | Multiple screens (Phase 1B) | `withOpacity` deprecated (10 instances across splash, discover, home, onboarding, reservation, settings) | Replace with `.withValues(alpha: ...)`. Not introduced by I1; pre-existing. | OPEN |
 | I2-1 | `lib/widgets/establishment_map.dart` | `_openDirections` builds the Google Maps URL but does not launch it — `url_launcher` not yet in pubspec. | Add `url_launcher: ^6.3.0` to pubspec.yaml and wire `launchUrl(uri)` in `_openDirections`. | OPEN |
-| I12-1 | `lib/core/services/analytics_service.dart:74` | Pre-existing parser error: "Expected an identifier" on `_analytics.logEvent(name:…)`. Not introduced by I12. Likely a `firebase_analytics ^11.3.3` API mismatch — `logEvent` parameter names may have changed. | Investigate `FirebaseAnalytics.logEvent` signature in v11 and update call site. | OPEN |
+| I12-1 | `lib/core/services/deep_link_service.dart:168,267,268,286,287,305,306,321,322` | Pre-existing (not introduced by I12): `BranchLinkProperties.addMetaData` method does not exist in `flutter_branch_sdk ^7.0.0`; also `Map<dynamic, dynamic>` type mismatch at line 168. Likely API change in the installed branch SDK version. | Investigate `BranchLinkProperties` API in flutter_branch_sdk 7.x and replace `addMetaData` calls with correct method. | OPEN |
+| I12-2 | `lib/core/services/fingerprint_service.dart:112,126,142` | Pre-existing (not introduced by I12): `FingerprintJSProResponse` type argument error and `confidence` getter missing — API shape mismatch with `fpjs_pro_plugin ^4.9.0`. | Check fpjs_pro_plugin 4.x migration guide; update type references. | OPEN |
+| I12-3 | `lib/core/services/share_service.dart:60,61,77,78,94,95` | Pre-existing (not introduced by I12): `SharePlus` and `ShareParams` undefined — `share_plus ^10.x` API changed in v10. | Replace `SharePlus.instance.share(ShareParams(...))` with the v10 API (likely `SharePlus.shareXFiles` / `SharePlus.share` with a `ShareContent` object). | OPEN |
 | I3-1 | `functions/src/integrations/algolia/client.ts` | Pre-existing tsc TS2307: Cannot find module 'algoliasearch' or its corresponding type declarations. `algoliasearch` npm package not installed. | `cd functions && npm install algoliasearch` then verify tsc passes. | OPEN |
 
 ## Security Fix Register (T8)
@@ -118,7 +125,7 @@ Source: screen-by-screen audit of `Zupurb User App/UI/` against `ZUPURB - SOW V6
 | CI-2 | `test/widgets/selection_chip_test.dart:103` | Unused local variable `setStateRef` | `unused_local_variable` (warning) | DONE |
 | CI-3 | `lib/core/services/deep_link_service.dart` (15 lines) | `print` calls in production code | `avoid_print` (info) | DONE |
 | CI-4 | Multiple screens | `withOpacity` deprecated; use `.withValues()` | `deprecated_member_use` (info) | DONE |
-| CI-5 | `lib/widgets/plus_paywall.dart` | `Radio.groupValue` / `onChanged` deprecated | `deprecated_member_use` (info) | DONE |
+| CI-5 | `lib/widgets/plus_paywall.dart` | `Radio.groupValue` / `onChanged` deprecated; missing `RadioGroup` ancestor | Restored `RadioGroup<String>` wrapper; removed deprecated props from `Radio`; fixed `catchError` return type on server sync call | DONE (I6) |
 | CI-6 | `lib/main.dart:6` | Unnecessary import `flutter/foundation.dart` | `unnecessary_import` (info) | DONE |
 | CI-7 | Multiple test files | Multiple leading underscores on unused params | `unnecessary_underscores` (info) | DONE |
 

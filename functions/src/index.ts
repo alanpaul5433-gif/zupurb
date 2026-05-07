@@ -200,6 +200,34 @@ export { onNotificationWrite }              from "./triggers/onNotificationWrite
 export { cleanupOldNotifications }          from "./scheduled/cleanupOldNotifications";
 
 // ---------------------------------------------------------------------------
+// B10 — Social (follow graph, feed ranking, notification fanout, messaging gates)
+// ---------------------------------------------------------------------------
+
+// Follow graph
+export {
+  followUser,
+  unfollowUser,
+  getFollowers,
+  getFollowing,
+}                                           from "./social/follow";
+
+// Feed ranking
+export { getFeed }                          from "./social/feed";
+
+// Notification callables (canonical — wraps lib/notify)
+export {
+  getNotifications  as social_getNotifications,
+  markAllRead       as social_markAllRead,
+}                                           from "./social/notifications";
+
+// Messaging gates (B10 canonical callables — supersede B8 http/ stubs)
+export {
+  canSendMessageCallable as canSendMessage,
+  getConversationsSocial as social_getConversations,
+  sendMessageSocial      as social_sendMessage,
+}                                           from "./social/messaging";
+
+// ---------------------------------------------------------------------------
 // B11 — Caching & Performance (Redis/Upstash)
 // ---------------------------------------------------------------------------
 
@@ -230,9 +258,47 @@ export { adminUnbanUser }          from "./http/adminUnbanUser";
 export { processBanExpirations }   from "./scheduled/processBanExpirations";
 
 // ---------------------------------------------------------------------------
+// B12 — Admin Domain (account states, moderation queue, founder badge, content)
+// ---------------------------------------------------------------------------
+
+// Account state management (suspend / ban / unsuspend / sandbox)
+export {
+  admin_suspendUser,
+  admin_banUser      as admin_banUserV2,
+  admin_unsuspendUser,
+  admin_sandboxUser,
+  liftExpiredSuspensions,
+}                                  from "./admin/accountStates";
+
+// Moderation queue domain API
+export {
+  getModerationQueueAdmin,
+  moderateItem,
+  flagReviewForModeration,
+}                                  from "./admin/moderationQueue";
+
+// Founder badge admin endpoints
+export {
+  adminAwardFounderBadge,
+  getFounderBadgeStatus,
+}                                  from "./admin/founderBadge";
+
+// Content admin actions
+export {
+  adminDeleteReview,
+  adminEditEstablishment,
+  adminVerifyEstablishment          as adminVerifyEstablishmentV2,
+}                                  from "./admin/contentAdmin";
+
+// ---------------------------------------------------------------------------
 // B13 — Referral System
 // ---------------------------------------------------------------------------
 
+// Canonical B13 callables (domains/referrals/)
+export { getReferralCode }              from "./domains/referrals/codes";
+export { getReferralStats }             from "./domains/referrals/stats";
+
+// Legacy http/ stubs kept for backward compatibility
 export { getMyReferralCode }            from "./http/getMyReferralCode";
 export { applyReferralCode }            from "./http/applyReferralCode";
 export { validateReferralCodePublic }   from "./http/validateReferralCodePublic";
@@ -243,10 +309,13 @@ export { expireStaleReferrals }         from "./scheduled/expireStaleReferrals";
 // B14 — Loyalty Tiers Engine
 // ---------------------------------------------------------------------------
 
-export { getTierStatus }           from "./http/getTierStatus";
-export { getTierPerks }            from "./http/getTierPerks";
-export { adminAdjustTier }         from "./http/adminAdjustTier";
-export { processPlusExpirations }  from "./scheduled/processPlusExpirations";
+export { getTierStatus }                  from "./http/getTierStatus";
+export { getTierPerks }                   from "./http/getTierPerks";
+export { adminAdjustTier }                from "./http/adminAdjustTier";
+export { getBirthdayBonus }               from "./http/getBirthdayBonus";
+export { getAnniversaryBonus }            from "./http/getAnniversaryBonus";
+export { processPlusExpirations }         from "./scheduled/processPlusExpirations";
+export { runQuarterlyTierEvaluation }     from "./scheduled/runQuarterlyTierEvaluation";
 
 // ---------------------------------------------------------------------------
 // I4 — OCR Vendor Harness, Production Receipt Extraction & Verification
@@ -261,6 +330,15 @@ export { verifyReceiptForReview }                   from "./integrations/ocr/ver
 // ---------------------------------------------------------------------------
 
 export { adminReindexAlgolia } from "./http/adminReindexAlgolia";
+
+// ---------------------------------------------------------------------------
+// B11 — Plus & IAP Validation
+// Subscription state checks, entitlement queries, Plus benefit gating.
+// revenueCatWebhook is the HTTP POST endpoint handled under I7 below.
+// ---------------------------------------------------------------------------
+
+export { getPlusStatus }     from "./plus/entitlements";
+export { getPlusGateStatus } from "./plus/gates";
 
 // ---------------------------------------------------------------------------
 // I7 — RevenueCat IAP Webhook
@@ -282,10 +360,27 @@ export { syncTremendousOrders }        from "./scheduled/syncTremendousOrders";
 export { adminListTremendousProducts } from "./http/adminListTremendousProducts";
 
 // ---------------------------------------------------------------------------
+// I7 — Gift Cards (giftcards integration layer)
+// redeemGiftCard:      callable — spend points and deliver a gift card via Tremendous
+// listGiftCardCatalog: callable — returns available gift card products from Tremendous
+// ---------------------------------------------------------------------------
+
+export { redeemGiftCard, listGiftCardCatalog } from "./integrations/giftcards/redeem";
+
+// ---------------------------------------------------------------------------
 // I2 — Storage & Media (image moderation trigger)
 // ---------------------------------------------------------------------------
 
 export { onPhotoUploaded } from "./media/photoTrigger";
+
+// ---------------------------------------------------------------------------
+// I8 — Push Notifications (FCM)
+// updateFcmToken: callable — validates + upserts FCM token for the authed user.
+// sendPushNotification / sendBulkPushNotification are library helpers used by
+// lib/notify.ts and domain code; they are NOT exported as Cloud Functions.
+// ---------------------------------------------------------------------------
+
+export { updateFcmToken } from "./integrations/push/tokenUpdate";
 
 // ---------------------------------------------------------------------------
 // D8 — Crashlytics Alerts
@@ -297,3 +392,9 @@ export {
   alerts_onVelocityAlert,
   alerts_onStabilityDigest,
 } from "./alerts/crashlytics_alerts";
+
+// ---------------------------------------------------------------------------
+// I11 — Anti-Fraud (FingerprintJS Pro, reCAPTCHA Enterprise stub, App Check)
+// ---------------------------------------------------------------------------
+
+export { storeDeviceFingerprint } from "./integrations/antiFraud/fingerprint";

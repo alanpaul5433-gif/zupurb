@@ -50,6 +50,10 @@ dependencies:
   http: ^1.2.2                   # HTTP client for Google Places API calls (I3)
   algolia_helper_flutter: ^1.0.0 # Algolia Flutter helper — multi-index search client (I3)
   permission_handler: ^11.3.1    # Runtime permission requests — location, notifications (I3)
+  flutter_branch_sdk: ^7.0.0    # Branch.io deep linking — shareable links + referral attribution (I10)
+  share_plus: ^10.0.0            # OS-level share sheet — used by ShareService to share Branch links (I10)
+  fpjs_pro_plugin: ^4.9.0        # FingerprintJS Pro — device fingerprinting for anti-fraud (I11)
+  mixpanel_flutter: ^2.3.3       # Mixpanel product analytics — dual-tracked alongside Firebase Analytics (I12)
 
 dev_dependencies:
   flutter_test:
