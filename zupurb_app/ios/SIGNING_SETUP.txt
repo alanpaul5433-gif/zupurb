@@ -1,0 +1,167 @@
+ZUPURB iOS SIGNING SETUP
+========================
+Bundle ID: com.zupurb.app
+Last updated: 2026-05-06
+
+This document covers manual Xcode signing (local development), Apple Developer
+Portal prerequisites, and Fastlane match setup (CI/CD).
+
+--------------------------------------------------------------------
+PART 1 — APPLE DEVELOPER PORTAL PREREQUISITES
+--------------------------------------------------------------------
+
+1. App ID (Identifier)
+   - Go to: developer.apple.com > Certificates, IDs & Profiles > Identifiers
+   - Register a new App ID:
+       Description : Zupurb
+       Bundle ID   : com.zupurb.app  (explicit, not wildcard)
+   - Enable the following capabilities:
+       Push Notifications
+       Sign In with Apple
+       Associated Domains (for deep linking — Branch.io / AppsFlyer)
+       In-App Purchase
+       Game Center: OFF
+
+2. Certificates
+   - Create an "Apple Distribution" certificate for App Store builds.
+   - Create an "Apple Development" certificate for local/dev builds.
+   - Export both as .p12 files (with passphrase) and store securely.
+   - DO NOT commit .p12 or .cer files to the repository.
+
+3. Provisioning Profiles
+   - App Store profile : "match AppStore com.zupurb.app"
+   - Development profile: "match Development com.zupurb.app"
+   - These names are the Fastlane match convention — match creates them
+     automatically (see Part 3).
+
+4. Push Notification entitlement
+   - In Apple Developer Portal, under your App ID, enable Push Notifications.
+   - Generate an APNs Auth Key (.p8) under Keys > + > Apple Push Notifications.
+     Key name: Zupurb APNs Key
+   - Download the .p8 once (cannot re-download). Store in a secrets manager.
+   - Upload the .p8 to Firebase Console > Project Settings > Cloud Messaging
+     (APNs Authentication Key).
+
+5. App Store Connect — App record
+   - Create a new app at appstoreconnect.apple.com:
+       Name          : Zupurb
+       Bundle ID     : com.zupurb.app
+       Primary language: English (U.S.)
+       SKU           : zupurb-user-app-001
+   - Set age rating: 17+ (alcohol-related content — bars and nightclubs).
+
+--------------------------------------------------------------------
+PART 2 — AUTOMATIC SIGNING IN XCODE (LOCAL DEV ONLY)
+--------------------------------------------------------------------
+
+Use automatic signing only for running on a personal device during development.
+CI always uses manual signing via Fastlane match.
+
+Steps:
+1. Open zupurb_app/ios/Runner.xcworkspace in Xcode.
+2. Select the Runner target > Signing & Capabilities tab.
+3. Check "Automatically manage signing."
+4. Select your personal team from the Team dropdown.
+5. Xcode will create a development provisioning profile locally.
+
+Note: When switching back to CI/manual signing, uncheck "Automatically manage
+signing" and set the provisioning profile to "match AppStore com.zupurb.app"
+for Release and "match Development com.zupurb.app" for Debug.
+
+--------------------------------------------------------------------
+PART 3 — FASTLANE MATCH SETUP (CI / TEAM SIGNING)
+--------------------------------------------------------------------
+
+Fastlane match stores all certificates and provisioning profiles in a private
+Git repository, encrypted with a passphrase.
+
+3.1 Prerequisites
+  - Ruby >= 3.0 installed (use rbenv or system Ruby on macOS).
+  - Install Fastlane: gem install fastlane
+  - Create a PRIVATE Git repository for certificate storage.
+    Example name: zupurb-ios-certs (must be private — never public).
+
+3.2 Initial match setup (run once by the team lead)
+  - Set the following env vars in your shell:
+      MATCH_GIT_URL         = git@github.com:your-org/zupurb-ios-certs.git
+      APPLE_ID              = your-apple-id@email.com
+      APPLE_TEAM_ID         = YOUR_10_CHAR_TEAM_ID
+      ITC_TEAM_ID           = YOUR_ITC_TEAM_ID  (App Store Connect team ID)
+      MATCH_PASSWORD        = a strong passphrase (stored in CI secrets, NOT here)
+
+  - From the zupurb_app directory, run:
+      bundle exec fastlane match appstore --generate-apple-certs
+      bundle exec fastlane match development
+
+  - match will create and upload certificates + profiles to the certs repo.
+  - The MATCH_PASSWORD is required to decrypt them — store it in:
+      GitHub Actions secret: MATCH_PASSWORD
+      Local: your password manager
+
+3.3 Syncing certificates (day-to-day / CI)
+  - The Matchfile at ios/fastlane/Matchfile is already configured:
+      git_url  : ENV["MATCH_GIT_URL"]
+      type     : appstore
+      app_identifier: com.zupurb.app
+      readonly : true when ENV["CI"] is set
+
+  - In CI, match runs in readonly mode — it downloads existing certs.
+  - To rotate certificates: run `fastlane match nuke appstore` (destructive!)
+    then `fastlane match appstore --generate-apple-certs` again.
+
+3.4 Required CI secrets for iOS signing
+  The following must be set in GitHub Actions > Settings > Secrets > Actions:
+
+  Secret name                    Value / source
+  ----------------------------   ------------------------------------------------
+  MATCH_GIT_URL                  SSH or HTTPS URL of the private certs repo
+  MATCH_PASSWORD                 Encryption passphrase used during match init
+  APPLE_ID                       Apple ID email for App Store Connect
+  APPLE_TEAM_ID                  10-character Apple Developer Team ID
+  ITC_TEAM_ID                    App Store Connect team numeric ID
+  APP_STORE_CONNECT_API_KEY_ID   Key ID from App Store Connect > API Keys
+  APP_STORE_CONNECT_ISSUER_ID    Issuer ID from App Store Connect > API Keys
+  APP_STORE_CONNECT_PRIVATE_KEY  Contents of the .p8 private key file (entire file)
+
+  Using App Store Connect API keys (recommended over Apple ID + password):
+  - Create key at: appstoreconnect.apple.com > Users & Access > Integrations > Keys
+  - Role: App Manager (minimum required for TestFlight uploads)
+  - Download the .p8 once; paste full content into APP_STORE_CONNECT_PRIVATE_KEY secret.
+
+3.5 Local developer onboarding
+  New team members run:
+    cd zupurb_app
+    bundle exec fastlane match development
+  This downloads the development certificate and profile to their Keychain.
+  They do NOT need the appstore certificate for local development.
+
+--------------------------------------------------------------------
+PART 4 — KEY ROTATION POLICY
+--------------------------------------------------------------------
+
+- Apple Distribution certificate: valid 1 year. Calendar reminder 60 days before
+  expiry. Rotate via: fastlane match nuke appstore && fastlane match appstore
+- APNs Auth Key (.p8): does NOT expire. Rotate only if compromised.
+- MATCH_PASSWORD: rotate annually or on team-member departure.
+  After rotation, re-encrypt the certs repo: fastlane match nuke appstore &&
+  fastlane match appstore (with new MATCH_PASSWORD).
+- Android upload keystore: managed by Play App Signing. Google retains the
+  signing key; the upload key can be rotated via Play Console > Setup >
+  App Integrity > Request upload key reset.
+
+--------------------------------------------------------------------
+PART 5 — TROUBLESHOOTING
+--------------------------------------------------------------------
+
+"No provisioning profiles found":
+  - Ensure MATCH_GIT_URL is accessible from the CI runner (SSH key or token).
+  - Ensure MATCH_PASSWORD matches the one used during init.
+
+"Certificate has been revoked":
+  - Someone manually deleted the cert in Apple Developer Portal.
+  - Re-run: fastlane match appstore (not nuke, just re-create).
+
+"Xcode code signing error: No matching provisioning profile found":
+  - Verify the profile name in ExportOptions.plist matches exactly:
+    "match AppStore com.zupurb.app"
+  - Re-sync: bundle exec fastlane match appstore --readonly false

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  ExportOptions.plist — Xcode archive export options for Zupurb App Store distribution.
+
+  Used by:
+    flutter build ipa --release --export-options-plist ios/ExportOptions.plist
+
+  In CI (.github/workflows/release.yml):
+    The workflow installs provisioning profiles via Fastlane match before invoking
+    this file.  The profileName below must match the profile managed by match.
+
+  Fields to verify before first production build:
+    - teamID                : Your Apple Developer Team ID (10-char string)
+    - provisioningProfiles  : Bundle ID -> provisioning profile name
+                              (match names these "match AppStore com.zupurb.app")
+    - signingCertificate    : "Apple Distribution" for App Store; "iPhone Distribution"
+                              is the legacy name — both work.
+-->
+<plist version="1.0">
+<dict>
+    <!-- Export method: app-store = App Store + TestFlight distribution -->
+    <key>method</key>
+    <string>app-store</string>
+
+    <!-- Apple Developer Team ID — replace with your 10-character team ID -->
+    <key>teamID</key>
+    <string>REPLACE_WITH_TEAM_ID</string>
+
+    <!-- Provisioning profile mapping: bundle ID → profile name -->
+    <key>provisioningProfiles</key>
+    <dict>
+        <key>com.zupurb.app</key>
+        <string>match AppStore com.zupurb.app</string>
+    </dict>
+
+    <!-- Signing identity — Apple Distribution certificate -->
+    <key>signingCertificate</key>
+    <string>Apple Distribution</string>
+
+    <!-- Signing style: manual = use explicit provisioning profiles (required for CI) -->
+    <key>signingStyle</key>
+    <string>manual</string>
+
+    <!-- Strip Swift symbols to reduce binary size -->
+    <key>stripSwiftSymbols</key>
+    <true/>
+
+    <!-- Upload symbols to Apple for crash report symbolication -->
+    <key>uploadSymbols</key>
+    <true/>
+
+    <!-- Do not upload directly from xcodebuild — CI uses upload-testflight-build action -->
+    <key>uploadBitcode</key>
+    <false/>
+
+    <!-- Destination: export IPA to local path (CI collects as artifact) -->
+    <key>destination</key>
+    <string>export</string>
+</dict>
+</plist>
