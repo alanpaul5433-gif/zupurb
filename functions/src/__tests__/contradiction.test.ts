@@ -206,7 +206,6 @@ describe("detectQ8Contradiction", () => {
 describe("detectStructuralAnomaly", () => {
   describe("no anomaly cases", () => {
     it("mixed answers → no anomaly", () => {
-      const answers = makeAnswers("a", "d"); // Q1–Q7='a', Q8='d' — Q8 excluded from check
       // Q1–Q7 are all 'a' → wait, that IS anomalous. Let's use varied Q1–Q7.
       const varied: ReviewAnswerInput[] = [
         { questionId: "q1", answerId: "a", score: 1 },

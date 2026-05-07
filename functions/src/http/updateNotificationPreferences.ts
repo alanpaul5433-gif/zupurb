@@ -55,7 +55,9 @@ const UpdatePreferencesSchema = z.object({
 // Callable
 // ---------------------------------------------------------------------------
 
-export const updateNotificationPreferences = onCall(async (request) => {
+export const updateNotificationPreferences = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
 
   if (!request.auth) {

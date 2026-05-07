@@ -47,7 +47,9 @@ const GetReservationsSchema = z.object({
 // Callable
 // ---------------------------------------------------------------------------
 
-export const getReservations = onCall(async (request) => {
+export const getReservations = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
 
   // Auth check

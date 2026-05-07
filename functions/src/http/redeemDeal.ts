@@ -20,6 +20,7 @@ import {
   DEAL_REDEMPTIONS_COLLECTION,
   Paths,
 } from "../lib/schema";
+import { isPlusActive } from "../lib/plus";
 import { getBalance } from "../lib/ledger";
 import { assertNotAlcoholDeal, assertDealActive } from "../lib/deals";
 import { log, newTraceId } from "../lib/logging";
@@ -53,7 +54,9 @@ const RedeemDealSchema = z.object({
 // Callable
 // ---------------------------------------------------------------------------
 
-export const redeemDeal = onCall(async (request) => {
+export const redeemDeal = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
 
   // Step 1: Auth check
@@ -88,6 +91,14 @@ export const redeemDeal = onCall(async (request) => {
 
   // Step 4: California ABC compliance guard
   assertNotAlcoholDeal(deal, traceId);
+
+  // Step 4b: Plus entitlement guard — server-side check (client gate is advisory only)
+  if (deal.isPlusRequired === true) {
+    const plusOk = await isPlusActive(uid);
+    if (!plusOk) {
+      throw new HttpsError("permission-denied", "Zupurb Plus subscription required to redeem this deal.");
+    }
+  }
 
   // Step 5: Idempotency check — return existing redemption if already processed
   const idempotencySnap = await db

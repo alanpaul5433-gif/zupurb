@@ -39,7 +39,9 @@ export interface RedemptionWithDeal extends DealRedemptionDoc {
 // Callable
 // ---------------------------------------------------------------------------
 
-export const getRedemptionHistory = onCall(async (request) => {
+export const getRedemptionHistory = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
 
   // Auth check

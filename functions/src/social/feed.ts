@@ -134,7 +134,9 @@ async function fetchFeaturedCreators(
 // Callable
 // ---------------------------------------------------------------------------
 
-export const getFeed = onCall(async (request) => {
+export const getFeed = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
 
   if (!request.auth) throw new HttpsError("unauthenticated", "Authentication required.");

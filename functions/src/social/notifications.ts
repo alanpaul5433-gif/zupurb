@@ -50,7 +50,9 @@ const GetNotificationsSchema = z.object({
   unreadOnly: z.boolean().optional().default(false),
 });
 
-export const getNotifications = onCall(async (request) => {
+export const getNotifications = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
 
   if (!request.auth) throw new HttpsError("unauthenticated", "Authentication required.");
@@ -136,7 +138,9 @@ export const getNotifications = onCall(async (request) => {
 // markAllRead
 // ---------------------------------------------------------------------------
 
-export const markAllRead = onCall(async (request) => {
+export const markAllRead = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
 
   if (!request.auth) throw new HttpsError("unauthenticated", "Authentication required.");

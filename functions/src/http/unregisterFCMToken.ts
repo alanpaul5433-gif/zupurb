@@ -25,7 +25,9 @@ const UnregisterFCMTokenSchema = z.object({
 // Callable
 // ---------------------------------------------------------------------------
 
-export const unregisterFCMToken = onCall(async (request) => {
+export const unregisterFCMToken = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
 
   if (!request.auth) {

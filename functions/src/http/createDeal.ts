@@ -47,7 +47,9 @@ const CreateDealSchema = z.object({
 // Callable
 // ---------------------------------------------------------------------------
 
-export const createDeal = onCall(async (request) => {
+export const createDeal = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
 
   // Admin-only gate
@@ -118,6 +120,7 @@ export const createDeal = onCall(async (request) => {
     perUserMonthlyCapPlus:    data.perUserMonthlyCapPlus,
     maxRedemptionsPerUser:    data.maxRedemptionsPerUser,
     dealTier:                 data.dealTier,
+    isPlusRequired:           false,          // default false; set true for Plus-exclusive deals
     deactivatedAt:            null,
     deactivatedReason:        null,
     createdAt:                now,

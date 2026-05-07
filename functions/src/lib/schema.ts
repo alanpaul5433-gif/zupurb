@@ -836,6 +836,9 @@ export interface DealDoc {
   // B6: Tier visibility — Platinum-only deals
   dealTier: DealTier;                  // "standard" | "platinum"
 
+  // B9: Plus-only deals — server-side entitlement gate in redeemDeal
+  isPlusRequired: boolean;             // true = Zupurb Plus subscription required to redeem
+
   // B6: Deactivation audit trail (set by deactivateDeal admin callable)
   deactivatedAt: Timestamp | null;
   deactivatedReason: string | null;

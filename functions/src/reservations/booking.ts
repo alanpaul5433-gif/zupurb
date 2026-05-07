@@ -58,7 +58,9 @@ const CreateReservationSchema = z.object({
   idempotencyKey:  z.string().min(1).max(128),
 });
 
-export const createReservation = onCall(async (request) => {
+export const createReservation = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
 
   if (!request.auth) {
@@ -294,7 +296,9 @@ const CancelReservationSchema = z.object({
   reason:        z.string().max(500).optional(),
 });
 
-export const cancelReservation = onCall(async (request) => {
+export const cancelReservation = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
 
   if (!request.auth) {
@@ -425,7 +429,9 @@ const GetMyReservationsSchema = z.object({
   afterId: z.string().optional(),
 });
 
-export const getMyReservations = onCall(async (request) => {
+export const getMyReservations = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
 
   if (!request.auth) {

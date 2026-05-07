@@ -63,7 +63,9 @@ function hasSlotToday(slots: ReservationSlotDoc[]): boolean {
 // Callable
 // ---------------------------------------------------------------------------
 
-export const getEstablishmentDetail = onCall(async (request) => {
+export const getEstablishmentDetail = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
 
   if (!request.auth) {

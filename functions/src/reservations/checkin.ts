@@ -140,7 +140,9 @@ const CheckInByQRSchema = z.object({
  * Full cryptographic verification is handled at the callable auth layer
  * (App Check + Firebase Auth must already have authenticated the caller).
  */
-export const checkInByQR = onCall(async (request) => {
+export const checkInByQR = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
 
   if (!request.auth) {
@@ -243,7 +245,9 @@ const CheckInByOTPSchema = z.object({
 /**
  * Verifies OTP + expiry, then marks the reservation checked-in.
  */
-export const checkInByOTP = onCall(async (request) => {
+export const checkInByOTP = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
 
   if (!request.auth) {

@@ -77,7 +77,9 @@ export async function requirePlus(
  *
  * Response shape: { [featureId]: boolean }
  */
-export const getPlusGateStatus = onCall(async (request) => {
+export const getPlusGateStatus = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Authentication required.");

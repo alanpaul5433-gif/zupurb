@@ -41,6 +41,12 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Zupurb needs camera access to capture photos for your reviews.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Zupurb needs photo library access to attach images to your reviews.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Zupurb saves photos to your library when you export them.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Zupurb uses your location to show nearby restaurants and bars.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>

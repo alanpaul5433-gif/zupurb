@@ -101,7 +101,9 @@ const CanSendMessageSchema = z.object({
   recipientUid: z.string().min(1),
 });
 
-export const canSendMessageCallable = onCall(async (request) => {
+export const canSendMessageCallable = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
 
   if (!request.auth) throw new HttpsError("unauthenticated", "Authentication required.");
@@ -145,7 +147,9 @@ function filterToTypes(filter: string): string[] | null {
   }
 }
 
-export const getConversationsSocial = onCall(async (request) => {
+export const getConversationsSocial = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
 
   if (!request.auth) throw new HttpsError("unauthenticated", "Authentication required.");
@@ -210,7 +214,9 @@ const SendMessageSchema = z.object({
   idempotencyKey: z.string().min(1).max(128),
 });
 
-export const sendMessageSocial = onCall(async (request) => {
+export const sendMessageSocial = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
 
   if (!request.auth) throw new HttpsError("unauthenticated", "Authentication required.");

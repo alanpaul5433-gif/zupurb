@@ -65,7 +65,9 @@ const FollowUserSchema = z.object({
   followeeUid: z.string().min(1),
 });
 
-export const followUser = onCall(async (request) => {
+export const followUser = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
 
   if (!request.auth) throw new HttpsError("unauthenticated", "Authentication required.");
@@ -165,7 +167,9 @@ const UnfollowUserSchema = z.object({
   followeeUid: z.string().min(1),
 });
 
-export const unfollowUser = onCall(async (request) => {
+export const unfollowUser = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
 
   if (!request.auth) throw new HttpsError("unauthenticated", "Authentication required.");
@@ -227,7 +231,9 @@ const GetFollowersSchema = z.object({
   afterId: z.string().optional(),
 });
 
-export const getFollowers = onCall(async (request) => {
+export const getFollowers = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
 
   if (!request.auth) throw new HttpsError("unauthenticated", "Authentication required.");
@@ -281,7 +287,9 @@ const GetFollowingSchema = z.object({
   afterId: z.string().optional(),
 });
 
-export const getFollowing = onCall(async (request) => {
+export const getFollowing = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
 
   if (!request.auth) throw new HttpsError("unauthenticated", "Authentication required.");

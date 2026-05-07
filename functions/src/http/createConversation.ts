@@ -67,7 +67,9 @@ function canonicalConversationId(uidA: string, uidB: string): string {
 // Callable
 // ---------------------------------------------------------------------------
 
-export const createConversation = onCall(async (request) => {
+export const createConversation = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
 
   // Auth check

@@ -29,7 +29,9 @@ const DeleteNotificationSchema = z.object({
 // Callable
 // ---------------------------------------------------------------------------
 
-export const deleteNotification = onCall(async (request) => {
+export const deleteNotification = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
 
   if (!request.auth) {

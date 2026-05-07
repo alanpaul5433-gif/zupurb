@@ -30,9 +30,7 @@ export const QR_TTL_MINUTES = 120;
 function getSecret(): string {
   const secret = process.env.DEAL_QR_SECRET;
   if (!secret) {
-    // Fallback for local emulator / test environments.
-    // Production MUST set DEAL_QR_SECRET via Secret Manager.
-    return "zupurb_dev_qr_secret_replace_in_prod";
+    throw new Error("DEAL_QR_SECRET is not configured. Set it in Secret Manager before deploying.");
   }
   return secret;
 }

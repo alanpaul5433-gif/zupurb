@@ -112,7 +112,9 @@ interface GetPlusStatusResult {
  * Callable: returns the Plus subscription state for the authenticated caller.
  * Safe to call at any frequency — reads user doc (fast path) + subscription doc.
  */
-export const getPlusStatus = onCall(async (request) => {
+export const getPlusStatus = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Authentication required.");

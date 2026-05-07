@@ -97,7 +97,9 @@ const RefreshOTPSchema = z.object({
  * Rate-limited: maximum 1 refresh per 30 seconds.
  * Returns the new OTP plaintext once; stores only the hash.
  */
-export const refreshOTP = onCall(async (request) => {
+export const refreshOTP = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
 
   if (!request.auth) {

@@ -34,7 +34,9 @@ const DeleteMessageSchema = z.object({
 // Callable
 // ---------------------------------------------------------------------------
 
-export const deleteMessage = onCall(async (request) => {
+export const deleteMessage = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
 
   if (!request.auth) {

@@ -37,7 +37,9 @@ const MarkNotificationsReadSchema = z.object({
 // Callable
 // ---------------------------------------------------------------------------
 
-export const markNotificationsRead = onCall(async (request) => {
+export const markNotificationsRead = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
 
   if (!request.auth) {

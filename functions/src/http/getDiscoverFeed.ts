@@ -66,7 +66,9 @@ function toResult(doc: EstablishmentDoc, fpylScore?: number): EstablishmentSearc
 // Callable
 // ---------------------------------------------------------------------------
 
-export const getDiscoverFeed = onCall(async (request) => {
+export const getDiscoverFeed = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
 
   if (!request.auth) {

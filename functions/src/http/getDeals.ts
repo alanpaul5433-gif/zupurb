@@ -44,7 +44,9 @@ export interface DealWithEligibility extends DealDoc {
 // Callable
 // ---------------------------------------------------------------------------
 
-export const getDeals = onCall(async (request) => {
+export const getDeals = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
 
   // Auth check

@@ -69,7 +69,9 @@ async function getAuthorInfo(db: FirebaseFirestore.Firestore, uid: string): Prom
 // Callable
 // ---------------------------------------------------------------------------
 
-export const searchContent = onCall(async (request) => {
+export const searchContent = onCall(
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  async (request) => {
   const traceId = newTraceId();
 
   if (!request.auth) {
