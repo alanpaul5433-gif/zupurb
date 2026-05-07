@@ -51,10 +51,11 @@
 //   4. Enable Facebook as a sign-in provider in Firebase Console → Authentication.
 // ────────────────────────────────────────────────────────────────────────────
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
-import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 
 // ─── Internal error type ────────────────────────────────────────────────────
 
@@ -325,6 +326,55 @@ class AuthService {
         smsCode: smsCode,
       );
       return await _auth.signInWithCredential(credential);
+    } on FirebaseAuthException catch (e) {
+      throw AppAuthException(message: _mapAuthCode(e.code), code: e.code);
+    }
+  }
+
+  // ── Anonymous / Demo sign-in ─────────────────────────────────────────────
+
+  /// Signs in anonymously for demo/testing purposes.
+  /// Creates a temporary Firebase account with no credentials required.
+  /// On first sign-in, seeds a minimal user document in Firestore so the
+  /// app does not crash on missing profile data.
+  Future<UserCredential> signInAnonymously() async {
+    try {
+      final credential = await _auth.signInAnonymously();
+      if (credential.additionalUserInfo?.isNewUser == true) {
+        final uid = credential.user!.uid;
+        await FirebaseFirestore.instance.doc('users/$uid').set({
+          'uid': uid,
+          'displayName': 'Demo User',
+          'photoUrl': null,
+          'bio': 'This is a demo account.',
+          'followersCount': 0,
+          'followingCount': 0,
+          'reviewCount': 0,
+          'verifiedReviewCount': 0,
+          'loyaltyTier': 'bronze',
+          'tierHiddenByUser': false,
+          'pointsBalance': 500,
+          'rollingPoints12mo': 500,
+          'onboardingComplete': true,
+          'phoneVerified': false,
+          'myReferralCode': null,
+          'referredBy': null,
+          'referralRewardClaimed': false,
+          'isPlusSubscriber': false,
+          'plusActive': false,
+          'plusExpiresAt': null,
+          'plusActiveUntil': null,
+          'plusSource': null,
+          'noShowCount': 0,
+          'reservationsBanned': false,
+          'accountType': 'user',
+          'isBanned': false,
+          'isDeleted': false,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+      return credential;
     } on FirebaseAuthException catch (e) {
       throw AppAuthException(message: _mapAuthCode(e.code), code: e.code);
     }

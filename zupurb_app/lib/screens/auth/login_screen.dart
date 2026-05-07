@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/services/auth_service.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../widgets/app_button.dart';
@@ -15,6 +16,23 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   bool _remember = true;
+  bool _demoLoading = false;
+
+  Future<void> _onTryDemo() async {
+    setState(() => _demoLoading = true);
+    try {
+      await AuthService().signInAnonymously();
+      // Auth state listener in the router handles navigation — no push needed.
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Demo login failed. Try again.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _demoLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -101,6 +119,34 @@ class _LoginScreenState extends State<LoginScreen> {
                   _SocialButton(label: 'f', textColor: const Color(0xFF1877F2)),
                   _SocialButton(icon: Icons.apple, textColor: Colors.black),
                 ],
+              ),
+              const Gap(24),
+              Center(
+                child: OutlinedButton.icon(
+                  onPressed: _demoLoading ? null : _onTryDemo,
+                  icon: _demoLoading
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.science_outlined, size: 18),
+                  label: const Text('Try Demo'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF666666),
+                    side: const BorderSide(color: Color(0xFFCCCCCC)),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+              const Gap(8),
+              const Center(
+                child: Text(
+                  'Demo account — data resets periodically',
+                  style: TextStyle(fontSize: 11, color: Color(0xFF999999)),
+                ),
               ),
               const Gap(32),
             ],
