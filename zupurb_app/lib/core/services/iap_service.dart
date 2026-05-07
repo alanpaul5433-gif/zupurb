@@ -19,6 +19,7 @@
 //   await IAPService.logOut();                 // on user sign-out
 
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 
@@ -107,13 +108,25 @@ class IAPService {
 
     final apiKey = Platform.isIOS ? _rcApiKeyIos : _rcApiKeyAndroid;
 
-    final config = PurchasesConfiguration(apiKey);
-    if (userId.isNotEmpty) {
-      config.appUserID = userId;
+    // Skip RevenueCat configuration when running with placeholder keys
+    // (e.g. debug builds without --dart-define=REVENUECAT_API_KEY_ANDROID).
+    // Plus features will be unavailable but the app will open normally.
+    if (apiKey.startsWith('placeholder_')) {
+      debugPrint('[IAP] Skipping RevenueCat — placeholder API key detected. '
+          'Pass --dart-define=REVENUECAT_API_KEY_ANDROID=<key> to enable IAP.');
+      return;
     }
 
-    await Purchases.configure(config);
-    _initialized = true;
+    try {
+      final config = PurchasesConfiguration(apiKey);
+      if (userId.isNotEmpty) {
+        config.appUserID = userId;
+      }
+      await Purchases.configure(config);
+      _initialized = true;
+    } catch (e) {
+      debugPrint('[IAP] RevenueCat initialization failed — IAP unavailable: $e');
+    }
   }
 
   // -------------------------------------------------------------------------

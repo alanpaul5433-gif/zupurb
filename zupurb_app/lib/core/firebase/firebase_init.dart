@@ -64,11 +64,15 @@ Future<void> initializeFirebase() async {
   //
   // Debug tokens are issued per device via the Firebase console and are
   // automatically revoked in production environments.
+  // Use debug App Check provider for all debug builds (kDebugMode = true),
+  // regardless of APP_ENV. This allows physical device testing with a debug APK
+  // without needing Play Integrity attestation.
+  // Release builds always use the production attestation providers.
   await FirebaseAppCheck.instance.activate(
-    androidProvider: AppEnvironment.current.isDevelopment
+    androidProvider: kDebugMode
         ? AndroidProvider.debug
         : AndroidProvider.playIntegrity,
-    appleProvider: AppEnvironment.current.isDevelopment
+    appleProvider: kDebugMode
         ? AppleProvider.debug
         : AppleProvider.deviceCheck,
   );
