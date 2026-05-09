@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../widgets/app_button.dart';
@@ -90,7 +91,10 @@ class ReviewSubmittedScreen extends StatelessWidget {
               const Spacer(),
               AppButton(label: 'Explore More Spots', onTap: () => context.go('/home')),
               const Gap(12),
-              TextButton(onPressed: () {}, child: const Text('Share Your Review', style: TextStyle(color: AppColors.textSecondary, fontSize: 14))),
+              TextButton(
+                onPressed: () => Share.share('I just reviewed The Social Lounge on Zupurb! Check it out.'),
+                child: const Text('Share Your Review', style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+              ),
               const Gap(32),
             ],
           ),

@@ -37,9 +37,10 @@ class _OtherProfileScreenState extends State<OtherProfileScreen> {
                       ],
                     ),
                   ),
-                  const CircleAvatar(
+                  CircleAvatar(
                     radius: 45,
-                    backgroundImage: NetworkImage('https://randomuser.me/api/portraits/women/65.jpg'),
+                    backgroundImage: const NetworkImage('https://i.pravatar.cc/150?img=47'),
+                    onBackgroundImageError: (e, s) {},
                   ),
                   const Gap(12),
                   const Text('Jessica R.', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A))),
@@ -55,7 +56,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen> {
                       ),
                       const Gap(8),
                       OutlinedButton(
-                        onPressed: () => context.go('/chat/1'),
+                        onPressed: () => context.push('/chat/1'),
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size(110, 38),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),

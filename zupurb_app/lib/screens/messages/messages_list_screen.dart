@@ -17,11 +17,11 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
 
   // P1-3: mutual-follow gating; P1-4: business 1-message limit
   final _conversations = [
-    _Convo('Sarah M.', 'Loved your review...', '2m ago', 'https://randomuser.me/api/portraits/women/44.jpg', true, null, false, false),
+    _Convo('Sarah M.', 'Loved your review...', '2m ago', 'https://i.pravatar.cc/150?img=44', true, null, false, false),
     _Convo('The Social Lounge', 'Business introduction: Thanks for visiting...', '1h ago', null, false, 'Business', false, true),
-    _Convo('Marcus T.', 'Can we meet at 5?', '3h ago', 'https://randomuser.me/api/portraits/men/32.jpg', true, null, false, false),
+    _Convo('Marcus T.', 'Can we meet at 5?', '3h ago', 'https://i.pravatar.cc/150?img=68', true, null, false, false),
     _Convo('Pacific Produce Co.', 'Your shipment is on its way...', '1d ago', null, false, 'Vendor', false, false),
-    _Convo('Alex K.', 'Follow each other to message', '3d ago', 'https://randomuser.me/api/portraits/women/65.jpg', false, null, true, false),
+    _Convo('Alex K.', 'Follow each other to message', '3d ago', 'https://i.pravatar.cc/150?img=47', false, null, true, false),
     _Convo('Havana Social Club', 'New event added to calendar', '1d ago', null, false, 'Vendor', false, false),
   ];
 
@@ -36,6 +36,13 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
               padding: const EdgeInsets.symmetric(horizontal: AppDimens.screenPadding, vertical: 12),
               child: Row(
                 children: [
+                  IconButton(
+                    onPressed: () => context.pop(),
+                    icon: const Icon(Icons.arrow_back_ios, size: 20, color: AppColors.primary),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  const Gap(4),
                   const Expanded(child: Text('Messages', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A)))),
                   IconButton(onPressed: () {}, icon: const Icon(Icons.edit_outlined, color: AppColors.primary)),
                 ],
@@ -81,12 +88,13 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
                 separatorBuilder: (context, index) => const Gap(0),
                 itemBuilder: (ctx, i) {
                   final c = _conversations[i];
-                  return GestureDetector(
-                    onTap: c.locked ? null : () => context.go('/chat/1'),
+                  return Material(
+                    color: c.locked ? const Color(0xFFF8F4F1) : Colors.white,
+                    child: InkWell(
+                    onTap: c.locked ? null : () => context.push('/chat/1'),
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       decoration: BoxDecoration(
-                        color: c.locked ? const Color(0xFFF8F4F1) : Colors.white,
                         border: i < _conversations.length - 1 ? const Border(bottom: BorderSide(color: Color(0xFFF0EAE5))) : null,
                       ),
                       child: Row(
@@ -95,7 +103,7 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
                           Stack(
                             children: [
                               c.avatarUrl != null
-                                  ? CircleAvatar(radius: 24, backgroundImage: NetworkImage(c.avatarUrl!))
+                                  ? CircleAvatar(radius: 24, backgroundImage: NetworkImage(c.avatarUrl!), onBackgroundImageError: (e, s) {})
                                   : CircleAvatar(radius: 24, backgroundColor: AppColors.primary, child: Text(c.name[0], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700))),
                               if (c.online)
                                 Positioned(right: 0, bottom: 0, child: Container(
@@ -147,6 +155,7 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
                           const Gap(16),
                         ],
                       ),
+                    ),
                     ),
                   );
                 },

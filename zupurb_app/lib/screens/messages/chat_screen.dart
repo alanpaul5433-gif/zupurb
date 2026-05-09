@@ -13,7 +13,7 @@ class ChatScreen extends StatelessWidget {
       appBar: AppBar(
         leading: IconButton(onPressed: () => context.pop(), icon: const Icon(Icons.arrow_back_ios, size: 20, color: AppColors.textPrimary)),
         title: Row(children: [
-          const CircleAvatar(radius: 18, backgroundImage: NetworkImage('https://randomuser.me/api/portraits/women/44.jpg')),
+          CircleAvatar(radius: 18, backgroundImage: const NetworkImage('https://i.pravatar.cc/150?img=44'), onBackgroundImageError: (e, s) {}),
           const Gap(10),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
             Text('Sarah M.', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),

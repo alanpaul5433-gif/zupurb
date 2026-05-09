@@ -198,7 +198,7 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> {
           ),
           Padding(
             padding: const EdgeInsets.all(AppDimens.screenPadding),
-            child: AppButton(label: 'Save & Continue', onTap: () => context.go('/reservation/confirm')),
+            child: AppButton(label: 'Save & Continue', onTap: () => context.push('/reservation/confirm')),
           ),
         ],
       ),

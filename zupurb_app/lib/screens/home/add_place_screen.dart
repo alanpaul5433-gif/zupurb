@@ -175,7 +175,7 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
               ),
             ),
             const Gap(24),
-            AppButton(label: 'Save & Continue', onTap: () => context.go('/review/verify')),
+            AppButton(label: 'Save & Continue', onTap: () => context.push('/review/verify')),
             const Gap(32),
           ],
         ),

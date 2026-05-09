@@ -17,6 +17,47 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   bool _remember = true;
   bool _demoLoading = false;
+  bool _signInLoading = false;
+
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _onSignIn() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your email and password.')),
+      );
+      return;
+    }
+    setState(() => _signInLoading = true);
+    try {
+      await AuthService().signInWithEmailAndPassword(email, password);
+      // Router guard redirects to /home on auth state change.
+    } on AppAuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Sign in failed. Please try again.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _signInLoading = false);
+    }
+  }
 
   Future<void> _onTryDemo() async {
     setState(() => _demoLoading = true);
@@ -68,9 +109,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: TextStyle(fontSize: 14, color: Color(0xFF666666)),
               ),
               const Gap(32),
-              const AppTextField(hint: 'Email Address', prefixIcon: Icons.mail_outline, keyboardType: TextInputType.emailAddress),
+              AppTextField(hint: 'Email Address', prefixIcon: Icons.mail_outline, keyboardType: TextInputType.emailAddress, controller: _emailController),
               const Gap(12),
-              const AppTextField(hint: 'Password', prefixIcon: Icons.lock_outline, obscure: true),
+              AppTextField(hint: 'Password', prefixIcon: Icons.lock_outline, obscure: true, controller: _passwordController),
               const Gap(12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -101,7 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ],
               ),
               const Gap(24),
-              AppButton(label: 'Login', onTap: () => context.go('/home')),
+              AppButton(label: _signInLoading ? 'Signing In...' : 'Login', onTap: _signInLoading ? null : _onSignIn),
               const Gap(32),
               Row(children: [
                 const Expanded(child: Divider()),
@@ -115,9 +156,18 @@ class _LoginScreenState extends State<LoginScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  _SocialButton(label: 'G', textColor: Colors.red),
-                  _SocialButton(label: 'f', textColor: const Color(0xFF1877F2)),
-                  _SocialButton(icon: Icons.apple, textColor: Colors.black),
+                  GestureDetector(
+                    onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Google sign-in coming soon'), duration: Duration(seconds: 2))),
+                    child: _SocialButton(label: 'G', textColor: Colors.red),
+                  ),
+                  GestureDetector(
+                    onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Facebook sign-in coming soon'), duration: Duration(seconds: 2))),
+                    child: _SocialButton(label: 'f', textColor: const Color(0xFF1877F2)),
+                  ),
+                  GestureDetector(
+                    onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Apple sign-in coming soon'), duration: Duration(seconds: 2))),
+                    child: _SocialButton(icon: Icons.apple, textColor: Colors.black),
+                  ),
                 ],
               ),
               const Gap(24),

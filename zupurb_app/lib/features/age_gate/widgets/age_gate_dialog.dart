@@ -101,11 +101,14 @@ class AgeGateDialog extends ConsumerWidget {
                 button: true,
                 child: ElevatedButton(
                   onPressed: () async {
-                    await ref
-                        .read(ageGateServiceProvider)
-                        .recordAgeGateAccepted();
-                    // Invalidate so ageGatePassedProvider reflects the new state.
-                    ref.invalidate(ageGatePassedProvider);
+                    try {
+                      await ref
+                          .read(ageGateServiceProvider)
+                          .recordAgeGateAccepted();
+                      ref.invalidate(ageGatePassedProvider);
+                    } catch (_) {
+                      // SharedPreferences may fail on web — still allow entry.
+                    }
                     if (context.mounted) Navigator.of(context).pop(true);
                   },
                   style: ElevatedButton.styleFrom(

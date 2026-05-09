@@ -5,7 +5,7 @@ import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_text_field.dart';
-import '../../core/services/apple_auth_service.dart';
+import '../../core/services/auth_service.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -16,6 +16,53 @@ class SignUpScreen extends StatefulWidget {
 
 class _SignUpScreenState extends State<SignUpScreen> {
   bool _agreed = true;
+  bool _loading = false;
+
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _onCreateAccount() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your email and password.')),
+      );
+      return;
+    }
+    if (!_agreed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please agree to the Terms & Privacy Policy.')),
+      );
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      await AuthService().createUserWithEmailAndPassword(email, password);
+      if (mounted) context.go('/onboarding/1');
+    } on AppAuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Account creation failed. Please try again.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,9 +101,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
               const Gap(32),
               const AppTextField(hint: 'Full Name', prefixIcon: Icons.person_outline),
               const Gap(12),
-              const AppTextField(hint: 'Email Address', prefixIcon: Icons.mail_outline, keyboardType: TextInputType.emailAddress),
+              AppTextField(hint: 'Email Address', prefixIcon: Icons.mail_outline, keyboardType: TextInputType.emailAddress, controller: _emailController),
               const Gap(12),
-              const AppTextField(hint: 'Password', prefixIcon: Icons.lock_outline, obscure: true),
+              AppTextField(hint: 'Password', prefixIcon: Icons.lock_outline, obscure: true, controller: _passwordController),
               const Gap(12),
               const AppTextField(hint: 'Confirm Password', prefixIcon: Icons.lock_outline, obscure: true),
               const Gap(12),
@@ -88,8 +135,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
               const Gap(24),
               AppButton(
-                label: 'Create Account',
-                onTap: () => context.go('/signup/phone-otp'),
+                label: _loading ? 'Creating Account...' : 'Create Account',
+                onTap: _loading ? null : _onCreateAccount,
               ),
               const Gap(32),
               Row(children: [
@@ -104,14 +151,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  _SocialButton(label: 'G', color: Colors.white, textColor: Colors.red),
-                  _SocialButton(label: 'f', color: Colors.white, textColor: const Color(0xFF1877F2)),
+                  _SocialButton(label: 'G', color: Colors.white, textColor: Colors.red, onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Google sign-in coming soon'), duration: Duration(seconds: 2)))),
+                  _SocialButton(label: 'f', color: Colors.white, textColor: const Color(0xFF1877F2), onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Facebook sign-in coming soon'), duration: Duration(seconds: 2)))),
                   _SocialButton(
                     label: '',
                     icon: Icons.apple,
                     color: Colors.white,
                     textColor: Colors.black,
-                    onTap: () async { await AppleAuthService.signIn(); },
+                    onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Apple sign-in coming soon'), duration: Duration(seconds: 2))),
                   ),
                 ],
               ),

@@ -166,7 +166,7 @@ class _VerifyVisitScreenState extends State<VerifyVisitScreen> {
           ),
           Padding(
             padding: const EdgeInsets.all(AppDimens.screenPadding),
-            child: AppButton(label: 'Continue', onTap: () => context.go('/review/rate')),
+            child: AppButton(label: 'Continue', onTap: () => context.push('/review/rate')),
           ),
         ],
       ),

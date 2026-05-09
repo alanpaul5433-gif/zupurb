@@ -16,21 +16,31 @@ class SearchResultsScreen extends StatelessWidget {
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppDimens.screenPadding, vertical: 12),
-              child: Container(
-                height: 48,
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(100), border: Border.all(color: AppColors.border)),
-                child: Row(
-                  children: [
-                    const Gap(16),
-                    const Icon(Icons.search, color: AppColors.primary, size: 20),
-                    const Gap(8),
-                    const Expanded(child: Text('Search experiences, creators...', style: TextStyle(fontSize: 14, color: AppColors.textTertiary))),
-                    IconButton(
-                      icon: const Icon(Icons.tune, color: AppColors.primary, size: 20),
-                      onPressed: () {},
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: () => context.pop(),
+                    icon: const Icon(Icons.arrow_back_ios, size: 20, color: AppColors.textPrimary),
+                  ),
+                  Expanded(
+                    child: Container(
+                      height: 48,
+                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(100), border: Border.all(color: AppColors.border)),
+                      child: Row(
+                        children: [
+                          const Gap(16),
+                          const Icon(Icons.search, color: AppColors.primary, size: 20),
+                          const Gap(8),
+                          const Expanded(child: Text('Search experiences, creators...', style: TextStyle(fontSize: 14, color: AppColors.textTertiary))),
+                          IconButton(
+                            icon: const Icon(Icons.tune, color: AppColors.primary, size: 20),
+                            onPressed: () {},
+                          ),
+                        ],
+                      ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
             Padding(
@@ -97,7 +107,7 @@ class _ResultCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.go('/establishment/1'),
+      onTap: () => context.push('/establishment/1'),
       child: Container(
         decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), color: Colors.white),
         child: Column(

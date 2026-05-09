@@ -20,6 +20,19 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _reservationsAvailable = false; // P1-12
   final String _preferenceFilter = 'All'; // P1-13
   final _tabs = ['All', 'Venues', 'Users', 'Deals', 'Vendors', 'Entertainers', 'Content/Posts', 'Brands'];
+  final _searchController = TextEditingController();
+
+  final List<_RecentSearchData> _recentSearches = [
+    _RecentSearchData(icon: Icons.history, label: 'Tacos Downtown'),
+    _RecentSearchData(icon: Icons.local_bar_outlined, label: 'Rooftop Bar'),
+    _RecentSearchData(isUser: true, label: 'Sarah M.'),
+  ];
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,19 +49,34 @@ class _SearchScreenState extends State<SearchScreen> {
                 children: [
                   const Text('Search', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A))),
                   const Spacer(),
-                  IconButton(onPressed: () => context.go('/notifications'), tooltip: 'Notifications', icon: const Icon(Icons.notifications_outlined)),
+                  IconButton(onPressed: () => context.push('/notifications'), tooltip: 'Notifications', icon: const Icon(Icons.notifications_outlined)),
                 ],
               ),
               const Gap(12),
               Container(
                 height: 48,
                 decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(100), border: Border.all(color: AppColors.border)),
-                child: const Row(
+                child: Row(
                   children: [
-                    Gap(16),
-                    Icon(Icons.search, color: AppColors.primary, size: 20),
-                    Gap(8),
-                    Text('Search experiences, creators...', style: TextStyle(fontSize: 14, color: AppColors.textTertiary)),
+                    const Gap(16),
+                    const Icon(Icons.search, color: AppColors.primary, size: 20),
+                    const Gap(8),
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: const InputDecoration(
+                          hintText: 'Search experiences, creators...',
+                          hintStyle: TextStyle(fontSize: 14, color: AppColors.textTertiary),
+                          border: InputBorder.none,
+                          isDense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+                        textInputAction: TextInputAction.search,
+                        onSubmitted: (_) => context.push('/search/results'),
+                      ),
+                    ),
+                    const Gap(16),
                   ],
                 ),
               ),
@@ -125,19 +153,27 @@ class _SearchScreenState extends State<SearchScreen> {
                       ],
                     ),
                     const Gap(16),
-                    AppButton(label: 'Search', onTap: () => context.go('/search/results')),
+                    AppButton(label: 'Search', onTap: () => context.push('/search/results')),
                   ],
                 ),
               ),
               const Gap(20),
               const Text('Recent Searches', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A))),
               const Gap(12),
-              _RecentSearchItem(icon: Icons.history, label: 'Tacos Downtown'),
-              const Gap(8),
-              _RecentSearchItem(icon: Icons.local_bar_outlined, label: 'Rooftop Bar'),
-              const Gap(8),
-              _RecentSearchItem(isUser: true, label: 'Sarah M.'),
-              const Gap(32),
+              ..._recentSearches.asMap().entries.map((e) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _RecentSearchItem(
+                  icon: e.value.icon,
+                  label: e.value.label,
+                  isUser: e.value.isUser,
+                  onTap: () {
+                    _searchController.text = e.value.label;
+                    context.push('/search/results');
+                  },
+                  onRemove: () => setState(() => _recentSearches.removeAt(e.key)),
+                ),
+              )),
+              const Gap(140),
             ],
           ),
         ),
@@ -155,15 +191,19 @@ class _FilterRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 13, color: AppColors.textPrimary)),
-        Row(children: [
-          Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-          if (isDropdown) const Icon(Icons.keyboard_arrow_down, size: 16, color: AppColors.textSecondary),
-        ]),
-      ],
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Filter options coming soon'), duration: Duration(seconds: 2))),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 13, color: AppColors.textPrimary)),
+          Row(children: [
+            Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+            if (isDropdown) const Icon(Icons.keyboard_arrow_down, size: 16, color: AppColors.textSecondary),
+          ]),
+        ],
+      ),
     );
   }
 }
@@ -187,22 +227,33 @@ class _ToggleRow extends StatelessWidget {
   }
 }
 
+class _RecentSearchData {
+  final IconData? icon;
+  final String label;
+  final bool isUser;
+  const _RecentSearchData({this.icon, required this.label, this.isUser = false});
+}
+
 class _RecentSearchItem extends StatelessWidget {
   final IconData? icon;
   final String label;
   final bool isUser;
+  final VoidCallback? onRemove;
+  final VoidCallback? onTap;
 
-  const _RecentSearchItem({this.icon, required this.label, this.isUser = false});
+  const _RecentSearchItem({this.icon, required this.label, this.isUser = false, this.onRemove, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
       child: Row(
         children: [
           isUser
-              ? const CircleAvatar(radius: 16, backgroundImage: NetworkImage('https://randomuser.me/api/portraits/women/44.jpg'))
+              ? CircleAvatar(radius: 16, backgroundImage: const NetworkImage('https://i.pravatar.cc/150?img=44'), onBackgroundImageError: (e, s) {})
               : Container(
                   width: 32,
                   height: 32,
@@ -212,8 +263,23 @@ class _RecentSearchItem extends StatelessWidget {
           const Gap(12),
           Text(label, style: const TextStyle(fontSize: 14, color: AppColors.textPrimary)),
           const Spacer(),
-          const ExcludeSemantics(child: Icon(Icons.close, size: 16, color: AppColors.textTertiary)),
+          Semantics(
+            label: 'Remove $label from recent searches',
+            button: true,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: (onRemove != null) ? () {
+                onRemove!();
+              } : null,
+              child: const SizedBox(
+                width: 44,
+                height: 44,
+                child: Center(child: Icon(Icons.close, size: 16, color: AppColors.textTertiary)),
+              ),
+            ),
+          ),
         ],
+      ),
       ),
     );
   }

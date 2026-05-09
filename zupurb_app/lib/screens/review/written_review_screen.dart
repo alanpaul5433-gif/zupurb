@@ -124,7 +124,7 @@ class WrittenReviewScreen extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.all(AppDimens.screenPadding),
-            child: AppButton(label: 'Continue', onTap: () => context.go('/review/submitted')),
+            child: AppButton(label: 'Continue', onTap: () => context.push('/review/submitted')),
           ),
         ],
       ),

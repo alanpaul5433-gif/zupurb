@@ -17,6 +17,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class EstablishmentMap extends StatelessWidget {
   const EstablishmentMap({
@@ -71,17 +72,13 @@ class EstablishmentMap extends StatelessWidget {
 
   /// Opens Google Maps app (or web fallback) with walking directions to the venue.
   void _openDirections() {
-    // Use universal Google Maps URL — works on both iOS (Google Maps app or Apple Maps fallback)
-    // and Android. url_launcher is already available transitively via firebase packages;
-    // if not, add it to pubspec.yaml as a P2 task.
     final uri = Uri.parse(
       'https://www.google.com/maps/dir/?api=1'
-      '&destination=$latitude,$longitude'
-      '&destination_place_id=',
+      '&destination=$latitude,$longitude',
     );
-    // Intentionally not using url_launcher here to avoid adding a dependency
-    // before confirming it is in pubspec. Log in FIX_LIST as P2:
-    // "EstablishmentMap: wire url_launcher to open directions URL: $uri"
-    debugPrint('[EstablishmentMap] directions url: $uri');
+    launchUrl(uri, mode: LaunchMode.externalApplication).catchError((_) {
+      debugPrint('[EstablishmentMap] could not launch maps URL: $uri');
+      return false;
+    });
   }
 }

@@ -33,19 +33,22 @@ class _OwnProfileScreenState extends State<OwnProfileScreen> {
                         const Spacer(),
                         const Text('My Profile', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A))),
                         const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(100)),
-                          child: Row(children: [
-                            const Icon(Icons.monetization_on, size: 12, color: AppColors.primary),
-                            const Gap(4),
-                            IconButton(
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              onPressed: () => context.go('/notifications'),
-                              icon: const Icon(Icons.notifications_outlined, size: 18, color: AppColors.textPrimary),
-                            ),
-                          ]),
+                        GestureDetector(
+                          onTap: () => context.push('/points'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(100)),
+                            child: Row(children: [
+                              const Icon(Icons.monetization_on, size: 12, color: AppColors.primary),
+                              const Gap(4),
+                              IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                onPressed: () => context.push('/notifications'),
+                                icon: const Icon(Icons.notifications_outlined, size: 18, color: AppColors.textPrimary),
+                              ),
+                            ]),
+                          ),
                         ),
                       ],
                     ),
@@ -57,7 +60,8 @@ class _OwnProfileScreenState extends State<OwnProfileScreen> {
                       children: [
                         CircleAvatar(
                           radius: 45,
-                          backgroundImage: NetworkImage('https://randomuser.me/api/portraits/men/46.jpg'),
+                          backgroundImage: const NetworkImage('https://i.pravatar.cc/150?img=68'),
+                          onBackgroundImageError: (e, s) {},
                         ),
                         Positioned(
                           bottom: 0,
@@ -79,23 +83,23 @@ class _OwnProfileScreenState extends State<OwnProfileScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       OutlinedButton(
-                        onPressed: () {},
+                        onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Edit profile coming soon'), duration: Duration(seconds: 2))),
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size(110, 38),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
                           side: const BorderSide(color: AppColors.border),
                         ),
-                        child: const Text('Follow', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                        child: const Text('Edit Profile', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
                       ),
                       const Gap(8),
                       OutlinedButton(
-                        onPressed: () => context.go('/messages'),
+                        onPressed: () => context.push('/settings'),
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size(110, 38),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
                           side: const BorderSide(color: AppColors.border),
                         ),
-                        child: const Text('Message', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                        child: const Text('Settings', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
                       ),
                     ],
                   ),
@@ -121,7 +125,7 @@ class _OwnProfileScreenState extends State<OwnProfileScreen> {
                         Text('Est. value \$5.54', style: TextStyle(fontSize: 12, color: Colors.white70)),
                       ])),
                       ElevatedButton(
-                        onPressed: () => context.go('/redeem'),
+                        onPressed: () => context.push('/redeem'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
                           foregroundColor: AppColors.primary,

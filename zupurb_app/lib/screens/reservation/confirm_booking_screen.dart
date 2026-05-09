@@ -116,7 +116,7 @@ class ConfirmBookingScreen extends StatelessWidget {
               ),
             ),
             const Gap(24),
-            AppButton(label: 'Confirm Booking', onTap: () => context.go('/reservation/pass')),
+            AppButton(label: 'Confirm Booking', onTap: () => context.push('/reservation/pass')),
             const Gap(8),
             TextButton(onPressed: () => context.pop(), child: const Text('Change Time', style: TextStyle(color: AppColors.textSecondary))),
             const Gap(32),

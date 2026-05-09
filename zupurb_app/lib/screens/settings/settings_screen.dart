@@ -4,6 +4,7 @@ import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/config/legal_urls.dart';
+import '../../core/services/auth_service.dart';
 import '../../state/analytics/analytics_providers.dart';
 import '../../state/iap/iap_providers.dart';
 import '../../theme/colors.dart';
@@ -51,7 +52,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const Gap(12),
                 const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Row(children: [
-                    Text('Alex Rivers', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                    Text('Alan Paul', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                     Gap(8),
                     Chip(label: Text('PLUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.primary)), backgroundColor: AppColors.primaryLight, padding: EdgeInsets.zero, side: BorderSide.none, materialTapTargetSize: MaterialTapTargetSize.shrinkWrap),
                   ]),
@@ -66,7 +67,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             // RevenueCat; backend isPlusActive callable is the authority.
             ref.watch(isPlusActiveProvider).when(
               data: (isPlus) => isPlus
-                  ? _PlusActiveCard(onManage: () => context.go('/zupurb-plus'))
+                  ? _PlusActiveCard(onManage: () => context.push('/zupurb-plus'))
                   : _PlusUpgradeCard(onUpgrade: () => PlusPaywall.show(context)),
               loading: () => const _MembershipSkeleton(),
               error: (e, st) => _PlusUpgradeCard(
@@ -74,24 +75,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             const Gap(20),
             _SectionLabel('Account'),
-            _SettingsItem(icon: Icons.person_outline, label: 'Personal Information', onTap: () {}),
-            _SettingsItem(icon: Icons.mail_outline, label: 'Email Preferences', onTap: () {}),
+            _SettingsItem(icon: Icons.person_outline, label: 'Personal Information', onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Coming soon'), duration: Duration(seconds: 2)))),
+            _SettingsItem(icon: Icons.mail_outline, label: 'Email Preferences', onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Coming soon'), duration: Duration(seconds: 2)))),
             const Gap(16),
             _SectionLabel('Notifications'),
             _ToggleItem(icon: Icons.notifications_outlined, label: 'Push Notifications', value: _pushNotifs, onChanged: (v) => setState(() => _pushNotifs = v)),
             _ToggleItem(icon: Icons.campaign_outlined, label: 'Marketing Alerts', value: _marketing, onChanged: (v) => setState(() => _marketing = v)),
             const Gap(16),
             _SectionLabel('Privacy'),
-            _SettingsItem(icon: Icons.lock_outline, label: 'Privacy Settings', onTap: () => context.go('/settings/privacy')),
+            _SettingsItem(icon: Icons.lock_outline, label: 'Privacy Settings', onTap: () => context.push('/settings/privacy')),
             const Gap(16),
             _SectionLabel('Support'),
-            _SettingsItem(icon: Icons.headset_mic_outlined, label: 'Help Center', onTap: () {}),
+            _SettingsItem(icon: Icons.headset_mic_outlined, label: 'Help Center', onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Help Center coming soon'), duration: Duration(seconds: 2)))),
             _SettingsItem(icon: Icons.privacy_tip_outlined, label: 'Privacy Policy', onTap: () => launchUrl(Uri.parse(LegalUrls.privacyPolicy), mode: LaunchMode.externalApplication), trailing: Icons.open_in_new),
             _SettingsItem(icon: Icons.description_outlined, label: 'Terms of Service', onTap: () => launchUrl(Uri.parse(LegalUrls.termsOfService), mode: LaunchMode.externalApplication), trailing: Icons.open_in_new),
             const Gap(16),
             _SectionLabel('Account Action'),
-            _SettingsItem(icon: Icons.logout_outlined, label: 'Logout', onTap: () => context.go('/login'), showChevron: false),
-            _SettingsItem(icon: Icons.delete_outline, label: 'Delete Account', onTap: () {}, showChevron: false, destructive: true),
+            _SettingsItem(icon: Icons.logout_outlined, label: 'Logout', onTap: () async {
+              await AuthService().signOut();
+              if (context.mounted) context.go('/login');
+            }, showChevron: false),
+            _SettingsItem(icon: Icons.delete_outline, label: 'Delete Account', onTap: () => showDialog(context: context, builder: (_) => AlertDialog(title: const Text('Delete Account'), content: const Text('Account deletion will be available in a future update. Please contact support@zupurb.app to request deletion.'), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))])), showChevron: false, destructive: true),
             const Gap(32),
           ],
         ),

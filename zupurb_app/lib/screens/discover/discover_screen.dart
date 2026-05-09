@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
+import '../../state/establishments/establishments_provider.dart';
 
-class DiscoverScreen extends StatelessWidget {
+class DiscoverScreen extends ConsumerWidget {
   const DiscoverScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final estAsync = ref.watch(establishmentsProvider);
     return Scaffold(
       backgroundColor: const Color(0xFFF5F0ED),
       body: SafeArea(
@@ -25,7 +28,7 @@ class DiscoverScreen extends StatelessWidget {
                       children: [
                         const Text('Discover', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A))),
                         const Spacer(),
-                        IconButton(onPressed: () => context.go('/notifications'), icon: const Icon(Icons.notifications_outlined)),
+                        IconButton(onPressed: () => context.push('/notifications'), icon: const Icon(Icons.notifications_outlined)),
                       ],
                     ),
                     const Gap(12),
@@ -43,59 +46,105 @@ class DiscoverScreen extends StatelessWidget {
                       ),
                     ),
                     const Gap(20),
-                    _SectionHeader(title: 'Trending in Your Area', action: 'See All', onAction: () {}),
+                    _SectionHeader(title: 'Trending in Your Area', action: 'See All', onAction: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Coming soon'), duration: Duration(seconds: 2)))),
                     const Gap(12),
                     SizedBox(
                       height: 180,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        children: [
-                          _TrendingCard(
-                            name: 'The Rooftop Garden',
-                            type: 'Bar · 2.1 km',
-                            score: 4.6,
-                            imageUrl: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400',
-                          ),
-                          const Gap(12),
-                          _TrendingCard(
-                            name: 'Amber Embe...',
-                            type: 'Bistro · 1.4 km',
-                            score: 4.6,
-                            imageUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400',
-                          ),
-                        ],
+                      child: estAsync.when(
+                        loading: () => ListView(
+                          scrollDirection: Axis.horizontal,
+                          children: const [
+                            _TrendingCard(name: 'The Rooftop Garden', type: 'Bar · 2.1 km', score: 4.6, imageUrl: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400'),
+                            Gap(12),
+                            _TrendingCard(name: 'Amber Embe...', type: 'Bistro · 1.4 km', score: 4.6, imageUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400'),
+                          ],
+                        ),
+                        error: (err, _) => ListView(
+                          scrollDirection: Axis.horizontal,
+                          children: const [
+                            _TrendingCard(name: 'The Rooftop Garden', type: 'Bar · 2.1 km', score: 4.6, imageUrl: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400'),
+                            Gap(12),
+                            _TrendingCard(name: 'Amber Embe...', type: 'Bistro · 1.4 km', score: 4.6, imageUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400'),
+                          ],
+                        ),
+                        data: (ests) {
+                          final trending = ests.take(4).toList();
+                          if (trending.isEmpty) {
+                            return ListView(
+                              scrollDirection: Axis.horizontal,
+                              children: const [
+                                _TrendingCard(name: 'The Rooftop Garden', type: 'Bar · 2.1 km', score: 4.6, imageUrl: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400'),
+                              ],
+                            );
+                          }
+                          return ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: trending.length,
+                            separatorBuilder: (_, i) => const Gap(12),
+                            itemBuilder: (_, i) {
+                              final e = trending[i];
+                              return _TrendingCard(
+                                id: e.id,
+                                name: e.name,
+                                type: '${e.type} · ${e.distanceKm.toStringAsFixed(1)} km',
+                                score: e.score,
+                                imageUrl: e.imageUrl.isNotEmpty ? e.imageUrl : 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400',
+                              );
+                            },
+                          );
+                        },
                       ),
                     ),
                     const Gap(20),
                     // P1-11: "New on Zupurb" rail per SOW §4.2
-                    _SectionHeader(title: 'New on Zupurb', action: 'See All', onAction: () {}),
+                    _SectionHeader(title: 'New on Zupurb', action: 'See All', onAction: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Coming soon'), duration: Duration(seconds: 2)))),
                     const Gap(12),
                     SizedBox(
                       height: 160,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        children: [
-                          _TrendingCard(
-                            name: 'Velvet Lounge',
-                            type: 'Cocktail Bar · 1.8 km',
-                            score: 4.1,
-                            imageUrl: 'https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=400',
-                          ),
-                          const Gap(12),
-                          _TrendingCard(
-                            name: 'The Atrium Café',
-                            type: 'Café · 0.9 km',
-                            score: 4.3,
-                            imageUrl: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=400',
-                          ),
-                          const Gap(12),
-                          _TrendingCard(
-                            name: 'Masa Kitchen',
-                            type: 'Japanese · 2.5 km',
-                            score: 4.5,
-                            imageUrl: 'https://images.unsplash.com/photo-1565299507177-b0ac66763828?w=400',
-                          ),
-                        ],
+                      child: estAsync.when(
+                        loading: () => ListView(
+                          scrollDirection: Axis.horizontal,
+                          children: const [
+                            _TrendingCard(name: 'Velvet Lounge', type: 'Cocktail Bar · 1.8 km', score: 4.1, imageUrl: 'https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=400'),
+                            Gap(12),
+                            _TrendingCard(name: 'The Atrium Café', type: 'Café · 0.9 km', score: 4.3, imageUrl: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=400'),
+                          ],
+                        ),
+                        error: (err, _) => ListView(
+                          scrollDirection: Axis.horizontal,
+                          children: const [
+                            _TrendingCard(name: 'Velvet Lounge', type: 'Cocktail Bar · 1.8 km', score: 4.1, imageUrl: 'https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=400'),
+                            Gap(12),
+                            _TrendingCard(name: 'The Atrium Café', type: 'Café · 0.9 km', score: 4.3, imageUrl: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=400'),
+                          ],
+                        ),
+                        data: (ests) {
+                          // Show the tail half of results as "New on Zupurb"
+                          final newOnes = ests.skip(ests.length ~/ 2).take(4).toList();
+                          if (newOnes.isEmpty) {
+                            return ListView(
+                              scrollDirection: Axis.horizontal,
+                              children: const [
+                                _TrendingCard(name: 'Velvet Lounge', type: 'Cocktail Bar · 1.8 km', score: 4.1, imageUrl: 'https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=400'),
+                              ],
+                            );
+                          }
+                          return ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: newOnes.length,
+                            separatorBuilder: (_, i) => const Gap(12),
+                            itemBuilder: (_, i) {
+                              final e = newOnes[i];
+                              return _TrendingCard(
+                                id: e.id,
+                                name: e.name,
+                                type: '${e.type} · ${e.distanceKm.toStringAsFixed(1)} km',
+                                score: e.score,
+                                imageUrl: e.imageUrl.isNotEmpty ? e.imageUrl : 'https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=400',
+                              );
+                            },
+                          );
+                        },
                       ),
                     ),
                     const Gap(20),
@@ -140,11 +189,34 @@ class DiscoverScreen extends StatelessWidget {
                     const Gap(20),
                     const Text('Nearby Venues', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A))),
                     const Gap(12),
-                    _NearbyItem(name: 'The Artisan Grind', type: 'Café · 0.5 km · 4.4 / 5', hasDeal: true, score: 4.4, hasReservations: true),
-                    const Gap(8),
-                    _NearbyItem(name: 'Speakeasy No. 9', type: 'Cocktails · 1.2 km · 4.5 / 5', score: 4.5, hasReservations: true),
-                    const Gap(8),
-                    _NearbyItem(name: 'Patisserie Royale', type: 'Bakery · 0.3 km · 4.6 / 5', score: 4.6),
+                    estAsync.when(
+                      loading: () => Column(children: const [
+                        _NearbyItem(name: 'The Artisan Grind', type: 'Café · 0.5 km · 4.4 / 5', hasDeal: true, score: 4.4, hasReservations: true),
+                        Gap(8),
+                        _NearbyItem(name: 'Speakeasy No. 9', type: 'Cocktails · 1.2 km · 4.5 / 5', score: 4.5, hasReservations: true),
+                      ]),
+                      error: (err, _) => Column(children: const [
+                        _NearbyItem(name: 'The Artisan Grind', type: 'Café · 0.5 km · 4.4 / 5', hasDeal: true, score: 4.4, hasReservations: true),
+                      ]),
+                      data: (ests) {
+                        if (ests.isEmpty) {
+                          return const _NearbyItem(name: 'The Artisan Grind', type: 'Café · 0.5 km · 4.4 / 5', hasDeal: true, score: 4.4, hasReservations: true);
+                        }
+                        return Column(
+                          children: ests.map((e) => Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: _NearbyItem(
+                              id: e.id,
+                              name: e.name,
+                              type: '${e.type} · ${e.distanceKm.toStringAsFixed(1)} km · ${e.score.toStringAsFixed(1)} / 5',
+                              score: e.score,
+                              hasDeal: e.hasDeals,
+                              hasReservations: e.hasReservations,
+                            ),
+                          )).toList(),
+                        );
+                      },
+                    ),
                     const Gap(32),
                   ],
                 ),
@@ -184,17 +256,18 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _TrendingCard extends StatelessWidget {
+  final String? id;
   final String name;
   final String type;
   final double score;
   final String imageUrl;
 
-  const _TrendingCard({required this.name, required this.type, required this.score, required this.imageUrl});
+  const _TrendingCard({this.id, required this.name, required this.type, required this.score, required this.imageUrl});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.go('/establishment/1'),
+      onTap: () => context.push('/establishment/${id ?? '1'}'),
       child: Container(
         width: 160,
         decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
@@ -249,7 +322,7 @@ class _HiddenGemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.go('/establishment/1'),
+      onTap: () => context.push('/establishment/1'),
       child: Container(
         width: 160,
         height: 160,
@@ -286,7 +359,7 @@ class _HiddenGemCard extends StatelessWidget {
   }
 }
 
-class _FPYLItem extends StatelessWidget {
+class _FPYLItem extends StatefulWidget {
   final String name;
   final String type;
   final bool isTopMatch;
@@ -294,48 +367,76 @@ class _FPYLItem extends StatelessWidget {
   const _FPYLItem({required this.name, required this.type, required this.isTopMatch});
 
   @override
+  State<_FPYLItem> createState() => _FPYLItemState();
+}
+
+class _FPYLItemState extends State<_FPYLItem> {
+  bool _favourited = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-      child: Row(
-        children: [
-          const CircleAvatar(radius: 20, backgroundImage: NetworkImage('https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=100')),
-          const Gap(10),
-          Expanded(child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-              Text(type, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-            ],
-          )),
-          if (isTopMatch)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(6)),
-              child: const Text('TOP MATCH', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white)),
-            )
-          else
-            const Icon(Icons.favorite_border, color: AppColors.primary, size: 20),
-        ],
+    return GestureDetector(
+      onTap: () => context.push('/establishment/1'),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+        child: Row(
+          children: [
+            const CircleAvatar(radius: 20, backgroundImage: NetworkImage('https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=100')),
+            const Gap(10),
+            Expanded(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(widget.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                Text(widget.type, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+              ],
+            )),
+            if (widget.isTopMatch)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(6)),
+                child: const Text('TOP MATCH', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white)),
+              )
+            else
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  setState(() => _favourited = !_favourited);
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(_favourited ? 'Added to favourites' : 'Removed from favourites'),
+                    duration: const Duration(seconds: 2),
+                  ));
+                },
+                child: Icon(_favourited ? Icons.favorite : Icons.favorite_border, color: AppColors.primary, size: 20),
+              ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _NearbyItem extends StatelessWidget {
+class _NearbyItem extends StatefulWidget {
+  final String? id;
   final String name;
   final String type;
   final double score;
   final bool hasDeal;
   final bool hasReservations; // P1-14
 
-  const _NearbyItem({required this.name, required this.type, required this.score, this.hasDeal = false, this.hasReservations = false});
+  const _NearbyItem({this.id, required this.name, required this.type, required this.score, this.hasDeal = false, this.hasReservations = false});
+
+  @override
+  State<_NearbyItem> createState() => _NearbyItemState();
+}
+
+class _NearbyItemState extends State<_NearbyItem> {
+  bool _bookmarked = false;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.go('/establishment/1'),
+      onTap: () => context.push('/establishment/${widget.id ?? '1'}'),
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
@@ -350,8 +451,8 @@ class _NearbyItem extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(children: [
-                  Text(name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                  if (hasDeal) ...[
+                  Text(widget.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                  if (widget.hasDeal) ...[
                     const Gap(6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -360,8 +461,8 @@ class _NearbyItem extends StatelessWidget {
                     ),
                   ],
                 ]),
-                Text(type, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                if (hasReservations) ...[
+                Text(widget.type, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                if (widget.hasReservations) ...[
                   const Gap(3),
                   Row(children: const [
                     Icon(Icons.event_available, size: 11, color: AppColors.primary),
@@ -371,7 +472,17 @@ class _NearbyItem extends StatelessWidget {
                 ],
               ],
             )),
-            const Icon(Icons.bookmark_border, size: 20, color: AppColors.textTertiary),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                setState(() => _bookmarked = !_bookmarked);
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text(_bookmarked ? 'Added to favourites' : 'Removed from favourites'),
+                  duration: const Duration(seconds: 2),
+                ));
+              },
+              child: Icon(_bookmarked ? Icons.bookmark : Icons.bookmark_border, size: 20, color: _bookmarked ? AppColors.primary : AppColors.textTertiary),
+            ),
           ],
         ),
       ),

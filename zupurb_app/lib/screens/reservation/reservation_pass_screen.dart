@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../widgets/app_button.dart';
@@ -148,7 +149,7 @@ class ReservationPassScreen extends StatelessWidget {
             const Gap(24),
             AppButton(
               label: 'Share Reservation',
-              onTap: () {},
+              onTap: () => Share.share('My reservation at The Social Lounge — Tonight 7PM. Reference: ZRP-4821. See you there! 🍽️'),
             ),
             const Gap(32),
           ],

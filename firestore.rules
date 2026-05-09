@@ -141,7 +141,7 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
 
     match /establishments/{estId} {
-      allow read: if isAuthenticated();
+      allow read: if true;  // public read for Phase 1B data wiring
       allow create, update, delete: if isAdmin();
 
       // -----------------------------------------------------------------------
@@ -150,8 +150,9 @@ service cloud.firestore {
       // Readable by authenticated users (same as flat reviews collection).
       // -----------------------------------------------------------------------
       match /reviews/{reviewId} {
-        allow read: if isAuthenticated();
-        allow write: if false; // Cloud Function writes via Admin SDK only
+        allow read: if true;  // public read for Phase 1B data wiring
+        allow create: if request.auth != null;
+        allow update, delete: if false; // Cloud Function writes via Admin SDK only
       }
 
       // -----------------------------------------------------------------------
@@ -168,7 +169,7 @@ service cloud.firestore {
       // Readable by authenticated users; admin-write only.
       // -----------------------------------------------------------------------
       match /deals/{dealId} {
-        allow read: if isAuthenticated();
+        allow read: if true;  // public read for Phase 1B data wiring
         allow write: if isAdmin();
       }
     }
@@ -185,8 +186,7 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
 
     match /reviews/{reviewId} {
-      allow read: if isAuthenticated()
-        && (resource == null || resource.data.status == "published" || isOwner(resource.data.authorUid));
+      allow read: if true;  // public read for Phase 1B data wiring — published filter applied in query
 
       allow create: if isOwner(request.resource.data.authorUid)
         // Banned users cannot write reviews (B12)

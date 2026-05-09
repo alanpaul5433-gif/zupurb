@@ -95,7 +95,7 @@ class _CreatorDisclosureScreenState extends State<CreatorDisclosureScreen> {
             padding: const EdgeInsets.all(AppDimens.screenPadding),
             child: Column(
               children: [
-                AppButton(label: 'Confirm & Continue', onTap: () => context.go('/review/write')),
+                AppButton(label: 'Confirm & Continue', onTap: () => context.push('/review/write')),
                 const Gap(8),
                 TextButton(onPressed: () => context.pop(), child: const Text('Back to Edit Review', style: TextStyle(color: AppColors.textSecondary))),
               ],

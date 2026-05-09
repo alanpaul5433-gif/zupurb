@@ -251,7 +251,9 @@ GoRouter buildRouter(Ref ref) {
       GoRoute(
         path: '/establishment/:id',
         name: 'establishment',
-        builder: (context, state) => const EstablishmentScreen(),
+        builder: (context, state) => EstablishmentScreen(
+          id: state.pathParameters['id'] ?? 'social-lounge',
+        ),
       ),
       GoRoute(
         path: '/review/verify',

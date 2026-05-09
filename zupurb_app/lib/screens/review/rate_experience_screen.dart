@@ -110,7 +110,7 @@ class _RateExperienceScreenState extends State<RateExperienceScreen> {
           ),
           Padding(
             padding: const EdgeInsets.all(AppDimens.screenPadding),
-            child: AppButton(label: 'Continue', onTap: () => context.go('/review/disclosure')),
+            child: AppButton(label: 'Continue', onTap: () => context.push('/review/disclosure')),
           ),
         ],
       ),

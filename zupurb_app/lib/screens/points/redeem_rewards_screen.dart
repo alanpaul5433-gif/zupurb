@@ -81,7 +81,7 @@ class RedeemRewardsScreen extends StatelessWidget {
                 const Gap(8),
                 const Text('Rewards are delivered instantly to your registered email address. Locked rewards will be available once you reach the point milestone.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                 const Gap(12),
-                TextButton(onPressed: () {}, child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                TextButton(onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Redemption history coming soon'), duration: Duration(seconds: 2))), child: const Row(mainAxisSize: MainAxisSize.min, children: [
                   Text('VIEW REDEMPTION HISTORY', style: TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
                   Gap(4),
                   Icon(Icons.access_time, size: 14, color: AppColors.primary),
@@ -152,7 +152,17 @@ class _RewardCard extends StatelessWidget {
               Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
               const Gap(8),
               ElevatedButton(
-                onPressed: available ? () {} : null,
+                onPressed: available ? () => showDialog(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text('Redeem Reward'),
+                    content: Text('Redeem $name for $points pts? The reward will be sent to your registered email.'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                      ElevatedButton(onPressed: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reward redeemed! Check your email.'))); }, child: const Text('Confirm')),
+                    ],
+                  ),
+                ) : null,
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 34),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),

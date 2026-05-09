@@ -59,7 +59,7 @@ class PointsWalletScreen extends StatelessWidget {
                     Row(children: [Icon(Icons.card_giftcard, color: AppColors.primary, size: 18), Gap(6), Text('Redeem', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700))]),
                     Text('Browse exclusive deals', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                   ]),
-                  GestureDetector(onTap: () => context.go('/redeem'), child: const Icon(Icons.chevron_right, color: AppColors.textTertiary)),
+                  GestureDetector(onTap: () => context.push('/redeem'), child: const Icon(Icons.chevron_right, color: AppColors.textTertiary)),
                 ],
               ),
             ),

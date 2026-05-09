@@ -26,7 +26,7 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
         backgroundColor: const Color(0xFFF5F0ED),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => context.go('/reservation/slots'),
+        onPressed: () => context.push('/reservation/slots'),
         backgroundColor: AppColors.primary,
         child: const Icon(Icons.add, color: Colors.white),
       ),
@@ -63,7 +63,7 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
                   time: '08:30 PM',
                   guests: '4 People',
                   imageUrl: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800',
-                  onViewPass: () => context.go('/reservation/pass'),
+                  onViewPass: () => context.push('/reservation/pass'),
                 ),
                 const Gap(16),
                 // P1-17: "Requested" removed — instant-confirm flow (R5.3)
@@ -75,7 +75,7 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
                   time: '08:30 PM',
                   guests: '2 People',
                   imageUrl: 'https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=800',
-                  onViewPass: () => context.go('/reservation/pass'),
+                  onViewPass: () => context.push('/reservation/pass'),
                   showCancel: true,
                 ),
                 const Gap(20),
