@@ -31,17 +31,23 @@ class _BadgesScreenState extends State<BadgesScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              children: _tabs.asMap().entries.map((e) => GestureDetector(
-                onTap: () => setState(() => _tab = e.key),
-                child: Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: _tab == e.key ? AppColors.primary : Colors.white,
-                    borderRadius: BorderRadius.circular(100),
-                    border: Border.all(color: _tab == e.key ? AppColors.primary : AppColors.border),
+              children: _tabs.asMap().entries.map((e) => Semantics(
+                label: e.value,
+                selected: _tab == e.key,
+                button: true,
+                child: GestureDetector(
+                  onTap: () => setState(() => _tab = e.key),
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    constraints: const BoxConstraints(minHeight: 44),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _tab == e.key ? AppColors.primary : Colors.white,
+                      borderRadius: BorderRadius.circular(100),
+                      border: Border.all(color: _tab == e.key ? AppColors.primary : AppColors.border),
+                    ),
+                    child: Text(e.value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _tab == e.key ? Colors.white : AppColors.textPrimary)),
                   ),
-                  child: Text(e.value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _tab == e.key ? Colors.white : AppColors.textPrimary)),
                 ),
               )).toList(),
             ),
@@ -73,7 +79,10 @@ class _BadgesScreenState extends State<BadgesScreen> {
                     ],
                   ),
                   const Gap(10),
-                  LinearProgressIndicator(value: 23 / 75, backgroundColor: AppColors.border, color: AppColors.primary, minHeight: 6, borderRadius: BorderRadius.circular(3)),
+                  Semantics(
+                    label: '23 of 75 reviews completed',
+                    child: LinearProgressIndicator(value: 23 / 75, backgroundColor: AppColors.border, color: AppColors.primary, minHeight: 6, borderRadius: BorderRadius.circular(3)),
+                  ),
                   const Gap(8),
                   const Text('Write 52 more quality reviews to unlock the Master Critic tier and earn exclusive venue invites.', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                 ],

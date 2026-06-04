@@ -73,7 +73,10 @@ class _SearchScreenState extends State<SearchScreen> {
                         ),
                         style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
                         textInputAction: TextInputAction.search,
-                        onSubmitted: (_) => context.push('/search/results'),
+                        onSubmitted: (v) {
+                          if (v.trim().isEmpty) return;
+                          context.push('/search/results');
+                        },
                       ),
                     ),
                     const Gap(16),
@@ -153,7 +156,18 @@ class _SearchScreenState extends State<SearchScreen> {
                       ],
                     ),
                     const Gap(16),
-                    AppButton(label: 'Search', onTap: () => context.push('/search/results')),
+                    AppButton(
+                      label: 'Search',
+                      onTap: () {
+                        if (_searchController.text.trim().isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Enter a search term'), duration: Duration(seconds: 2)),
+                          );
+                          return;
+                        }
+                        context.push('/search/results');
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -221,7 +235,10 @@ class _ToggleRow extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: const TextStyle(fontSize: 13, color: AppColors.textPrimary)),
-        Switch(value: value, onChanged: onChanged),
+        Semantics(
+          label: '$label filter',
+          child: Switch(value: value, onChanged: onChanged),
+        ),
       ],
     );
   }

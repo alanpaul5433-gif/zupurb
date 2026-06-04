@@ -31,7 +31,10 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return request.auth != null && request.auth.token.admin == true;
+      return request.auth != null && (
+        request.auth.token.admin == true
+        || exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
     }
 
     function isStaff() {
@@ -56,6 +59,18 @@ service cloud.firestore {
     // Cloud Functions enforce this at the callable layer as well.
     function isNotBanned() {
       return !('isBanned' in resource.data) || resource.data.isBanned == false;
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLECTION: admins/{userId}
+    //
+    // Checked by isAdmin() helper. Owner can read their own admin doc.
+    // Write: managed manually via Firebase Console or Admin SDK only.
+    // -------------------------------------------------------------------------
+
+    match /admins/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if false; // managed manually via Firebase Console or Admin SDK only
     }
 
     // -------------------------------------------------------------------------
@@ -95,6 +110,10 @@ service cloud.firestore {
           "tierHiddenByUser",
           "onboardingComplete",
           "dateOfBirth",   // B14: user sets MM-DD for birthday bonus eligibility
+          "age",           // Demo: client writes age from onboarding step 2
+          "gender",        // Demo: client writes gender from onboarding step 2
+          "pointsBalance", // Demo: client increments own balance (Spark plan, no Cloud Functions)
+          "reviewCount",   // Demo: client increments own review count
           "updatedAt"
         ]);
       allow delete: if false; // Deletion handled by Cloud Function (anonymize, not delete)
@@ -142,7 +161,8 @@ service cloud.firestore {
 
     match /establishments/{estId} {
       allow read: if true;  // public read for Phase 1B data wiring
-      allow create, update, delete: if isAdmin();
+      allow create: if isAuthenticated(); // Demo: authenticated users can submit new places
+      allow update, delete: if isAdmin();
 
       // -----------------------------------------------------------------------
       // SUB-COLLECTION: establishments/{estId}/reviews/{reviewId}
@@ -270,7 +290,7 @@ service cloud.firestore {
 
     match /userBalances/{userId} {
       allow read: if isOwner(userId);
-      allow write: if false; // Cloud Function writes via Admin SDK only
+      allow write: if isOwner(userId); // Demo: client writes own balance (Spark plan, no Cloud Functions)
       allow read, write: if isAdmin();
     }
 

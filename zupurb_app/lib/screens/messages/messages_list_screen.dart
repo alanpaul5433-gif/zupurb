@@ -1,17 +1,21 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
+import '../../core/services/direct_chat_service.dart';
+import '../../state/auth/auth_providers.dart';
 
-class MessagesListScreen extends StatefulWidget {
+class MessagesListScreen extends ConsumerStatefulWidget {
   const MessagesListScreen({super.key});
 
   @override
-  State<MessagesListScreen> createState() => _MessagesListScreenState();
+  ConsumerState<MessagesListScreen> createState() => _MessagesListScreenState();
 }
 
-class _MessagesListScreenState extends State<MessagesListScreen> {
+class _MessagesListScreenState extends ConsumerState<MessagesListScreen> {
   int _tab = 0;
   final _tabs = ['All', 'Users', 'Businesses', 'Vendors', 'Entertainers'];
 
@@ -82,88 +86,149 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
             ),
             const Gap(12),
             Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: AppDimens.screenPadding),
-                itemCount: _conversations.length,
-                separatorBuilder: (context, index) => const Gap(0),
-                itemBuilder: (ctx, i) {
-                  final c = _conversations[i];
-                  return Material(
-                    color: c.locked ? const Color(0xFFF8F4F1) : Colors.white,
-                    child: InkWell(
-                    onTap: c.locked ? null : () => context.push('/chat/1'),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      decoration: BoxDecoration(
-                        border: i < _conversations.length - 1 ? const Border(bottom: BorderSide(color: Color(0xFFF0EAE5))) : null,
-                      ),
-                      child: Row(
-                        children: [
-                          const Gap(16),
-                          Stack(
-                            children: [
-                              c.avatarUrl != null
-                                  ? CircleAvatar(radius: 24, backgroundImage: NetworkImage(c.avatarUrl!), onBackgroundImageError: (e, s) {})
-                                  : CircleAvatar(radius: 24, backgroundColor: AppColors.primary, child: Text(c.name[0], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700))),
-                              if (c.online)
-                                Positioned(right: 0, bottom: 0, child: Container(
-                                  width: 12, height: 12,
-                                  decoration: BoxDecoration(color: AppColors.online, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
-                                )),
-                              if (c.locked)
-                                Positioned(right: 0, bottom: 0, child: Container(
-                                  width: 18, height: 18,
-                                  decoration: BoxDecoration(color: AppColors.border, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 1.5)),
-                                  child: const Icon(Icons.lock, size: 10, color: AppColors.textTertiary),
-                                )),
-                            ],
-                          ),
-                          const Gap(12),
-                          Expanded(child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(children: [
-                                Text(c.name, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: c.locked ? AppColors.textTertiary : AppColors.textPrimary)),
-                                if (c.badge != null) ...[
-                                  const Gap(6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(4)),
-                                    child: Text(c.badge!, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.primary)),
-                                  ),
-                                ],
-                              ]),
-                              Text(
-                                c.locked ? 'Follow each other to message' : c.preview,
-                                style: TextStyle(fontSize: 13, color: c.locked ? AppColors.textTertiary : AppColors.textSecondary, fontStyle: c.locked ? FontStyle.italic : FontStyle.normal),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              if (c.businessIntro)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 2),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(color: const Color(0xFFFFF3E0), borderRadius: BorderRadius.circular(4)),
-                                    child: const Text('Business intro — reply to continue', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFFE65100))),
-                                  ),
+              child: Builder(builder: (ctx) {
+                final uid = ref.watch(currentUidProvider);
+                if (uid == null) return _buildDemoList(ctx);
+                return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: DirectChatService().conversationsStream(uid),
+                  builder: (streamCtx, snap) {
+                    if (snap.hasData && snap.data!.docs.isNotEmpty) {
+                      final docs = snap.data!.docs;
+                      return ListView.separated(
+                        padding: const EdgeInsets.symmetric(horizontal: AppDimens.screenPadding),
+                        itemCount: docs.length,
+                        separatorBuilder: (_, _s) => const SizedBox.shrink(),
+                        itemBuilder: (itemCtx, i) {
+                          final data = docs[i].data();
+                          final convId = docs[i].id;
+                          final participants = (data['participantUids'] as List?)?.cast<String>() ?? [];
+                          final otherId = participants.firstWhere((p) => p != uid, orElse: () => '');
+                          final info = (data['participantInfo'] as Map<String, dynamic>?)?[otherId] as Map<String, dynamic>? ?? {};
+                          final name = info['displayName'] as String? ?? 'User';
+                          final photoUrl = info['photoUrl'] as String?;
+                          final lastMsg = data['lastMessageText'] as String? ?? '';
+                          return Material(
+                            color: Colors.white,
+                            child: InkWell(
+                              onTap: () => ctx.push('/chat/$convId'),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                decoration: BoxDecoration(
+                                  border: i < docs.length - 1 ? const Border(bottom: BorderSide(color: Color(0xFFF0EAE5))) : null,
                                 ),
-                            ],
-                          )),
-                          const Gap(8),
-                          Text(c.time, style: const TextStyle(fontSize: 11, color: AppColors.textTertiary)),
-                          const Gap(16),
-                        ],
-                      ),
-                    ),
-                    ),
-                  );
-                },
-              ),
+                                child: Row(
+                                  children: [
+                                    const Gap(16),
+                                    photoUrl != null
+                                        ? CircleAvatar(radius: 24, backgroundImage: NetworkImage(photoUrl), onBackgroundImageError: (e, s) {})
+                                        : CircleAvatar(radius: 24, backgroundColor: AppColors.primary, child: Text(name.isNotEmpty ? name[0] : 'U', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700))),
+                                    const Gap(12),
+                                    Expanded(child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                                        Text(lastMsg, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                      ],
+                                    )),
+                                    const Gap(16),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    }
+                    // Fallback to hardcoded demo list
+                    return _buildDemoList(ctx);
+                  },
+                );
+              }),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildDemoList(BuildContext ctx) {
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(horizontal: AppDimens.screenPadding),
+      itemCount: _conversations.length,
+      separatorBuilder: (_, _s) => const SizedBox.shrink(),
+      itemBuilder: (_, i) {
+        final c = _conversations[i];
+        return Material(
+          color: c.locked ? const Color(0xFFF8F4F1) : Colors.white,
+          child: InkWell(
+            onTap: c.locked ? null : () => ctx.push('/chat/demo-${i + 1}'),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                border: i < _conversations.length - 1 ? const Border(bottom: BorderSide(color: Color(0xFFF0EAE5))) : null,
+              ),
+              child: Row(
+                children: [
+                  const Gap(16),
+                  Stack(
+                    children: [
+                      c.avatarUrl != null
+                          ? CircleAvatar(radius: 24, backgroundImage: NetworkImage(c.avatarUrl!), onBackgroundImageError: (e, s) {})
+                          : CircleAvatar(radius: 24, backgroundColor: AppColors.primary, child: Text(c.name[0], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700))),
+                      if (c.online)
+                        Positioned(right: 0, bottom: 0, child: Container(
+                          width: 12, height: 12,
+                          decoration: BoxDecoration(color: AppColors.online, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
+                        )),
+                      if (c.locked)
+                        Positioned(right: 0, bottom: 0, child: Container(
+                          width: 18, height: 18,
+                          decoration: BoxDecoration(color: AppColors.border, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 1.5)),
+                          child: const Icon(Icons.lock, size: 10, color: AppColors.textTertiary),
+                        )),
+                    ],
+                  ),
+                  const Gap(12),
+                  Expanded(child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [
+                        Text(c.name, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: c.locked ? AppColors.textTertiary : AppColors.textPrimary)),
+                        if (c.badge != null) ...[
+                          const Gap(6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(4)),
+                            child: Text(c.badge!, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                          ),
+                        ],
+                      ]),
+                      Text(
+                        c.locked ? 'Follow each other to message' : c.preview,
+                        style: TextStyle(fontSize: 13, color: c.locked ? AppColors.textTertiary : AppColors.textSecondary, fontStyle: c.locked ? FontStyle.italic : FontStyle.normal),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (c.businessIntro)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(color: const Color(0xFFFFF3E0), borderRadius: BorderRadius.circular(4)),
+                            child: const Text('Business intro — reply to continue', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFFE65100))),
+                          ),
+                        ),
+                    ],
+                  )),
+                  const Gap(8),
+                  Text(c.time, style: const TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                  const Gap(16),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

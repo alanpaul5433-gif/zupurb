@@ -107,7 +107,7 @@ class _ResultCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.push('/establishment/1'),
+      onTap: () => context.push('/establishment/the-social-lounge'),
       child: Container(
         decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), color: Colors.white),
         child: Column(
@@ -116,7 +116,17 @@ class _ResultCard extends StatelessWidget {
               children: [
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                  child: Image.network(imageUrl, height: 160, width: double.infinity, fit: BoxFit.cover),
+                  child: Image.network(
+                    imageUrl,
+                    height: 160,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      height: 160,
+                      color: AppColors.primaryLight,
+                      child: const Center(child: Icon(Icons.store, color: AppColors.primary, size: 48)),
+                    ),
+                  ),
                 ),
                 if (hasActiveDeal)
                   Positioned(

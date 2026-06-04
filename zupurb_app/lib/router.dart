@@ -246,6 +246,46 @@ GoRouter buildRouter(Ref ref) {
             name: 'profile',
             builder: (context, state) => const OwnProfileScreen(),
           ),
+          GoRoute(
+            path: '/notifications',
+            name: 'notifications',
+            builder: (context, state) => const NotificationsScreen(),
+          ),
+          GoRoute(
+            path: '/badges',
+            name: 'badges',
+            builder: (context, state) => const BadgesScreen(),
+          ),
+          GoRoute(
+            path: '/points',
+            name: 'points',
+            builder: (context, state) => const PointsWalletScreen(),
+          ),
+          GoRoute(
+            path: '/redeem',
+            name: 'redeem',
+            builder: (context, state) => const RedeemRewardsScreen(),
+          ),
+          GoRoute(
+            path: '/settings',
+            name: 'settings',
+            builder: (context, state) => const SettingsScreen(),
+          ),
+          GoRoute(
+            path: '/settings/privacy',
+            name: 'privacy-settings',
+            builder: (context, state) => const PrivacySettingsScreen(),
+          ),
+          GoRoute(
+            path: '/reservation/my',
+            name: 'my-reservations',
+            builder: (context, state) => const MyReservationsScreen(),
+          ),
+          GoRoute(
+            path: '/add-place',
+            name: 'add-place',
+            builder: (context, state) => const AddPlaceScreen(),
+          ),
         ],
       ),
       GoRoute(
@@ -291,11 +331,6 @@ GoRouter buildRouter(Ref ref) {
         builder: (context, state) => const ConfirmBookingScreen(),
       ),
       GoRoute(
-        path: '/reservation/my',
-        name: 'my-reservations',
-        builder: (context, state) => const MyReservationsScreen(),
-      ),
-      GoRoute(
         path: '/reservation/pass',
         name: 'reservation-pass',
         builder: (context, state) => const ReservationPassScreen(),
@@ -313,47 +348,14 @@ GoRouter buildRouter(Ref ref) {
       GoRoute(
         path: '/chat/:id',
         name: 'chat',
-        builder: (context, state) => const ChatScreen(),
+        builder: (context, state) => ChatScreen(
+          conversationId: state.pathParameters['id'] ?? '',
+        ),
       ),
       GoRoute(
         path: '/profile/:id',
         name: 'other-profile',
         builder: (context, state) => const OtherProfileScreen(),
-      ),
-      GoRoute(
-        path: '/notifications',
-        name: 'notifications',
-        builder: (context, state) => const NotificationsScreen(),
-      ),
-      GoRoute(
-        path: '/badges',
-        name: 'badges',
-        builder: (context, state) => const BadgesScreen(),
-      ),
-      GoRoute(
-        path: '/points',
-        name: 'points',
-        builder: (context, state) => const PointsWalletScreen(),
-      ),
-      GoRoute(
-        path: '/redeem',
-        name: 'redeem',
-        builder: (context, state) => const RedeemRewardsScreen(),
-      ),
-      GoRoute(
-        path: '/settings',
-        name: 'settings',
-        builder: (context, state) => const SettingsScreen(),
-      ),
-      GoRoute(
-        path: '/settings/privacy',
-        name: 'privacy-settings',
-        builder: (context, state) => const PrivacySettingsScreen(),
-      ),
-      GoRoute(
-        path: '/add-place',
-        name: 'add-place',
-        builder: (context, state) => const AddPlaceScreen(),
       ),
     ],
   );

@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
@@ -18,13 +20,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _agreed = true;
   bool _loading = false;
 
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  final _phoneController = TextEditingController();
 
   @override
   void dispose() {
+    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -46,6 +54,29 @@ class _SignUpScreenState extends State<SignUpScreen> {
     setState(() => _loading = true);
     try {
       await AuthService().createUserWithEmailAndPassword(email, password);
+      final uid = FirebaseAuth.instance.currentUser!.uid;
+      final name = _nameController.text.trim();
+      await FirebaseFirestore.instance.doc('users/$uid').set({
+        'uid': uid,
+        'displayName': name.isEmpty ? email.split('@')[0] : name,
+        'photoUrl': null,
+        'bio': '',
+        'followersCount': 0,
+        'followingCount': 0,
+        'reviewCount': 0,
+        'verifiedReviewCount': 0,
+        'loyaltyTier': 'bronze',
+        'tierHiddenByUser': false,
+        'pointsBalance': 0,
+        'rollingPoints12mo': 0,
+        'onboardingComplete': false,
+        'phoneVerified': false,
+        'isPlusSubscriber': false,
+        'isBanned': false,
+        'isDeleted': false,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
       if (mounted) context.go('/onboarding/1');
     } on AppAuthException catch (e) {
       if (mounted) {
@@ -99,29 +130,37 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 style: TextStyle(fontSize: 14, color: Color(0xFF666666)),
               ),
               const Gap(32),
-              const AppTextField(hint: 'Full Name', prefixIcon: Icons.person_outline),
+              AppTextField(hint: 'Full Name', prefixIcon: Icons.person_outline, controller: _nameController),
               const Gap(12),
               AppTextField(hint: 'Email Address', prefixIcon: Icons.mail_outline, keyboardType: TextInputType.emailAddress, controller: _emailController),
               const Gap(12),
               AppTextField(hint: 'Password', prefixIcon: Icons.lock_outline, obscure: true, controller: _passwordController),
               const Gap(12),
-              const AppTextField(hint: 'Confirm Password', prefixIcon: Icons.lock_outline, obscure: true),
+              AppTextField(hint: 'Confirm Password', prefixIcon: Icons.lock_outline, obscure: true, controller: _confirmPasswordController),
               const Gap(12),
-              const AppTextField(hint: 'Phone Number', prefixIcon: Icons.phone_outlined, keyboardType: TextInputType.phone),
+              AppTextField(hint: 'Phone Number', prefixIcon: Icons.phone_outlined, keyboardType: TextInputType.phone, controller: _phoneController),
               const Gap(16),
               Row(
                 children: [
-                  GestureDetector(
-                    onTap: () => setState(() => _agreed = !_agreed),
-                    child: Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: _agreed ? AppColors.primary : Colors.transparent,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: _agreed ? AppColors.primary : AppColors.border, width: 1.5),
+                  Semantics(
+                    checked: _agreed,
+                    label: 'Agree to Terms and Privacy Policy',
+                    button: true,
+                    child: GestureDetector(
+                      onTap: () => setState(() => _agreed = !_agreed),
+                      child: Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            color: _agreed ? AppColors.primary : Colors.transparent,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: _agreed ? AppColors.primary : AppColors.border, width: 1.5),
+                          ),
+                          child: _agreed ? const Icon(Icons.check, size: 14, color: Colors.white) : null,
+                        ),
                       ),
-                      child: _agreed ? const Icon(Icons.check, size: 14, color: Colors.white) : null,
                     ),
                   ),
                   const Gap(8),
@@ -151,14 +190,26 @@ class _SignUpScreenState extends State<SignUpScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  _SocialButton(label: 'G', color: Colors.white, textColor: Colors.red, onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Google sign-in coming soon'), duration: Duration(seconds: 2)))),
-                  _SocialButton(label: 'f', color: Colors.white, textColor: const Color(0xFF1877F2), onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Facebook sign-in coming soon'), duration: Duration(seconds: 2)))),
-                  _SocialButton(
-                    label: '',
-                    icon: Icons.apple,
-                    color: Colors.white,
-                    textColor: Colors.black,
-                    onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Apple sign-in coming soon'), duration: Duration(seconds: 2))),
+                  Semantics(
+                    label: 'Sign in with Google',
+                    button: true,
+                    child: _SocialButton(label: 'G', color: Colors.white, textColor: Colors.red, onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Google sign-in coming soon'), duration: Duration(seconds: 2)))),
+                  ),
+                  Semantics(
+                    label: 'Sign in with Facebook',
+                    button: true,
+                    child: _SocialButton(label: 'f', color: Colors.white, textColor: const Color(0xFF1877F2), onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Facebook sign-in coming soon'), duration: Duration(seconds: 2)))),
+                  ),
+                  Semantics(
+                    label: 'Sign in with Apple',
+                    button: true,
+                    child: _SocialButton(
+                      label: '',
+                      icon: Icons.apple,
+                      color: Colors.white,
+                      textColor: Colors.black,
+                      onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Apple sign-in coming soon'), duration: Duration(seconds: 2))),
+                    ),
                   ),
                 ],
               ),

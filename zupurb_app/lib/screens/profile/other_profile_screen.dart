@@ -88,9 +88,11 @@ class _OtherProfileScreenState extends State<OtherProfileScreen> {
                     child: Row(
                       children: _tabs.asMap().entries.map((e) => GestureDetector(
                         onTap: () => setState(() => _tab = e.key),
-                        child: Padding(
+                        child: Container(
+                          constraints: const BoxConstraints(minHeight: 44),
                           padding: const EdgeInsets.only(right: 24),
-                          child: Column(children: [
+                          alignment: Alignment.center,
+                          child: Column(mainAxisSize: MainAxisSize.min, children: [
                             Text(e.value, style: TextStyle(fontSize: 14, fontWeight: _tab == e.key ? FontWeight.w700 : FontWeight.w400, color: _tab == e.key ? AppColors.primary : AppColors.textSecondary)),
                             if (_tab == e.key) Container(height: 2, width: 36, color: AppColors.primary, margin: const EdgeInsets.only(top: 4)),
                           ]),

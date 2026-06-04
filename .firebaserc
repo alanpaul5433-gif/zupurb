@@ -1,7 +1,6 @@
 {
   "projects": {
-    "default": "zupurb-dev",
-    "staging": "zupurb-staging",
-    "production": "zupurb-prod"
+    "default": "zupurb-9580f",
+    "production": "zupurb-9580f"
   }
 }

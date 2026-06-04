@@ -71,14 +71,15 @@ class EstablishmentMap extends StatelessWidget {
   }
 
   /// Opens Google Maps app (or web fallback) with walking directions to the venue.
-  void _openDirections() {
+  Future<void> _openDirections() async {
     final uri = Uri.parse(
       'https://www.google.com/maps/dir/?api=1'
       '&destination=$latitude,$longitude',
     );
-    launchUrl(uri, mode: LaunchMode.externalApplication).catchError((_) {
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
       debugPrint('[EstablishmentMap] could not launch maps URL: $uri');
-      return false;
-    });
+    }
   }
 }

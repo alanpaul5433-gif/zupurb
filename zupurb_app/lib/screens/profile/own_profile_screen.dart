@@ -1,26 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
+import '../../state/user/user_profile_provider.dart';
 
-class OwnProfileScreen extends StatefulWidget {
+class OwnProfileScreen extends ConsumerStatefulWidget {
   const OwnProfileScreen({super.key});
 
   @override
-  State<OwnProfileScreen> createState() => _OwnProfileScreenState();
+  ConsumerState<OwnProfileScreen> createState() => _OwnProfileScreenState();
 }
 
-class _OwnProfileScreenState extends State<OwnProfileScreen> {
+class _OwnProfileScreenState extends ConsumerState<OwnProfileScreen> {
   int _tab = 0;
   final _tabs = ['Posts', 'Reels', 'Reviews', 'Places Visited'];
 
   @override
   Widget build(BuildContext context) {
+    final profileAsync = ref.watch(userProfileProvider);
+    final profile = profileAsync.value;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F0ED),
       body: SafeArea(
-        child: CustomScrollView(
+        child: profileAsync.isLoading && profile == null
+            ? const Center(child: CircularProgressIndicator())
+            : CustomScrollView(
           slivers: [
             SliverToBoxAdapter(
               child: Column(
@@ -60,7 +67,7 @@ class _OwnProfileScreenState extends State<OwnProfileScreen> {
                       children: [
                         CircleAvatar(
                           radius: 45,
-                          backgroundImage: const NetworkImage('https://i.pravatar.cc/150?img=68'),
+                          backgroundImage: NetworkImage(profile?.photoUrl ?? 'https://i.pravatar.cc/150?img=68'),
                           onBackgroundImageError: (e, s) {},
                         ),
                         Positioned(
@@ -76,8 +83,8 @@ class _OwnProfileScreenState extends State<OwnProfileScreen> {
                     ),
                   ),
                   const Gap(12),
-                  const Text('Alan Paul', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A))),
-                  const Text('@alanpaul', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                  Text(profile?.displayName ?? 'User', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A))),
+                  Text('@${(profile?.displayName ?? 'user').toLowerCase().replaceAll(' ', '')}', style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
                   const Gap(12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -107,7 +114,7 @@ class _OwnProfileScreenState extends State<OwnProfileScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _StatCol('412', 'REVIEWS'),
+                      _StatCol('${profile?.reviewCount ?? 0}', 'REVIEWS'),
                       _StatCol('8.4K', 'FOLLOWERS'),
                       _StatCol('203', 'FOLLOWING'),
                     ],
@@ -118,11 +125,11 @@ class _OwnProfileScreenState extends State<OwnProfileScreen> {
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(12)),
                     child: Row(children: [
-                      const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('REWARDS BALANCE', style: TextStyle(fontSize: 10, color: Colors.white70, letterSpacing: 0.5)),
-                        Gap(4),
-                        Text('1,847 pts', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white)),
-                        Text('Est. value \$5.54', style: TextStyle(fontSize: 12, color: Colors.white70)),
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        const Text('REWARDS BALANCE', style: TextStyle(fontSize: 10, color: Colors.white70, letterSpacing: 0.5)),
+                        const Gap(4),
+                        Text('${profile?.pointsBalance ?? 0} pts', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white)),
+                        Text('Est. value \$${((profile?.pointsBalance ?? 0) * 0.003).toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, color: Colors.white70)),
                       ])),
                       ElevatedButton(
                         onPressed: () => context.push('/redeem'),
@@ -157,9 +164,11 @@ class _OwnProfileScreenState extends State<OwnProfileScreen> {
                     child: Row(
                       children: _tabs.asMap().entries.map((e) => GestureDetector(
                         onTap: () => setState(() => _tab = e.key),
-                        child: Padding(
+                        child: Container(
+                          constraints: const BoxConstraints(minHeight: 44),
                           padding: const EdgeInsets.only(right: 16),
-                          child: Column(children: [
+                          alignment: Alignment.center,
+                          child: Column(mainAxisSize: MainAxisSize.min, children: [
                             Text(e.value, style: TextStyle(fontSize: 13, fontWeight: _tab == e.key ? FontWeight.w700 : FontWeight.w400, color: _tab == e.key ? AppColors.primary : AppColors.textSecondary)),
                             if (_tab == e.key) Container(height: 2, width: 40, color: AppColors.primary, margin: const EdgeInsets.only(top: 4)),
                           ]),

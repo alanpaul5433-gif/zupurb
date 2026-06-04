@@ -116,23 +116,31 @@ class _LoginScreenState extends State<LoginScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  GestureDetector(
-                    onTap: () => setState(() => _remember = !_remember),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 22,
-                          height: 22,
-                          decoration: BoxDecoration(
-                            color: _remember ? AppColors.primary : Colors.transparent,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: _remember ? AppColors.primary : AppColors.border),
-                          ),
-                          child: _remember ? const Icon(Icons.check, size: 13, color: Colors.white) : null,
+                  Semantics(
+                    checked: _remember,
+                    label: 'Remember me',
+                    button: true,
+                    child: GestureDetector(
+                      onTap: () => setState(() => _remember = !_remember),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 11),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 22,
+                              height: 22,
+                              decoration: BoxDecoration(
+                                color: _remember ? AppColors.primary : Colors.transparent,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: _remember ? AppColors.primary : AppColors.border),
+                              ),
+                              child: _remember ? const Icon(Icons.check, size: 13, color: Colors.white) : null,
+                            ),
+                            const Gap(6),
+                            const Text('Remember Me', style: TextStyle(fontSize: 13, color: Color(0xFF444444))),
+                          ],
                         ),
-                        const Gap(6),
-                        const Text('Remember Me', style: TextStyle(fontSize: 13, color: Color(0xFF444444))),
-                      ],
+                      ),
                     ),
                   ),
                   GestureDetector(
@@ -156,17 +164,29 @@ class _LoginScreenState extends State<LoginScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  GestureDetector(
-                    onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Google sign-in coming soon'), duration: Duration(seconds: 2))),
-                    child: _SocialButton(label: 'G', textColor: Colors.red),
+                  Semantics(
+                    label: 'Sign in with Google',
+                    button: true,
+                    child: GestureDetector(
+                      onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Google sign-in coming soon'), duration: Duration(seconds: 2))),
+                      child: _SocialButton(label: 'G', textColor: Colors.red),
+                    ),
                   ),
-                  GestureDetector(
-                    onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Facebook sign-in coming soon'), duration: Duration(seconds: 2))),
-                    child: _SocialButton(label: 'f', textColor: const Color(0xFF1877F2)),
+                  Semantics(
+                    label: 'Sign in with Facebook',
+                    button: true,
+                    child: GestureDetector(
+                      onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Facebook sign-in coming soon'), duration: Duration(seconds: 2))),
+                      child: _SocialButton(label: 'f', textColor: const Color(0xFF1877F2)),
+                    ),
                   ),
-                  GestureDetector(
-                    onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Apple sign-in coming soon'), duration: Duration(seconds: 2))),
-                    child: _SocialButton(icon: Icons.apple, textColor: Colors.black),
+                  Semantics(
+                    label: 'Sign in with Apple',
+                    button: true,
+                    child: GestureDetector(
+                      onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Apple sign-in coming soon'), duration: Duration(seconds: 2))),
+                      child: _SocialButton(icon: Icons.apple, textColor: Colors.black),
+                    ),
                   ),
                 ],
               ),

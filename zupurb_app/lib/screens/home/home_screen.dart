@@ -58,17 +58,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
-                        children: _tabs.asMap().entries.map((e) => GestureDetector(
-                          onTap: () => setState(() => _tabIndex = e.key),
-                          child: Container(
-                            margin: const EdgeInsets.only(right: 8),
-                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
-                            decoration: BoxDecoration(
-                              color: _tabIndex == e.key ? AppColors.primary : Colors.white,
-                              borderRadius: BorderRadius.circular(100),
-                              border: Border.all(color: _tabIndex == e.key ? AppColors.primary : AppColors.border),
+                        children: _tabs.asMap().entries.map((e) => Semantics(
+                          label: e.value,
+                          selected: _tabIndex == e.key,
+                          button: true,
+                          child: GestureDetector(
+                            onTap: () => setState(() => _tabIndex = e.key),
+                            child: Container(
+                              margin: const EdgeInsets.only(right: 8),
+                              constraints: const BoxConstraints(minHeight: 44),
+                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+                              decoration: BoxDecoration(
+                                color: _tabIndex == e.key ? AppColors.primary : Colors.white,
+                                borderRadius: BorderRadius.circular(100),
+                                border: Border.all(color: _tabIndex == e.key ? AppColors.primary : AppColors.border),
+                              ),
+                              child: Center(
+                                child: Text(e.value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _tabIndex == e.key ? Colors.white : AppColors.textPrimary)),
+                              ),
                             ),
-                            child: Text(e.value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _tabIndex == e.key ? Colors.white : AppColors.textPrimary)),
                           ),
                         )).toList(),
                       ),
@@ -252,7 +260,7 @@ class _ReviewCardFromDataState extends State<_ReviewCardFromData> {
                           children: [
                             Icon(_liked ? Icons.thumb_up : Icons.thumb_up_outlined, size: 18, color: _liked ? AppColors.primary : AppColors.textSecondary),
                             const Gap(4),
-                            Text('$_likes', style: TextStyle(fontSize: 12, color: _liked ? AppColors.primary : AppColors.textSecondary, fontWeight: _liked ? FontWeight.w600 : FontWeight.normal)),
+                            Flexible(child: Text('$_likes', style: TextStyle(fontSize: 12, color: _liked ? AppColors.primary : AppColors.textSecondary, fontWeight: _liked ? FontWeight.w600 : FontWeight.normal))),
                           ],
                         ),
                       ),
@@ -274,7 +282,6 @@ class _ReviewCardFromDataState extends State<_ReviewCardFromData> {
                         });
                       },
                       child: SizedBox(
-                        width: 44,
                         height: 44,
                         child: Center(child: Icon(_disliked ? Icons.thumb_down : Icons.thumb_down_outlined, size: 18, color: _disliked ? AppColors.primary : AppColors.textSecondary)),
                       ),
@@ -287,7 +294,6 @@ class _ReviewCardFromDataState extends State<_ReviewCardFromData> {
                     child: GestureDetector(
                       onTap: () => Share.share('Check out this review on Zupurb: "${r.text}" — ${r.authorName}'),
                       child: const SizedBox(
-                        width: 44,
                         height: 44,
                         child: Center(child: Icon(Icons.share_outlined, size: 18, color: AppColors.textSecondary)),
                       ),
@@ -437,7 +443,7 @@ class _ReviewCardState extends State<_ReviewCard> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.push('/establishment/1'),
+      onTap: () => context.push('/establishment/the-social-lounge'),
       child: Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -564,7 +570,7 @@ class _ReviewCardState extends State<_ReviewCard> {
                         children: [
                           Icon(_liked ? Icons.thumb_up : Icons.thumb_up_outlined, size: 18, color: _liked ? AppColors.primary : AppColors.textSecondary),
                           const Gap(4),
-                          Text('$_likes', style: TextStyle(fontSize: 12, color: _liked ? AppColors.primary : AppColors.textSecondary, fontWeight: _liked ? FontWeight.w600 : FontWeight.normal)),
+                          Flexible(child: Text('$_likes', style: TextStyle(fontSize: 12, color: _liked ? AppColors.primary : AppColors.textSecondary, fontWeight: _liked ? FontWeight.w600 : FontWeight.normal))),
                         ],
                       ),
                     ),
@@ -586,7 +592,6 @@ class _ReviewCardState extends State<_ReviewCard> {
                       });
                     },
                     child: SizedBox(
-                      width: 44,
                       height: 44,
                       child: Center(child: Icon(_disliked ? Icons.thumb_down : Icons.thumb_down_outlined, size: 18, color: _disliked ? AppColors.primary : AppColors.textSecondary)),
                     ),
@@ -599,7 +604,6 @@ class _ReviewCardState extends State<_ReviewCard> {
                   child: GestureDetector(
                     onTap: () => Share.share('Check out this review on Zupurb: "Had an incredible dinner here last night. The ambiance is exactly what we were looking for..." — Sarah M. at The Social Lounge'),
                     child: const SizedBox(
-                      width: 44,
                       height: 44,
                       child: Center(child: Icon(Icons.share_outlined, size: 18, color: AppColors.textSecondary)),
                     ),
@@ -633,6 +637,9 @@ class _CircleImage extends StatelessWidget {
   Widget build(BuildContext context) => CircleAvatar(
     radius: 28,
     backgroundImage: NetworkImage(url),
+    onBackgroundImageError: (e, s) {},
+    backgroundColor: AppColors.primaryLight,
+    child: const Icon(Icons.restaurant, color: AppColors.primary, size: 20),
   );
 }
 

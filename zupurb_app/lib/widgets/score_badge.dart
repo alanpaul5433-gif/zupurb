@@ -7,6 +7,12 @@ class ScoreBadge extends StatelessWidget {
 
   const ScoreBadge({super.key, required this.score, this.size = 36});
 
+  Color _badgeColor() {
+    if (score >= 4.5) return AppColors.online;      // green
+    if (score >= 3.0) return AppColors.warning;     // amber
+    return AppColors.error;                          // red
+  }
+
   @override
   Widget build(BuildContext context) {
     return Semantics(
@@ -16,7 +22,7 @@ class ScoreBadge extends StatelessWidget {
         width: size,
         height: size,
         decoration: BoxDecoration(
-          color: AppColors.primary,
+          color: _badgeColor(),
           borderRadius: BorderRadius.circular(size / 4),
         ),
         alignment: Alignment.center,

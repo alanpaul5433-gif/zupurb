@@ -7,6 +7,7 @@ import '../../core/config/legal_urls.dart';
 import '../../core/services/auth_service.dart';
 import '../../state/analytics/analytics_providers.dart';
 import '../../state/iap/iap_providers.dart';
+import '../../state/user/user_profile_provider.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../widgets/plus_paywall.dart';
@@ -32,6 +33,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final profile = ref.watch(userProfileProvider).value;
+    final displayName = profile?.displayName ?? 'User';
+    final handle = '@${displayName.toLowerCase().replaceAll(' ', '')}';
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F0ED),
       appBar: AppBar(
@@ -50,13 +55,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               child: Row(children: [
                 CircleAvatar(radius: 24, backgroundColor: AppColors.border, child: const Icon(Icons.person, color: AppColors.textTertiary, size: 24)),
                 const Gap(12),
-                const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Row(children: [
-                    Text('Alan Paul', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                    Gap(8),
-                    Chip(label: Text('PLUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.primary)), backgroundColor: AppColors.primaryLight, padding: EdgeInsets.zero, side: BorderSide.none, materialTapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                    Text(displayName, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                    const Gap(8),
+                    const Chip(label: Text('PLUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.primary)), backgroundColor: AppColors.primaryLight, padding: EdgeInsets.zero, side: BorderSide.none, materialTapTargetSize: MaterialTapTargetSize.shrinkWrap),
                   ]),
-                  Text('@alanpaul', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                  Text(handle, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                 ])),
                 const Icon(Icons.edit_outlined, color: AppColors.primary, size: 20),
               ]),
@@ -75,8 +80,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             const Gap(20),
             _SectionLabel('Account'),
-            _SettingsItem(icon: Icons.person_outline, label: 'Personal Information', onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Coming soon'), duration: Duration(seconds: 2)))),
-            _SettingsItem(icon: Icons.mail_outline, label: 'Email Preferences', onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Coming soon'), duration: Duration(seconds: 2)))),
+            _SettingsItem(icon: Icons.person_outline, label: 'Personal Information', onTap: () => context.push('/profile')),
+            _SettingsItem(icon: Icons.mail_outline, label: 'Email Preferences', onTap: () => context.push('/settings/privacy')),
             const Gap(16),
             _SectionLabel('Notifications'),
             _ToggleItem(icon: Icons.notifications_outlined, label: 'Push Notifications', value: _pushNotifs, onChanged: (v) => setState(() => _pushNotifs = v)),

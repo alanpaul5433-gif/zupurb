@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
+import '../../state/user/user_profile_provider.dart';
 
-class PointsWalletScreen extends StatelessWidget {
+class PointsWalletScreen extends ConsumerWidget {
   const PointsWalletScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(userProfileProvider).value;
+    final pts = profile?.pointsBalance ?? 0;
+    final value = (pts * 0.003).toStringAsFixed(2);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F0ED),
       appBar: AppBar(
@@ -25,11 +31,14 @@ class PointsWalletScreen extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(20)),
-              child: const Column(children: [
-                Text('TOTAL BALANCE', style: TextStyle(fontSize: 12, color: Colors.white70, letterSpacing: 0.5)),
-                Gap(4),
-                Text('1,847 pts', style: TextStyle(fontSize: 44, fontWeight: FontWeight.w800, color: Colors.white)),
-                Text('\$5.54 value', style: TextStyle(fontSize: 14, color: Colors.white70)),
+              child: Column(children: [
+                const Text('TOTAL BALANCE', style: TextStyle(fontSize: 12, color: Colors.white70, letterSpacing: 0.5)),
+                const Gap(4),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text('$pts pts', style: const TextStyle(fontSize: 44, fontWeight: FontWeight.w800, color: Colors.white)),
+                ),
+                Text('\$$value value', style: const TextStyle(fontSize: 14, color: Colors.white70)),
               ]),
             ),
             const Gap(12),
@@ -59,7 +68,17 @@ class PointsWalletScreen extends StatelessWidget {
                     Row(children: [Icon(Icons.card_giftcard, color: AppColors.primary, size: 18), Gap(6), Text('Redeem', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700))]),
                     Text('Browse exclusive deals', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                   ]),
-                  GestureDetector(onTap: () => context.push('/redeem'), child: const Icon(Icons.chevron_right, color: AppColors.textTertiary)),
+                  Semantics(
+                    label: 'Go to redeem rewards',
+                    button: true,
+                    child: GestureDetector(
+                      onTap: () => context.push('/redeem'),
+                      child: const Padding(
+                        padding: EdgeInsets.all(10),
+                        child: Icon(Icons.chevron_right, color: AppColors.textTertiary),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -154,7 +173,7 @@ class _ActivityItem extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
       child: Row(children: [
-        Container(width: 40, height: 40, decoration: BoxDecoration(color: AppColors.primaryLight, shape: BoxShape.circle), child: Icon(icon, color: AppColors.primary, size: 20)),
+        ExcludeSemantics(child: Container(width: 40, height: 40, decoration: BoxDecoration(color: AppColors.primaryLight, shape: BoxShape.circle), child: Icon(icon, color: AppColors.primary, size: 20))),
         const Gap(12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),

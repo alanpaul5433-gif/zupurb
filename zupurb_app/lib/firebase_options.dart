@@ -50,19 +50,19 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBUrv8pDykIFORoqpm9DdYzb_t3fcdAl_c',
-    appId: '1:1063645699274:android:fbb70bfa649c156fcfe833',
-    messagingSenderId: '1063645699274',
-    projectId: 'zupurb-dev',
-    storageBucket: 'zupurb-dev.firebasestorage.app',
+    apiKey: 'AIzaSyD10NSH2hxAbrMXoYcK_b00GA1pV3ORj-o',
+    appId: '1:122627565692:android:7b23de7b8d7d958b4481f9',
+    messagingSenderId: '122627565692',
+    projectId: 'zupurb-9580f',
+    storageBucket: 'zupurb-9580f.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCGDy_sKAsaDffZt37psBbRfV9CcJ_zw8E',
-    appId: '1:1063645699274:ios:f6b4eef3d356a8f2cfe833',
-    messagingSenderId: '1063645699274',
-    projectId: 'zupurb-dev',
-    storageBucket: 'zupurb-dev.firebasestorage.app',
+    apiKey: 'AIzaSyDOt_SQTUueqCGLKz4YNlYcIyU9wtmT0p0',
+    appId: '1:122627565692:ios:9a88c8e2fb69f5464481f9',
+    messagingSenderId: '122627565692',
+    projectId: 'zupurb-9580f',
+    storageBucket: 'zupurb-9580f.firebasestorage.app',
     iosBundleId: 'com.zupurb.app',
   );
 }

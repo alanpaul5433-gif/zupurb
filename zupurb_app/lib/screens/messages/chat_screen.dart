@@ -1,25 +1,81 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/services/direct_chat_service.dart';
 import '../../theme/colors.dart';
 
-class ChatScreen extends StatelessWidget {
-  const ChatScreen({super.key});
+class ChatScreen extends StatefulWidget {
+  final String conversationId;
+  const ChatScreen({super.key, required this.conversationId});
+
+  @override
+  State<ChatScreen> createState() => _ChatScreenState();
+}
+
+class _ChatScreenState extends State<ChatScreen> {
+  final _messageController = TextEditingController();
+  final _db = FirebaseFirestore.instance;
+
+  bool get _isDemo => widget.conversationId.startsWith('demo-');
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _sendMessage() async {
+    final text = _messageController.text.trim();
+    if (text.isEmpty) return;
+    _messageController.clear();
+    try {
+      await DirectChatService().sendMessage(widget.conversationId, text);
+    } catch (_) {
+      // ignore for demo
+    }
+  }
+
+  Widget _buildAppBarTitle(String name, String? photoUrl) {
+    return Row(children: [
+      photoUrl != null && photoUrl.isNotEmpty
+          ? CircleAvatar(radius: 18, backgroundImage: NetworkImage(photoUrl), onBackgroundImageError: (e, s) {})
+          : CircleAvatar(radius: 18, backgroundColor: AppColors.primary,
+              child: Text(name.isNotEmpty ? name[0] : 'U',
+                  style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700))),
+      const Gap(10),
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+      ]),
+    ]);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final myUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F0ED),
       appBar: AppBar(
         leading: IconButton(onPressed: () => context.pop(), icon: const Icon(Icons.arrow_back_ios, size: 20, color: AppColors.textPrimary)),
-        title: Row(children: [
-          CircleAvatar(radius: 18, backgroundImage: const NetworkImage('https://i.pravatar.cc/150?img=44'), onBackgroundImageError: (e, s) {}),
-          const Gap(10),
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
-            Text('Sarah M.', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-            Text('Active 5m Ago', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-          ]),
-        ]),
+        title: _isDemo
+            ? _buildAppBarTitle('Sarah M.', 'https://i.pravatar.cc/150?img=44')
+            : StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                stream: _db.doc('conversations/${widget.conversationId}').snapshots(),
+                builder: (ctx, snap) {
+                  if (!snap.hasData || !snap.data!.exists) {
+                    return _buildAppBarTitle('...', null);
+                  }
+                  final data = snap.data!.data()!;
+                  final participants = (data['participantUids'] as List?)?.cast<String>() ?? [];
+                  final otherId = participants.firstWhere((p) => p != myUid, orElse: () => '');
+                  final info = (data['participantInfo'] as Map<String, dynamic>?)?[otherId] as Map<String, dynamic>? ?? {};
+                  final name = info['displayName'] as String? ?? 'User';
+                  final photoUrl = info['photoUrl'] as String?;
+                  return _buildAppBarTitle(name, photoUrl);
+                },
+              ),
         actions: [
           IconButton(onPressed: () {}, icon: const Icon(Icons.more_vert, color: AppColors.textPrimary)),
         ],
@@ -28,28 +84,40 @@ class ChatScreen extends StatelessWidget {
       body: Column(
         children: [
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                _MyBubble(text: 'Hi, Sir 🔥', time: '10:10 AM'),
-                const Gap(8),
-                _DateLabel(label: 'Yesterday'),
-                const Gap(8),
-                _TheirBubble(text: 'Hey there! 👋', time: '10:10 PM'),
-                const Gap(4),
-                _TheirBubble(text: "This is your delivery driver from Speedy Chow. I'm just around the corner from your place. 😊", time: '10:10 PM'),
-                const Gap(8),
-                _MyBubble(text: 'Hey there! 🔥', time: '10:10 AM'),
-                const Gap(4),
-                _MyBubble(text: "This is your delivery driver from Speedy Chow. I'm just around the corner from your place. 😊", time: '10:10 AM'),
-                const Gap(8),
-                _DateLabel(label: 'Today'),
-                const Gap(8),
-                _TheirBubble(text: 'Hey there! 👋', time: '10:10 PM'),
-                const Gap(4),
-                _TheirBubble(text: "This is your delivery driver from Speedy Chow. I'm just around the corner from your place. 😊", time: '10:10 PM'),
-              ],
-            ),
+            child: _isDemo
+                ? _buildDemoMessages()
+                : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                    stream: DirectChatService().messagesStream(widget.conversationId),
+                    builder: (ctx, snap) {
+                      if (snap.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (!snap.hasData || snap.data!.docs.isEmpty) {
+                        return _buildDemoMessages();
+                      }
+                      final docs = snap.data!.docs.reversed.toList();
+                      return ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: docs.length,
+                        itemBuilder: (ctx2, i) {
+                          final data = docs[i].data();
+                          final senderUid = data['senderUid'] as String? ?? '';
+                          final text = data['text'] as String? ?? '';
+                          final sentAt = data['sentAt'] as Timestamp?;
+                          final timeStr = sentAt != null
+                              ? '${sentAt.toDate().hour.toString().padLeft(2, '0')}:${sentAt.toDate().minute.toString().padLeft(2, '0')}'
+                              : '';
+                          final isMe = senderUid == myUid;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: isMe
+                                ? _MyBubble(text: text, time: timeStr)
+                                : _TheirBubble(text: text, time: timeStr),
+                          );
+                        },
+                      );
+                    },
+                  ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -61,8 +129,9 @@ class ChatScreen extends StatelessWidget {
               children: [
                 const Icon(Icons.attach_file_outlined, color: AppColors.textSecondary, size: 20),
                 const Gap(10),
-                const Expanded(child: TextField(
-                  decoration: InputDecoration(
+                Expanded(child: TextField(
+                  controller: _messageController,
+                  decoration: const InputDecoration(
                     hintText: 'Type here...',
                     hintStyle: TextStyle(color: AppColors.textTertiary, fontSize: 14),
                     border: InputBorder.none,
@@ -73,12 +142,40 @@ class ChatScreen extends StatelessWidget {
                   ),
                 )),
                 const Gap(10),
-                const Icon(Icons.send, color: AppColors.primary, size: 22),
+                GestureDetector(
+                  onTap: _sendMessage,
+                  child: const Icon(Icons.send, color: AppColors.primary, size: 22),
+                ),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildDemoMessages() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _MyBubble(text: 'Hi, Sir 🔥', time: '10:10 AM'),
+        const Gap(8),
+        _DateLabel(label: 'Yesterday'),
+        const Gap(8),
+        _TheirBubble(text: 'Hey there! 👋', time: '10:10 PM'),
+        const Gap(4),
+        _TheirBubble(text: "This is your delivery driver from Speedy Chow. I'm just around the corner from your place. 😊", time: '10:10 PM'),
+        const Gap(8),
+        _MyBubble(text: 'Hey there! 🔥', time: '10:10 AM'),
+        const Gap(4),
+        _MyBubble(text: "This is your delivery driver from Speedy Chow. I'm just around the corner from your place. 😊", time: '10:10 AM'),
+        const Gap(8),
+        _DateLabel(label: 'Today'),
+        const Gap(8),
+        _TheirBubble(text: 'Hey there! 👋', time: '10:10 PM'),
+        const Gap(4),
+        _TheirBubble(text: "This is your delivery driver from Speedy Chow. I'm just around the corner from your place. 😊", time: '10:10 PM'),
+      ],
     );
   }
 }

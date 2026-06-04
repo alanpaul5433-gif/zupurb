@@ -13,6 +13,15 @@ class MainShell extends StatelessWidget {
     if (location.startsWith('/discover')) return 2;
     if (location.startsWith('/messages')) return 3;
     if (location.startsWith('/profile')) return 4;
+    // Sub-screens accessible from profile tab
+    if (location.startsWith('/settings')) return 4;
+    if (location.startsWith('/points')) return 4;
+    if (location.startsWith('/badges')) return 4;
+    if (location.startsWith('/redeem')) return 4;
+    if (location.startsWith('/reservation/my')) return 4;
+    // Sub-screens accessible from home tab
+    if (location.startsWith('/notifications')) return 0;
+    if (location.startsWith('/add-place')) return 0;
     return 0;
   }
 

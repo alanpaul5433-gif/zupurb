@@ -275,7 +275,18 @@ class _TrendingCard extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              child: Image.network(imageUrl, width: 160, height: 180, fit: BoxFit.cover),
+              child: Image.network(
+                imageUrl,
+                width: 160,
+                height: 180,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  width: 160,
+                  height: 180,
+                  color: AppColors.primaryLight,
+                  child: const Icon(Icons.store, color: AppColors.primary, size: 40),
+                ),
+              ),
             ),
             Positioned(
               top: 8,
@@ -322,7 +333,7 @@ class _HiddenGemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.push('/establishment/1'),
+      onTap: () => context.push('/establishment/the-social-lounge'),
       child: Container(
         width: 160,
         height: 160,
@@ -331,7 +342,18 @@ class _HiddenGemCard extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              child: Image.network(imageUrl, width: 160, height: 160, fit: BoxFit.cover),
+              child: Image.network(
+                imageUrl,
+                width: 160,
+                height: 160,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  width: 160,
+                  height: 160,
+                  color: AppColors.primaryLight,
+                  child: const Icon(Icons.store, color: AppColors.primary, size: 40),
+                ),
+              ),
             ),
             Positioned(
               bottom: 0,
@@ -376,7 +398,7 @@ class _FPYLItemState extends State<_FPYLItem> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.push('/establishment/1'),
+      onTap: () => context.push('/establishment/the-social-lounge'),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),

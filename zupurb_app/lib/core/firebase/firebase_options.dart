@@ -47,29 +47,29 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBxWxMRLmd263lTgkjE3Tugn061Is_vH8A',
-    appId: '1:1063645699274:web:6457cf18d00e82decfe833',
-    messagingSenderId: '1063645699274',
-    projectId: 'zupurb-dev',
-    authDomain: 'zupurb-dev.firebaseapp.com',
-    storageBucket: 'zupurb-dev.firebasestorage.app',
-    measurementId: 'G-FQQJQ5EG0P',
+    apiKey: 'AIzaSyCoGnMQGysi8AUq6SyWLs0n-H39ddl7u74',
+    appId: '1:122627565692:web:43a54f108565b8274481f9',
+    messagingSenderId: '122627565692',
+    projectId: 'zupurb-9580f',
+    authDomain: 'zupurb-9580f.firebaseapp.com',
+    storageBucket: 'zupurb-9580f.firebasestorage.app',
+    measurementId: 'G-PTKV2VQ85E',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBUrv8pDykIFORoqpm9DdYzb_t3fcdAl_c',
-    appId: '1:1063645699274:android:fbb70bfa649c156fcfe833',
-    messagingSenderId: '1063645699274',
-    projectId: 'zupurb-dev',
-    storageBucket: 'zupurb-dev.firebasestorage.app',
+    apiKey: 'AIzaSyD10NSH2hxAbrMXoYcK_b00GA1pV3ORj-o',
+    appId: '1:122627565692:android:7b23de7b8d7d958b4481f9',
+    messagingSenderId: '122627565692',
+    projectId: 'zupurb-9580f',
+    storageBucket: 'zupurb-9580f.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCGDy_sKAsaDffZt37psBbRfV9CcJ_zw8E',
-    appId: '1:1063645699274:ios:2096e2942f14ff16cfe833',
-    messagingSenderId: '1063645699274',
-    projectId: 'zupurb-dev',
-    storageBucket: 'zupurb-dev.firebasestorage.app',
+    apiKey: 'AIzaSyDOt_SQTUueqCGLKz4YNlYcIyU9wtmT0p0',
+    appId: '1:122627565692:ios:9a88c8e2fb69f5464481f9',
+    messagingSenderId: '122627565692',
+    projectId: 'zupurb-9580f',
+    storageBucket: 'zupurb-9580f.firebasestorage.app',
     iosBundleId: 'com.zupurb.zupurbApp',
   );
 }
