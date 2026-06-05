@@ -1,0 +1,14 @@
+{
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/dashboard/announcements/page": "/dashboard/announcements",
+  "/dashboard/checkin/page": "/dashboard/checkin",
+  "/dashboard/deals/page": "/dashboard/deals",
+  "/dashboard/establishment/page": "/dashboard/establishment",
+  "/dashboard/page": "/dashboard",
+  "/dashboard/reservations/page": "/dashboard/reservations",
+  "/dashboard/reservations/slots/page": "/dashboard/reservations/slots",
+  "/dashboard/reviews/page": "/dashboard/reviews",
+  "/login/page": "/login",
+  "/page": "/"
+}

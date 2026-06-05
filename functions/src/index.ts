@@ -398,3 +398,13 @@ export {
 // ---------------------------------------------------------------------------
 
 export { storeDeviceFingerprint } from "./integrations/antiFraud/fingerprint";
+
+// ---------------------------------------------------------------------------
+// Owner Portal
+// ---------------------------------------------------------------------------
+
+export { approveClaimRequest, rejectClaimRequest, inviteOwner } from './owner/claimOps';
+export { respondToReview }  from './owner/reviewOps';
+export { markReservation }  from './owner/reservationOps';
+export { getOwnerAnalytics } from './owner/analytics';
+export { broadcastAnnouncement } from './owner/announcements';

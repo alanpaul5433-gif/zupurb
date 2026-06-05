@@ -340,6 +340,8 @@ export interface FraudFlag {
 // ---------------------------------------------------------------------------
 
 export const ESTABLISHMENTS_COLLECTION = "establishments";
+/** Short alias used by owner domain functions. */
+export const ESTABLISHMENTS = ESTABLISHMENTS_COLLECTION;
 
 export interface EstablishmentDoc {
   estId: string;
@@ -481,6 +483,10 @@ export interface ReviewDoc {
   hasQ8Contradiction: boolean;
   isCoordinatedAttack: boolean;
 
+  // Owner response — written by respondToReview callable; never by the reviewer
+  ownerResponse?: string;
+  ownerRespondedAt?: Timestamp;
+
   createdAt: Timestamp;        // alias for submittedAt for query clarity
   submittedAt: Timestamp;
   updatedAt: Timestamp;
@@ -612,6 +618,8 @@ export interface UserChallengeProgressDoc {
 // ---------------------------------------------------------------------------
 
 export const RESERVATIONS_COLLECTION = "reservations";
+/** Short alias used by owner domain functions. */
+export const RESERVATIONS = RESERVATIONS_COLLECTION;
 
 export interface ReservationDoc {
   reservationId: string;
@@ -661,6 +669,9 @@ export interface ReservationDoc {
   noShowAt: Timestamp | null;
   noShowRecordedAt: Timestamp | null;
   noShowPenaltyApplied: boolean;
+
+  // Owner portal — written by markReservation callable only
+  ownerNote?: string;
 
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -1119,3 +1130,44 @@ export const Paths = {
   iapEvent: (uid: string, transactionId: string) =>
     `${USERS_COLLECTION}/${uid}/${IAP_EVENTS_SUBCOLLECTION}/${transactionId}`,
 } as const;
+
+// ---------------------------------------------------------------------------
+// COLLECTION: claimRequests/{requestId}  (B4 — business claiming workflow)
+// ---------------------------------------------------------------------------
+
+export const CLAIM_REQUESTS_COLLECTION = "claimRequests";
+/** Short alias used by owner domain functions. */
+export const CLAIM_REQUESTS = CLAIM_REQUESTS_COLLECTION;
+
+// ---------------------------------------------------------------------------
+// COLLECTION: owners/{uid}
+// ---------------------------------------------------------------------------
+
+export const OWNERS_COLLECTION = "owners";
+/** Short alias used by owner domain functions. */
+export const OWNERS = OWNERS_COLLECTION;
+
+export interface OwnerDoc {
+  uid: string;
+  displayName: string;
+  email: string;
+  establishmentIds: string[];
+  createdAt: Timestamp;
+  invitedBy?: string; // uid of admin who invited; undefined if self-signup
+}
+
+// ---------------------------------------------------------------------------
+// SUB-COLLECTION: establishments/{estId}/announcements/{announcementId}
+// Written by broadcastAnnouncement callable (owner-only).
+// ---------------------------------------------------------------------------
+
+export const ANNOUNCEMENTS = 'announcements';
+
+export interface AnnouncementDoc {
+  title: string;
+  body: string;
+  imageUrl: string | null;
+  sentBy: string;       // uid of the owner who sent the announcement
+  sentAt: Timestamp;
+  recipientCount: number; // number of FCM tokens targeted at send time
+}

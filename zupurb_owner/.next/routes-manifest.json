@@ -1,0 +1,117 @@
+{
+  "version": 3,
+  "pages404": true,
+  "appType": "app",
+  "caseSensitive": false,
+  "basePath": "",
+  "redirects": [
+    {
+      "source": "/:path+/",
+      "destination": "/:path+",
+      "internal": true,
+      "priority": true,
+      "statusCode": 308,
+      "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))/$"
+    }
+  ],
+  "headers": [],
+  "onMatchHeaders": [],
+  "rewrites": {
+    "beforeFiles": [],
+    "afterFiles": [],
+    "fallback": []
+  },
+  "dynamicRoutes": [],
+  "staticRoutes": [
+    {
+      "page": "/",
+      "regex": "^/(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/(?:/)?$"
+    },
+    {
+      "page": "/_global-error",
+      "regex": "^/_global\\-error(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_global\\-error(?:/)?$"
+    },
+    {
+      "page": "/_not-found",
+      "regex": "^/_not\\-found(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_not\\-found(?:/)?$"
+    },
+    {
+      "page": "/dashboard",
+      "regex": "^/dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard(?:/)?$"
+    },
+    {
+      "page": "/dashboard/announcements",
+      "regex": "^/dashboard/announcements(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/announcements(?:/)?$"
+    },
+    {
+      "page": "/dashboard/checkin",
+      "regex": "^/dashboard/checkin(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/checkin(?:/)?$"
+    },
+    {
+      "page": "/dashboard/deals",
+      "regex": "^/dashboard/deals(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/deals(?:/)?$"
+    },
+    {
+      "page": "/dashboard/establishment",
+      "regex": "^/dashboard/establishment(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/establishment(?:/)?$"
+    },
+    {
+      "page": "/dashboard/reservations",
+      "regex": "^/dashboard/reservations(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/reservations(?:/)?$"
+    },
+    {
+      "page": "/dashboard/reservations/slots",
+      "regex": "^/dashboard/reservations/slots(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/reservations/slots(?:/)?$"
+    },
+    {
+      "page": "/dashboard/reviews",
+      "regex": "^/dashboard/reviews(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/reviews(?:/)?$"
+    },
+    {
+      "page": "/login",
+      "regex": "^/login(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/login(?:/)?$"
+    }
+  ],
+  "dataRoutes": [],
+  "rsc": {
+    "header": "rsc",
+    "varyHeader": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch",
+    "prefetchHeader": "next-router-prefetch",
+    "didPostponeHeader": "x-nextjs-postponed",
+    "contentTypeHeader": "text/x-component",
+    "suffix": ".rsc",
+    "prefetchSegmentHeader": "next-router-segment-prefetch",
+    "prefetchSegmentSuffix": ".segment.rsc",
+    "prefetchSegmentDirSuffix": ".segments",
+    "clientParamParsing": false,
+    "dynamicRSCPrerender": false
+  },
+  "rewriteHeaders": {
+    "pathHeader": "x-nextjs-rewritten-path",
+    "queryHeader": "x-nextjs-rewritten-query"
+  }
+}

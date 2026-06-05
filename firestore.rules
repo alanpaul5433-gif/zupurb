@@ -41,6 +41,10 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.staff == true;
     }
 
+    function isEstablishmentOwner(estId) {
+      return request.auth.uid in get(/databases/$(database)/documents/establishments/$(estId)).data.ownerUids;
+    }
+
     // Check that the caller is a participant in a conversation.
     // threadData must be the conversation document data.
     function isParticipant(threadData) {
@@ -162,7 +166,8 @@ service cloud.firestore {
     match /establishments/{estId} {
       allow read: if true;  // public read for Phase 1B data wiring
       allow create: if isAuthenticated(); // Demo: authenticated users can submit new places
-      allow update, delete: if isAdmin();
+      allow update: if isAdmin() || isEstablishmentOwner(estId);
+      allow delete: if isAdmin();
 
       // -----------------------------------------------------------------------
       // SUB-COLLECTION: establishments/{estId}/reviews/{reviewId}
@@ -170,9 +175,10 @@ service cloud.firestore {
       // Readable by authenticated users (same as flat reviews collection).
       // -----------------------------------------------------------------------
       match /reviews/{reviewId} {
-        allow read: if true;  // public read for Phase 1B data wiring
+        allow read: if isAuthenticated() && (isAdmin() || isEstablishmentOwner(estId) || resource.data.authorUid == request.auth.uid);
         allow create: if request.auth != null;
-        allow update, delete: if false; // Cloud Function writes via Admin SDK only
+        allow update: if isAdmin() || (isEstablishmentOwner(estId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ownerResponse', 'ownerRespondedAt']));
+        allow delete: if false; // Cloud Function writes via Admin SDK only
       }
 
       // -----------------------------------------------------------------------
@@ -189,8 +195,17 @@ service cloud.firestore {
       // Readable by authenticated users; admin-write only.
       // -----------------------------------------------------------------------
       match /deals/{dealId} {
-        allow read: if true;  // public read for Phase 1B data wiring
-        allow write: if isAdmin();
+        allow read, write: if isAdmin() || isEstablishmentOwner(estId);
+      }
+
+      // -----------------------------------------------------------------------
+      // SUB-COLLECTION: establishments/{estId}/announcements/{announcementId}
+      // Written by broadcastAnnouncement callable (Cloud Function / Admin SDK).
+      // Only establishment owners and admins may read or write.
+      // -----------------------------------------------------------------------
+      match /announcements/{announcementId} {
+        allow read: if isEstablishmentOwner(estId) || isAdmin();
+        allow write: if isEstablishmentOwner(estId) || isAdmin();
       }
     }
 
@@ -361,24 +376,19 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
 
     match /reservations/{reservationId} {
-      // Owner read (guest) or establishment staff or admin
-      allow read: if isAuthenticated()
-        && (
-          resource.data.guestUid == request.auth.uid
-          || isAdmin()
-          || isStaff()
-        );
+      // Guest, establishment owner, staff, or admin can read
+      allow read: if isAdmin()
+        || resource.data.guestUid == request.auth.uid
+        || isEstablishmentOwner(resource.data.estId);
 
-      // All writes are Admin SDK only (callable functions).
-      // Direct client create/update/delete is blocked for defense-in-depth.
-      // The callable layer enforces slot availability, 48h cancel policy,
-      // QR/OTP generation, and status transitions.
+      // Owner can update status and ownerNote only; all other writes are Admin SDK only
+      allow update: if isAdmin()
+        || (isEstablishmentOwner(resource.data.estId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'ownerNote']));
+
+      // All creates and deletes are Admin SDK only (callable functions).
       allow create: if false;
-      allow update: if false;
       allow delete: if false;
-
-      // Admin override — Retool / Admin SDK path
-      allow read, write: if isAdmin();
     }
 
     // -------------------------------------------------------------------------
@@ -718,6 +728,18 @@ service cloud.firestore {
       allow read: if isOwner(uid);
       allow write: if false; // Cloud Function writes via Admin SDK only (I7)
       allow read, write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLECTION: owners/{uid}
+    //
+    // Owner portal profile. Written by admin callable (approveClaimRequest,
+    // inviteOwner). Owner reads their own doc; admin reads all.
+    // -------------------------------------------------------------------------
+
+    match /owners/{uid} {
+      allow read: if request.auth.uid == uid || isAdmin();
+      allow write: if isAdmin();
     }
 
     // -------------------------------------------------------------------------

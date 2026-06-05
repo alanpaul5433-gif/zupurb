@@ -1,0 +1,17 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/dashboard/layout,_N_T_/dashboard/reservations/layout,_N_T_/dashboard/reservations/slots/layout,_N_T_/dashboard/reservations/slots/page,_N_T_/dashboard/reservations/slots"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/dashboard/reservations/slots/__PAGE__",
+    "/dashboard/reservations/slots",
+    "/dashboard/reservations",
+    "/dashboard",
+    "/_index",
+    "/_head"
+  ]
+}
