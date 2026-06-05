@@ -11,12 +11,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:zupurb_app/models/review.dart';
+import 'package:zupurb_app/models/user_profile.dart';
 import 'package:zupurb_app/screens/auth/login_screen.dart';
 import 'package:zupurb_app/screens/auth/signup_screen.dart';
 import 'package:zupurb_app/screens/home/home_screen.dart';
 import 'package:zupurb_app/screens/points/points_wallet_screen.dart';
 import 'package:zupurb_app/screens/badges/badges_screen.dart';
+import 'package:zupurb_app/state/reviews/reviews_provider.dart';
+import 'package:zupurb_app/state/user/user_profile_provider.dart';
 
+import '../helpers/test_app_harness.dart';
 import 'semantic_audit.dart';
 
 // ---------------------------------------------------------------------------
@@ -59,6 +65,62 @@ Future<void> _pump(WidgetTester tester, Widget app) async {
   await tester.pumpWidget(app);
   await tester.pump();
 }
+
+// ---------------------------------------------------------------------------
+// Provider-driven screen wrappers (QA-5a)
+//
+// Home / PointsWallet / Badges read Riverpod providers, so they need a
+// ProviderScope. We supply Firebase-neutralising overrides plus deterministic
+// fixtures so the live screens render with no backend.
+// ---------------------------------------------------------------------------
+
+Widget _providerWrap(Widget screen, {List<Override> overrides = const []}) {
+  return ProviderScope(
+    overrides: [...firebaseNeutralisingOverrides(), ...overrides],
+    child: _routerWrap(screen),
+  );
+}
+
+const _fakeReview = Review(
+  id: 'r1',
+  estId: '1',
+  authorName: 'Test Reviewer',
+  authorPhotoUrl: '',
+  score: 4.2,
+  text: 'Great spot with excellent service.',
+  aiSummary: '',
+  verificationTier: 'Verified',
+  helpfulVotes: 3,
+);
+
+const _fakeProfile = UserProfile(
+  uid: 'u1',
+  displayName: 'Test User',
+  photoUrl: null,
+  bio: null,
+  followersCount: 0,
+  followingCount: 0,
+  reviewCount: 0,
+  pointsBalance: 1847,
+  loyaltyTier: 'gold',
+  onboardingComplete: true,
+);
+
+Widget _homeWrap() => _providerWrap(
+      const HomeScreen(),
+      overrides: [
+        recentReviewsProvider.overrideWith((ref) => Stream.value([_fakeReview])),
+      ],
+    );
+
+Widget _walletWrap() => _providerWrap(
+      const PointsWalletScreen(),
+      overrides: [
+        userProfileProvider.overrideWith((ref) => Stream.value(_fakeProfile)),
+      ],
+    );
+
+Widget _badgesWrap() => _providerWrap(const BadgesScreen());
 
 // ---------------------------------------------------------------------------
 // Login screen — semantics
@@ -123,8 +185,11 @@ void main() {
     testWidgets('Login button meets minimum touch target', (tester) async {
       await _pump(tester, _routerWrap(const LoginScreen()));
 
-      final size = tester.getSize(find.text('Login'));
+      // Measure the tappable button, not the inner Text (≈ text line height).
       // AppButton is full-width; height is AppDimens.buttonHeight = 52.
+      final size = tester.getSize(
+        find.ancestor(of: find.text('Login'), matching: find.byType(ElevatedButton)).first,
+      );
       expect(size.height, greaterThanOrEqualTo(44.0),
           reason: 'Button height must be ≥44 logical pixels');
     });
@@ -192,7 +257,10 @@ void main() {
         (tester) async {
       await _pump(tester, _routerWrap(const SignUpScreen()));
 
-      final size = tester.getSize(find.text('Create Account'));
+      // Measure the tappable button, not the inner Text (≈ text line height).
+      final size = tester.getSize(
+        find.ancestor(of: find.text('Create Account'), matching: find.byType(ElevatedButton)).first,
+      );
       expect(size.height, greaterThanOrEqualTo(44.0));
     });
   });
@@ -207,7 +275,7 @@ void main() {
     tearDown(() => handle.dispose());
 
     testWidgets('search bar has semantic label', (tester) async {
-      await _pump(tester, _routerWrap(const HomeScreen()));
+      await _pump(tester, _homeWrap());
 
       expect(
         find.bySemanticsLabel('Search experiences and creators'),
@@ -217,7 +285,7 @@ void main() {
     });
 
     testWidgets('Helpful vote button has semantic label', (tester) async {
-      await _pump(tester, _routerWrap(const HomeScreen()));
+      await _pump(tester, _homeWrap());
 
       expect(
         find.bySemanticsLabel(RegExp('helpful', caseSensitive: false)),
@@ -226,7 +294,7 @@ void main() {
     });
 
     testWidgets('Not helpful button has semantic label', (tester) async {
-      await _pump(tester, _routerWrap(const HomeScreen()));
+      await _pump(tester, _homeWrap());
 
       expect(
         find.bySemanticsLabel('Not helpful'),
@@ -235,19 +303,19 @@ void main() {
     });
 
     testWidgets('Share review button has semantic label', (tester) async {
-      await _pump(tester, _routerWrap(const HomeScreen()));
+      await _pump(tester, _homeWrap());
 
       expect(find.bySemanticsLabel('Share review'), findsOneWidget);
     });
 
     testWidgets('More options button has semantic label', (tester) async {
-      await _pump(tester, _routerWrap(const HomeScreen()));
+      await _pump(tester, _homeWrap());
 
       expect(find.bySemanticsLabel('More options'), findsOneWidget);
     });
 
     testWidgets('score badge on review card announces score', (tester) async {
-      await _pump(tester, _routerWrap(const HomeScreen()));
+      await _pump(tester, _homeWrap());
 
       expect(
         find.bySemanticsLabel(RegExp(r'Score: 4\.2 out of 5')),
@@ -258,7 +326,7 @@ void main() {
 
     testWidgets('Notifications icon has tooltip / semantic label',
         (tester) async {
-      await _pump(tester, _routerWrap(const HomeScreen()));
+      await _pump(tester, _homeWrap());
 
       // IconButton with tooltip='Notifications' exposes label automatically.
       expect(
@@ -274,7 +342,7 @@ void main() {
 
   group('HomeScreen — touch targets ≥44pt', () {
     testWidgets('review card action buttons meet 44pt minimum', (tester) async {
-      await _pump(tester, _routerWrap(const HomeScreen()));
+      await _pump(tester, _homeWrap());
 
       // These are wrapped in explicit SizedBox(width:44, height:44).
       for (final label in ['Not helpful', 'Share review', 'More options']) {
@@ -296,7 +364,7 @@ void main() {
     });
 
     testWidgets('search bar height is ≥44pt', (tester) async {
-      await _pump(tester, _routerWrap(const HomeScreen()));
+      await _pump(tester, _homeWrap());
 
       final size =
           tester.getSize(find.bySemanticsLabel('Search experiences and creators'));
@@ -314,17 +382,17 @@ void main() {
     tearDown(() => handle.dispose());
 
     testWidgets('balance value is present in semantics tree', (tester) async {
-      await _pump(tester, _routerWrap(const PointsWalletScreen()));
+      await _pump(tester, _walletWrap());
 
       // The balance text "1,847 pts" is a plain Text node; it should be
       // reachable by screen readers.
-      expect(find.text('1,847 pts'), findsOneWidget);
-      final node = tester.getSemantics(find.text('1,847 pts'));
+      expect(find.text('1847 pts'), findsOneWidget);
+      final node = tester.getSemantics(find.text('1847 pts'));
       expect(node.label, isNotEmpty);
     });
 
     testWidgets('"TOTAL BALANCE" label is in semantics tree', (tester) async {
-      await _pump(tester, _routerWrap(const PointsWalletScreen()));
+      await _pump(tester, _walletWrap());
 
       expect(find.text('TOTAL BALANCE'), findsOneWidget);
       final node = tester.getSemantics(find.text('TOTAL BALANCE'));
@@ -332,7 +400,7 @@ void main() {
     });
 
     testWidgets('dollar value is present in semantics tree', (tester) async {
-      await _pump(tester, _routerWrap(const PointsWalletScreen()));
+      await _pump(tester, _walletWrap());
 
       expect(find.text('\$5.54 value'), findsOneWidget);
       final node = tester.getSemantics(find.text('\$5.54 value'));
@@ -341,7 +409,7 @@ void main() {
 
     testWidgets('"Points Expiring Soon" warning is in semantics tree',
         (tester) async {
-      await _pump(tester, _routerWrap(const PointsWalletScreen()));
+      await _pump(tester, _walletWrap());
 
       expect(find.text('Points Expiring Soon'), findsOneWidget);
       final node = tester.getSemantics(find.text('Points Expiring Soon'));
@@ -349,7 +417,7 @@ void main() {
     });
 
     testWidgets('Upgrade Now button has a semantic label', (tester) async {
-      await _pump(tester, _routerWrap(const PointsWalletScreen()));
+      await _pump(tester, _walletWrap());
 
       expect(find.text('Upgrade Now'), findsOneWidget);
       final node = tester.getSemantics(find.text('Upgrade Now'));
@@ -357,7 +425,7 @@ void main() {
     });
 
     testWidgets('See All button exposes a label', (tester) async {
-      await _pump(tester, _routerWrap(const PointsWalletScreen()));
+      await _pump(tester, _walletWrap());
 
       expect(find.text('See All'), findsOneWidget);
       final node = tester.getSemantics(find.text('See All'));
@@ -365,7 +433,7 @@ void main() {
     });
 
     testWidgets('back button has a semantic label', (tester) async {
-      await _pump(tester, _routerWrap(const PointsWalletScreen()));
+      await _pump(tester, _walletWrap());
 
       // AppBar leading IconButton with arrow_back_ios.
       expect(
@@ -381,13 +449,14 @@ void main() {
 
   group('PointsWalletScreen — touch targets ≥44pt', () {
     testWidgets('Upgrade Now button meets 44pt minimum', (tester) async {
-      await _pump(tester, _routerWrap(const PointsWalletScreen()));
+      await _pump(tester, _walletWrap());
 
-      final size = tester.getSize(find.text('Upgrade Now'));
+      // Measure the tappable button (minimumSize 80×36), not the inner Text.
+      final size = tester.getSize(
+        find.ancestor(of: find.text('Upgrade Now'), matching: find.byType(ElevatedButton)).first,
+      );
       expect(size.height, greaterThanOrEqualTo(36.0),
-          reason:
-              'ElevatedButton minimumSize is 80×36 per spec; reporting actual '
-              'measured height. True 44pt will be enforced by P1 fix.');
+          reason: 'ElevatedButton minimumSize is 80×36 per spec.');
     });
   });
 
@@ -401,7 +470,7 @@ void main() {
     tearDown(() => handle.dispose());
 
     testWidgets('First Bite badge name is in semantics tree', (tester) async {
-      await _pump(tester, _routerWrap(const BadgesScreen()));
+      await _pump(tester, _badgesWrap());
 
       expect(find.text('First Bite'), findsAtLeastNWidgets(1));
       final node = tester.getSemantics(find.text('First Bite').first);
@@ -409,7 +478,7 @@ void main() {
     });
 
     testWidgets('Taster badge name is in semantics tree', (tester) async {
-      await _pump(tester, _routerWrap(const BadgesScreen()));
+      await _pump(tester, _badgesWrap());
 
       expect(find.text('Taster'), findsOneWidget);
       final node = tester.getSemantics(find.text('Taster'));
@@ -417,7 +486,7 @@ void main() {
     });
 
     testWidgets('Explorer badge name is in semantics tree', (tester) async {
-      await _pump(tester, _routerWrap(const BadgesScreen()));
+      await _pump(tester, _badgesWrap());
 
       expect(find.text('Explorer'), findsOneWidget);
       final node = tester.getSemantics(find.text('Explorer'));
@@ -425,7 +494,7 @@ void main() {
     });
 
     testWidgets('Critic badge name is in semantics tree', (tester) async {
-      await _pump(tester, _routerWrap(const BadgesScreen()));
+      await _pump(tester, _badgesWrap());
 
       expect(find.text('Critic'), findsAtLeastNWidgets(1));
       final node = tester.getSemantics(find.text('Critic').first);
@@ -433,7 +502,7 @@ void main() {
     });
 
     testWidgets('Founder Badge name is in semantics tree', (tester) async {
-      await _pump(tester, _routerWrap(const BadgesScreen()));
+      await _pump(tester, _badgesWrap());
 
       expect(find.text('Founder Badge'), findsOneWidget);
       final node = tester.getSemantics(find.text('Founder Badge'));
@@ -441,7 +510,7 @@ void main() {
     });
 
     testWidgets('LIFETIME chip label is readable', (tester) async {
-      await _pump(tester, _routerWrap(const BadgesScreen()));
+      await _pump(tester, _badgesWrap());
 
       expect(find.text('LIFETIME'), findsOneWidget);
       final node = tester.getSemantics(find.text('LIFETIME'));
@@ -449,20 +518,20 @@ void main() {
     });
 
     testWidgets('Badges tab selector exposes label', (tester) async {
-      await _pump(tester, _routerWrap(const BadgesScreen()));
+      await _pump(tester, _badgesWrap());
 
       // Tab chips are rendered as plain Text inside GestureDetectors.
       expect(find.text('Badges'), findsAtLeastNWidgets(1));
     });
 
     testWidgets('Challenges tab selector exposes label', (tester) async {
-      await _pump(tester, _routerWrap(const BadgesScreen()));
+      await _pump(tester, _badgesWrap());
 
       expect(find.text('Challenges'), findsOneWidget);
     });
 
     testWidgets('challenge progress text is in semantics tree', (tester) async {
-      await _pump(tester, _routerWrap(const BadgesScreen()));
+      await _pump(tester, _badgesWrap());
 
       // "4/5" and "1/3" progress indicators.
       expect(find.text('4/5'), findsOneWidget);
@@ -477,7 +546,7 @@ void main() {
 
   group('BadgesScreen — touch targets ≥44pt', () {
     testWidgets('Badges tab chip is ≥44pt tall', (tester) async {
-      await _pump(tester, _routerWrap(const BadgesScreen()));
+      await _pump(tester, _badgesWrap());
 
       // The tab chip container is: padding vertical 8 + text ≈ 14 = ~30pt.
       // Logging actual size so a P1 fix can be tracked.
@@ -489,9 +558,12 @@ void main() {
     });
 
     testWidgets('View All button is ≥44pt tall', (tester) async {
-      await _pump(tester, _routerWrap(const BadgesScreen()));
+      await _pump(tester, _badgesWrap());
 
-      final size = tester.getSize(find.text('View All'));
+      // Measure the TextButton (44/48pt padded tap target), not the inner Text.
+      final size = tester.getSize(
+        find.ancestor(of: find.text('View All'), matching: find.byType(TextButton)).first,
+      );
       expect(size.height, greaterThanOrEqualTo(44.0),
           reason: 'TextButton tap target should be ≥44pt');
     });
@@ -541,7 +613,7 @@ void main() {
 
     testWidgets('BadgesScreen has no unlabelled interactive nodes',
         (tester) async {
-      await _pump(tester, _routerWrap(const BadgesScreen()));
+      await _pump(tester, _badgesWrap());
 
       final complaints = auditSemantics(tester);
       if (complaints.isNotEmpty) {
@@ -557,7 +629,7 @@ void main() {
 
     testWidgets('PointsWalletScreen has no unlabelled interactive nodes',
         (tester) async {
-      await _pump(tester, _routerWrap(const PointsWalletScreen()));
+      await _pump(tester, _walletWrap());
 
       final complaints = auditSemantics(tester);
       if (complaints.isNotEmpty) {

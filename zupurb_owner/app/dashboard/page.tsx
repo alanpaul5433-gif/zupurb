@@ -30,12 +30,16 @@ interface Stats {
 
 export default function DashboardOverviewPage() {
   const { establishmentIds } = useOwnerAuth();
-  const [selectedEstId, setSelectedEstId] = useState<string>('');
+  const [pickedEstId, setPickedEstId] = useState<string>('');
+  // Active establishment is derived: the owner's explicit pick, else the first one.
+  const selectedEstId = pickedEstId || establishmentIds[0] || '';
   const [establishment, setEstablishment] = useState<Establishment | null>(null);
   const [stats, setStats] = useState<Stats>({ overallScore: null, reviewCount: 0, thisMonthReviews: 0, upcomingReservations: 0 });
   const [analytics, setAnalytics] = useState<Analytics>({ followerCount: 0, aiSummary: null, demographicScores: [] });
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
-  const [loading, setLoading] = useState(true);
+  // `loading` is derived: true until the data load for the active id resolves.
+  const [loadedEstId, setLoadedEstId] = useState<string>('');
+  const loading = !!selectedEstId && loadedEstId !== selectedEstId;
   const [toast, setToast] = useState('');
 
   const showToast = (msg: string) => {
@@ -43,18 +47,9 @@ export default function DashboardOverviewPage() {
     setTimeout(() => setToast(''), 3000);
   };
 
-  // Set initial selected establishment
-  useEffect(() => {
-    if (establishmentIds.length > 0 && !selectedEstId) {
-      setSelectedEstId(establishmentIds[0]);
-    }
-  }, [establishmentIds, selectedEstId]);
-
   // Load establishment data + stats when selection changes
   useEffect(() => {
     if (!selectedEstId) return;
-
-    setLoading(true);
 
     const loadData = async () => {
       try {
@@ -92,7 +87,7 @@ export default function DashboardOverviewPage() {
       } catch {
         showToast('Error loading data');
       } finally {
-        setLoading(false);
+        setLoadedEstId(selectedEstId);
       }
     };
 
@@ -183,7 +178,7 @@ export default function DashboardOverviewPage() {
             <label className="block text-xs font-medium text-gray-600 mb-1">Establishment</label>
             <select
               value={selectedEstId}
-              onChange={(e) => setSelectedEstId(e.target.value)}
+              onChange={(e) => setPickedEstId(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2"
             >
               {establishmentIds.map((id) => (

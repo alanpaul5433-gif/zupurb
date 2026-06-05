@@ -48,7 +48,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         IconButton(
                           onPressed: () => context.push('/notifications'),
                           tooltip: 'Notifications',
-                          icon: const Icon(Icons.notifications_outlined, color: AppColors.textPrimary),
+                          icon: const Icon(Icons.notifications_outlined, color: AppColors.textPrimary, semanticLabel: 'Notifications'),
                         ),
                       ],
                     ),
@@ -282,6 +282,7 @@ class _ReviewCardFromDataState extends State<_ReviewCardFromData> {
                         });
                       },
                       child: SizedBox(
+                        width: 44,
                         height: 44,
                         child: Center(child: Icon(_disliked ? Icons.thumb_down : Icons.thumb_down_outlined, size: 18, color: _disliked ? AppColors.primary : AppColors.textSecondary)),
                       ),
@@ -294,6 +295,7 @@ class _ReviewCardFromDataState extends State<_ReviewCardFromData> {
                     child: GestureDetector(
                       onTap: () => Share.share('Check out this review on Zupurb: "${r.text}" — ${r.authorName}'),
                       child: const SizedBox(
+                        width: 44,
                         height: 44,
                         child: Center(child: Icon(Icons.share_outlined, size: 18, color: AppColors.textSecondary)),
                       ),
@@ -341,7 +343,11 @@ class _SearchBar extends StatelessWidget {
               Gap(16),
               Icon(Icons.search, color: AppColors.primary, size: 20),
               Gap(8),
-              Text('Search experiences, creators...', style: TextStyle(fontSize: 14, color: AppColors.textTertiary)),
+              // Excluded from semantics so the parent Semantics(label: 'Search
+              // experiences and creators') stays the single, clean a11y label.
+              ExcludeSemantics(
+                child: Text('Search experiences, creators...', style: TextStyle(fontSize: 14, color: AppColors.textTertiary)),
+              ),
             ],
           ),
         ),

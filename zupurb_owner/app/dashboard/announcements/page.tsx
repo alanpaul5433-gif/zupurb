@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import {
-  collection, query, orderBy, onSnapshot, Timestamp,
+  collection, query, orderBy, onSnapshot,
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db, app } from '@/lib/firebase';
@@ -19,9 +19,13 @@ interface Announcement {
 
 export default function AnnouncementsPage() {
   const { establishmentIds } = useOwnerAuth();
-  const [selectedEstId, setSelectedEstId] = useState<string>('');
+  const [pickedEstId, setPickedEstId] = useState<string>('');
+  // Active establishment is derived: the owner's explicit pick, else the first one.
+  const selectedEstId = pickedEstId || establishmentIds[0] || '';
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [listLoading, setListLoading] = useState(true);
+  // `listLoading` is derived: true until the subscription for the active id resolves.
+  const [loadedEstId, setLoadedEstId] = useState<string>('');
+  const listLoading = !!selectedEstId && loadedEstId !== selectedEstId;
   const [sending, setSending] = useState(false);
   const [toast, setToast] = useState('');
   const [toastError, setToastError] = useState(false);
@@ -39,16 +43,9 @@ export default function AnnouncementsPage() {
     setTimeout(() => setToast(''), 4000);
   };
 
-  useEffect(() => {
-    if (establishmentIds.length > 0 && !selectedEstId) {
-      setSelectedEstId(establishmentIds[0]);
-    }
-  }, [establishmentIds, selectedEstId]);
-
   // Real-time listener for announcement history
   useEffect(() => {
     if (!selectedEstId) return;
-    setListLoading(true);
     const q = query(
       collection(db, 'establishments', selectedEstId, 'announcements'),
       orderBy('sentAt', 'desc'),
@@ -57,8 +54,8 @@ export default function AnnouncementsPage() {
       setAnnouncements(
         snap.docs.map((d) => ({ id: d.id, ...d.data() } as Announcement)),
       );
-      setListLoading(false);
-    }, () => setListLoading(false));
+      setLoadedEstId(selectedEstId);
+    }, () => setLoadedEstId(selectedEstId));
     return unsub;
   }, [selectedEstId]);
 
@@ -146,7 +143,7 @@ export default function AnnouncementsPage() {
         {establishmentIds.length > 1 && (
           <select
             value={selectedEstId}
-            onChange={(e) => setSelectedEstId(e.target.value)}
+            onChange={(e) => setPickedEstId(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2"
           >
             {establishmentIds.map((id) => (

@@ -27,6 +27,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:zupurb_app/screens/home/home_screen.dart';
@@ -216,7 +217,9 @@ Future<void> _pumpSuppressed(WidgetTester tester, Widget widget) async {
     orig?.call(details);
   };
   addTearDown(() => FlutterError.onError = orig);
-  await tester.pumpWidget(widget);
+  // Real screens (HomeScreen/DiscoverScreen) read Riverpod providers, so they
+  // require a ProviderScope ancestor.
+  await tester.pumpWidget(ProviderScope(child: widget));
   await tester.pump();
 }
 

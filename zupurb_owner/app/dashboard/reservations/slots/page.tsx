@@ -50,9 +50,13 @@ const defaultForm = (): SlotFormData => ({
 
 export default function ReservationSlotsPage() {
   const { establishmentIds } = useOwnerAuth();
-  const [estId, setEstId] = useState('');
+  const [pickedEstId, setPickedEstId] = useState('');
+  // Active establishment is derived: the owner's explicit pick, else the first one.
+  const estId = pickedEstId || establishmentIds[0] || '';
   const [slots, setSlots] = useState<ReservationSlot[]>([]);
-  const [loading, setLoading] = useState(true);
+  // `loading` is derived: true until the subscription for the active id resolves.
+  const [loadedEstId, setLoadedEstId] = useState<string>('');
+  const loading = !!estId && loadedEstId !== estId;
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<SlotFormData>(defaultForm());
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -67,14 +71,7 @@ export default function ReservationSlotsPage() {
   };
 
   useEffect(() => {
-    if (establishmentIds.length > 0 && !estId) {
-      setEstId(establishmentIds[0]);
-    }
-  }, [establishmentIds, estId]);
-
-  useEffect(() => {
     if (!estId) return;
-    setLoading(true);
     const q = query(
       collection(db, 'establishments', estId, 'reservationSlots'),
       orderBy('dayOfWeek', 'asc'),
@@ -83,9 +80,9 @@ export default function ReservationSlotsPage() {
       q,
       (snap) => {
         setSlots(snap.docs.map((d) => ({ id: d.id, ...d.data() } as ReservationSlot)));
-        setLoading(false);
+        setLoadedEstId(estId);
       },
-      () => setLoading(false),
+      () => setLoadedEstId(estId),
     );
     return unsub;
   }, [estId]);
@@ -167,7 +164,7 @@ export default function ReservationSlotsPage() {
           {establishmentIds.length > 1 && (
             <select
               value={estId}
-              onChange={(e) => setEstId(e.target.value)}
+              onChange={(e) => setPickedEstId(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2"
             >
               {establishmentIds.map((id) => (

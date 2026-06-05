@@ -1,9 +1,21 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useOwnerAuth } from '@/lib/owner-auth-context';
+
+const MOBILE_QUERY = '(max-width: 1023px)';
+
+// External-store reads for the viewport size so the initial value is available
+// at first render (SSR-safe) without a synchronous setState inside an effect.
+function subscribeViewport(onChange: () => void): () => void {
+  const mq = window.matchMedia(MOBILE_QUERY);
+  mq.addEventListener('change', onChange);
+  return () => mq.removeEventListener('change', onChange);
+}
+const isMobileSnapshot = () => window.matchMedia(MOBILE_QUERY).matches;
+const isMobileServerSnapshot = () => false;
 
 const NAV = [
   { href: '/dashboard', label: 'Overview', icon: '◼' },
@@ -20,22 +32,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, isOwner, loading, logout, displayName } = useOwnerAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
+  // Viewport tracked via an external store (SSR-safe, no setState-in-effect).
+  const isMobile = useSyncExternalStore(
+    subscribeViewport,
+    isMobileSnapshot,
+    isMobileServerSnapshot,
+  );
+  // `collapsed` defaults to the viewport state; an explicit user toggle overrides it.
+  const [manualCollapsed, setManualCollapsed] = useState<boolean | null>(null);
+  const collapsed = manualCollapsed ?? isMobile;
+  const setCollapsed = setManualCollapsed;
 
   useEffect(() => {
     if (!loading && (!user || !isOwner)) {
       router.replace('/login');
     }
   }, [user, isOwner, loading, router]);
-
-  // Collapse on mobile by default
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 1023px)');
-    setCollapsed(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setCollapsed(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
 
   if (loading || !user || !isOwner) {
     return (

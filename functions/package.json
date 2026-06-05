@@ -18,6 +18,9 @@
     "testMatch": [
       "**/__tests__/**/*.test.ts"
     ],
+    "modulePathIgnorePatterns": [
+      "<rootDir>/lib/"
+    ],
     "moduleNameMapper": {
       "^firebase-admin/firestore$": "<rootDir>/src/__tests__/__mocks__/firebase-admin-firestore.ts",
       "^firebase-admin$": "<rootDir>/src/__tests__/__mocks__/firebase-admin.ts",

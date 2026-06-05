@@ -60,7 +60,9 @@ function EstDrawer({
   showToast: (msg: string) => void;
 }) {
   const [reviews, setReviews] = useState<DrawerReview[]>([]);
-  const [loadingReviews, setLoadingReviews] = useState(true);
+  // Loading is derived from whether reviews have resolved for the current est.
+  const [reviewsForId, setReviewsForId] = useState<string | null>(null);
+  const loadingReviews = reviewsForId !== est.id;
   const [showInvite, setShowInvite] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteDisplayName, setInviteDisplayName] = useState('');
@@ -86,7 +88,6 @@ function EstDrawer({
   };
 
   useEffect(() => {
-    setLoadingReviews(true);
     getDocs(
       query(
         collection(db, 'establishments', est.id, 'reviews'),
@@ -94,7 +95,7 @@ function EstDrawer({
       )
     ).then((snap) => {
       setReviews(snap.docs.map((d) => ({ id: d.id, ...d.data() } as DrawerReview)));
-    }).catch(() => {}).finally(() => setLoadingReviews(false));
+    }).catch(() => {}).finally(() => setReviewsForId(est.id));
   }, [est.id]);
 
   const scoreColor = (s?: number) => {
@@ -334,6 +335,9 @@ export default function EstablishmentsPage() {
   const [toast, setToast] = useState('');
   const [selectedEst, setSelectedEst] = useState<Est | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // Clear the selection whenever the filter changes — adjusted during render
+  // (React's recommended alternative to a setState-in-effect reset).
+  const [prevFilter, setPrevFilter] = useState<Filter>('all');
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -362,10 +366,10 @@ export default function EstablishmentsPage() {
     return true;
   });
 
-  // Deselect all when filter changes
-  useEffect(() => {
+  if (prevFilter !== filter) {
+    setPrevFilter(filter);
     setSelectedIds(new Set());
-  }, [filter]);
+  }
 
   const allFilteredSelected = filtered.length > 0 && filtered.every((e) => selectedIds.has(e.id));
 

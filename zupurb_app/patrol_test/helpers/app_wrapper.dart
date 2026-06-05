@@ -25,6 +25,8 @@
 // The app reads APP_ENV in firebase_init.dart and routes SDK calls to the
 // local emulator when APP_ENV=development.
 
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:patrol/patrol.dart';
 import 'package:zupurb_app/main.dart' as app;
 

@@ -1,25 +1,34 @@
-// Tests the review row section of EstablishmentScreen.
-// _ReviewRow is a private class; it is exercised through EstablishmentScreen
-// which hard-codes two review rows with known data.
+// Tests the review row section of EstablishmentScreen. The screen reads
+// establishmentProvider + establishmentReviewsProvider (live Firestore streams)
+// and falls back to hard-coded header (score 4.4, "The Social Lounge") + two
+// review rows when those are null/empty.
+//
+// Migrated (QA-5a) onto the shared harness: wrapScreen() supplies ProviderScope
+// + Firebase neutralisation; the two family providers are overridden to
+// null/empty so the deterministic fallback content renders with no backend.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:go_router/go_router.dart';
+import 'package:zupurb_app/models/review.dart';
 import 'package:zupurb_app/screens/establishment/establishment_screen.dart';
+import 'package:zupurb_app/state/establishments/establishments_provider.dart';
+import 'package:zupurb_app/state/reviews/reviews_provider.dart';
 import 'package:zupurb_app/widgets/score_badge.dart';
 
-GoRouter _buildRouter() => GoRouter(
-      initialLocation: '/establishment',
-      routes: [
-        GoRoute(
-          path: '/establishment',
-          builder: (context, state) => const EstablishmentScreen(),
-        ),
-        GoRoute(path: '/review/verify', builder: (context, state) => const Scaffold()),
-        GoRoute(path: '/reservation/slots', builder: (context, state) => const Scaffold()),
-      ],
-    );
+import '../helpers/test_app_harness.dart';
 
-Widget _wrap() => MaterialApp.router(routerConfig: _buildRouter());
+const _estId = 'social-lounge';
+
+Widget _wrap() => wrapScreen(
+      const EstablishmentScreen(id: _estId),
+      overrides: [
+        establishmentProvider(_estId).overrideWith((ref) => Stream.value(null)),
+        // Keep reviews in the loading state (stream never emits) — the screen's
+        // loading branch renders the two hard-coded rows these tests assert.
+        establishmentReviewsProvider(_estId)
+            .overrideWith((ref) => const Stream<List<Review>>.empty()),
+      ],
+      stubRoutes: const ['/review/verify', '/reservation/slots'],
+    );
 
 /// Pumps [widget] while suppressing NetworkImageLoadException — Flutter test
 /// env blocks all HTTP (returns 400). Suppressor stays active via [addTearDown].

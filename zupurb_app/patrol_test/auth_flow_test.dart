@@ -42,7 +42,7 @@ void main() {
       await AppWrapper.launch($, extraSettle: 2);
 
       // Splash → Login.
-      await $.pumpAndSettle(const Duration(seconds: 4));
+      await $.pumpAndSettle(duration: const Duration(seconds: 4));
       expect(find.text('Welcome Back'), findsOneWidget,
           reason: 'Login screen not found after splash');
 
@@ -140,7 +140,7 @@ void main() {
       await AppWrapper.launch($, extraSettle: 2);
 
       // Splash → Login.
-      await $.pumpAndSettle(const Duration(seconds: 4));
+      await $.pumpAndSettle(duration: const Duration(seconds: 4));
       expect(find.text('Welcome Back'), findsOneWidget,
           reason: 'Login screen not found after splash');
 
@@ -173,7 +173,7 @@ void main() {
       } else {
         await $(find.text('Sign In')).tap();
       }
-      await $.pumpAndSettle(const Duration(seconds: 5));
+      await $.pumpAndSettle(duration: const Duration(seconds: 5));
 
       // After successful login the router redirects to /home.
       expect(find.text('All'), findsOneWidget,
@@ -199,7 +199,7 @@ void main() {
       await AppWrapper.launch($, extraSettle: 2);
 
       // Splash → Login.
-      await $.pumpAndSettle(const Duration(seconds: 4));
+      await $.pumpAndSettle(duration: const Duration(seconds: 4));
       expect(find.text('Welcome Back'), findsOneWidget,
           reason: 'Login screen not found after splash');
 
@@ -234,7 +234,7 @@ void main() {
       } else {
         await $(find.text('Send Reset Link')).tap();
       }
-      await $.pumpAndSettle(const Duration(seconds: 3));
+      await $.pumpAndSettle(duration: const Duration(seconds: 3));
 
       // EmailSentScreen should appear.
       // Key annotation needed in EmailSentScreen: Key('email_sent_headline')
@@ -264,7 +264,7 @@ void main() {
       // in (Firebase emulator persists auth across sessions within the same
       // test run).  If not authenticated, it logs in first.
       await AppWrapper.launch($, extraSettle: 2);
-      await $.pumpAndSettle(const Duration(seconds: 4));
+      await $.pumpAndSettle(duration: const Duration(seconds: 4));
 
       // If on login screen, log in first.
       if ($.tester.any(find.text('Welcome Back'))) {
@@ -290,7 +290,7 @@ void main() {
         } else {
           await $(find.text('Sign In')).tap();
         }
-        await $.pumpAndSettle(const Duration(seconds: 5));
+        await $.pumpAndSettle(duration: const Duration(seconds: 5));
       }
 
       // Verify we are on /home.
@@ -339,7 +339,7 @@ void main() {
         await $(confirmSignOut.last).tap();
         await $.pumpAndSettle();
       }
-      await $.pumpAndSettle(const Duration(seconds: 2));
+      await $.pumpAndSettle(duration: const Duration(seconds: 2));
 
       // Auth guard should redirect to /login.
       expect(

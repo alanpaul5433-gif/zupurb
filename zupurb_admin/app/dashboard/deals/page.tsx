@@ -40,6 +40,13 @@ export default function DealsPage() {
   const [toast, setToast] = useState('');
   const [filterActive, setFilterActive] = useState<'all' | 'active' | 'inactive'>('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // Clear the selection whenever the filter changes — adjusted during render
+  // (React's recommended alternative to a setState-in-effect reset).
+  const [prevFilter, setPrevFilter] = useState(filterActive);
+  if (prevFilter !== filterActive) {
+    setPrevFilter(filterActive);
+    setSelectedIds(new Set());
+  }
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -60,11 +67,6 @@ export default function DealsPage() {
     if (filterActive === 'inactive') return !d.isActive;
     return true;
   });
-
-  // Deselect all when filter changes
-  useEffect(() => {
-    setSelectedIds(new Set());
-  }, [filterActive]);
 
   const allFilteredSelected = filtered.length > 0 && filtered.every((d) => selectedIds.has(d.id));
 

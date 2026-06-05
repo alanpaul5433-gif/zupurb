@@ -60,6 +60,8 @@ dev_dependencies:
     sdk: flutter
   integration_test:
     sdk: flutter
+  # Provides setupFirebaseCoreMocks() for the shared test harness (QA-4/QA-5a).
+  firebase_core_platform_interface: ^6.0.0
 
   # patrol: CLI tool installed separately via 'dart pub global activate patrol_cli'
   # Run tests with: patrol test

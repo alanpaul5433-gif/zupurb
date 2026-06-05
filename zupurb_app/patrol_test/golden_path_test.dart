@@ -53,7 +53,7 @@ void main() {
           reason: 'STEP 1: Splash wordmark not found');
 
       // Wait for splash auto-navigation to /login (3-second timer in SplashScreen).
-      await $.pumpAndSettle(const Duration(seconds: 4));
+      await $.pumpAndSettle(duration: const Duration(seconds: 4));
 
       // -----------------------------------------------------------------------
       // STEP 2: Login screen → navigate to sign-up
@@ -271,7 +271,7 @@ void main() {
       } else {
         await $(find.byType(TextField).first).enterText(kTestEstablishmentName);
       }
-      await $.pumpAndSettle(const Duration(seconds: 2)); // Algolia debounce
+      await $.pumpAndSettle(duration: const Duration(seconds: 2)); // Algolia debounce
 
       // Tap the first result that matches the venue name.
       final resultFinder = find.text(kTestEstablishmentName);
@@ -405,7 +405,7 @@ void main() {
       } else {
         await $(find.text('Submit Review')).tap();
       }
-      await $.pumpAndSettle(const Duration(seconds: 3)); // Cloud Function round-trip
+      await $.pumpAndSettle(duration: const Duration(seconds: 3)); // Cloud Function round-trip
 
       // -----------------------------------------------------------------------
       // STEP 16: Review submitted confirmation
@@ -443,7 +443,7 @@ void main() {
         } else {
           await $(find.byType(TextField).first).enterText(kTestEstablishmentName);
         }
-        await $.pumpAndSettle(const Duration(seconds: 2));
+        await $.pumpAndSettle(duration: const Duration(seconds: 2));
         await $(find.text(kTestEstablishmentName).first).tap();
       }
       await $.pumpAndSettle();
@@ -497,7 +497,7 @@ void main() {
       } else {
         await $(find.text('Confirm Booking')).tap();
       }
-      await $.pumpAndSettle(const Duration(seconds: 3));
+      await $.pumpAndSettle(duration: const Duration(seconds: 3));
 
       // -----------------------------------------------------------------------
       // STEP 20: My Reservations
@@ -584,7 +584,7 @@ void main() {
       } else if ($.tester.any(find.text('Confirm'))) {
         await $(find.text('Confirm')).tap();
       }
-      await $.pumpAndSettle(const Duration(seconds: 3));
+      await $.pumpAndSettle(duration: const Duration(seconds: 3));
 
       // -----------------------------------------------------------------------
       // STEP 23: QR code / redemption confirmation

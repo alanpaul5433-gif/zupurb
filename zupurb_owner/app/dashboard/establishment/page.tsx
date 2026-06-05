@@ -43,7 +43,9 @@ const defaultHours = (): Record<string, HoursRow> => {
 
 export default function EstablishmentPage() {
   const { establishmentIds } = useOwnerAuth();
-  const [selectedEstId, setSelectedEstId] = useState<string>('');
+  const [pickedEstId, setPickedEstId] = useState<string>('');
+  // Active establishment is derived: the owner's explicit pick, else the first one.
+  const selectedEstId = pickedEstId || establishmentIds[0] || '';
   const [isVerified, setIsVerified] = useState(false);
   const [form, setForm] = useState<FormState>({
     name: '',
@@ -59,7 +61,9 @@ export default function EstablishmentPage() {
   const [priceRange, setPriceRange] = useState<PriceRange>('$$');
   const [hasAlcohol, setHasAlcohol] = useState(false);
   const [newPhotoUrl, setNewPhotoUrl] = useState('');
-  const [loading, setLoading] = useState(true);
+  // `loading` is derived: true until the subscription for the active id resolves.
+  const [loadedEstId, setLoadedEstId] = useState<string>('');
+  const loading = !!selectedEstId && loadedEstId !== selectedEstId;
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState('');
   const [toastError, setToastError] = useState(false);
@@ -71,14 +75,7 @@ export default function EstablishmentPage() {
   };
 
   useEffect(() => {
-    if (establishmentIds.length > 0 && !selectedEstId) {
-      setSelectedEstId(establishmentIds[0]);
-    }
-  }, [establishmentIds, selectedEstId]);
-
-  useEffect(() => {
     if (!selectedEstId) return;
-    setLoading(true);
     const unsub = onSnapshot(doc(db, 'establishments', selectedEstId), (snap) => {
       if (snap.exists()) {
         const d = snap.data();
@@ -97,8 +94,8 @@ export default function EstablishmentPage() {
         setPriceRange(d.priceRange ?? '$$');
         setHasAlcohol(d.hasAlcohol ?? false);
       }
-      setLoading(false);
-    }, () => setLoading(false));
+      setLoadedEstId(selectedEstId);
+    }, () => setLoadedEstId(selectedEstId));
     return unsub;
   }, [selectedEstId]);
 
@@ -171,7 +168,7 @@ export default function EstablishmentPage() {
         {establishmentIds.length > 1 && (
           <select
             value={selectedEstId}
-            onChange={(e) => setSelectedEstId(e.target.value)}
+            onChange={(e) => setPickedEstId(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2"
           >
             {establishmentIds.map((id) => (

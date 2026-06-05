@@ -40,6 +40,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:zupurb_app/screens/auth/splash_screen.dart';
@@ -106,7 +107,7 @@ void main() {
 
         // pumpWidget is the widget-test equivalent of runApp().
         await tester.pumpWidget(
-          MaterialApp.router(routerConfig: _startupRouter()),
+          ProviderScope(child: MaterialApp.router(routerConfig: _startupRouter())),
         );
 
         // First pump = first frame rendered (first meaningful paint equivalent).
@@ -172,7 +173,9 @@ void main() {
         );
 
         final sw = Stopwatch()..start();
-        await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+        await tester.pumpWidget(
+          ProviderScope(child: MaterialApp.router(routerConfig: router)),
+        );
         await tester.pump();
         sw.stop();
 
@@ -213,7 +216,7 @@ void main() {
         addTearDown(() => FlutterError.onError = orig);
 
         await tester.pumpWidget(
-          MaterialApp.router(routerConfig: _startupRouter()),
+          ProviderScope(child: MaterialApp.router(routerConfig: _startupRouter())),
         );
         await tester.pump(); // render splash
 

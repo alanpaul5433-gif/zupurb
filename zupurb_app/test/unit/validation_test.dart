@@ -62,8 +62,14 @@ void main() {
         expect(validatePhone('+12345'), isNotNull);
       });
 
-      test('too long (16+ chars) → invalid', () {
-        expect(validatePhone('+123456789012345'), isNotNull);
+      test('16 digits → invalid (exceeds E.164 max of 15)', () {
+        // E.164 allows at most 15 digits. 16 digits must be rejected.
+        expect(validatePhone('+1234567890123456'), isNotNull);
+      });
+
+      test('15 digits → valid (E.164 maximum)', () {
+        // '+' followed by 15 digits is the longest valid E.164 number.
+        expect(validatePhone('+123456789012345'), isNull);
       });
 
       test('contains letters → invalid', () {

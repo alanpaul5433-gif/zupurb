@@ -10,6 +10,9 @@ import { db, app } from '@/lib/firebase';
 import { useOwnerAuth } from '@/lib/owner-auth-context';
 import type { Review } from '@/lib/types';
 import {
+  filterReviews, reviewCounts, verificationTier, formatTsDate,
+} from '@/lib/owner-logic';
+import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 
@@ -22,10 +25,14 @@ interface WeeklyPoint {
 
 export default function ReviewsPage() {
   const { establishmentIds } = useOwnerAuth();
-  const [selectedEstId, setSelectedEstId] = useState<string>('');
+  const [pickedEstId, setPickedEstId] = useState<string>('');
+  // Active establishment is derived: the owner's explicit pick, else the first one.
+  const selectedEstId = pickedEstId || establishmentIds[0] || '';
   const [reviews, setReviews] = useState<Review[]>([]);
   const [tab, setTab] = useState<Tab>('all');
-  const [loading, setLoading] = useState(true);
+  // `loading` is derived: true until the subscription for the active id resolves.
+  const [loadedEstId, setLoadedEstId] = useState<string>('');
+  const loading = !!selectedEstId && loadedEstId !== selectedEstId;
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -42,22 +49,15 @@ export default function ReviewsPage() {
   };
 
   useEffect(() => {
-    if (establishmentIds.length > 0 && !selectedEstId) {
-      setSelectedEstId(establishmentIds[0]);
-    }
-  }, [establishmentIds, selectedEstId]);
-
-  useEffect(() => {
     if (!selectedEstId) return;
-    setLoading(true);
     const q = query(
       collection(db, 'establishments', selectedEstId, 'reviews'),
       orderBy('createdAt', 'desc'),
     );
     const unsub = onSnapshot(q, (snap) => {
       setReviews(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Review)));
-      setLoading(false);
-    }, () => setLoading(false));
+      setLoadedEstId(selectedEstId);
+    }, () => setLoadedEstId(selectedEstId));
     return unsub;
   }, [selectedEstId]);
 
@@ -89,26 +89,9 @@ export default function ReviewsPage() {
     loadTrend();
   }, [selectedEstId]);
 
-  const filtered = reviews.filter((r) => {
-    if (tab === 'positive') return r.rawScore >= 4;
-    if (tab === 'negative') return r.rawScore < 4;
-    if (tab === 'responded') return !!r.ownerResponse;
-    return true;
-  });
-
-  const counts: Record<Tab, number> = {
-    all: reviews.length,
-    positive: reviews.filter((r) => r.rawScore >= 4).length,
-    negative: reviews.filter((r) => r.rawScore < 4).length,
-    responded: reviews.filter((r) => !!r.ownerResponse).length,
-  };
-
-  const formatDate = (createdAt: unknown): string => {
-    if (!createdAt) return '';
-    const ts = createdAt as { seconds: number };
-    if (ts.seconds) return new Date(ts.seconds * 1000).toLocaleDateString();
-    return '';
-  };
+  const filtered = filterReviews(reviews, tab);
+  const counts = reviewCounts(reviews);
+  const formatDate = (createdAt: unknown): string => formatTsDate(createdAt);
 
   const handleSubmitReply = async (reviewId: string) => {
     if (!replyText.trim()) return;
@@ -145,7 +128,7 @@ export default function ReviewsPage() {
         {establishmentIds.length > 1 && (
           <select
             value={selectedEstId}
-            onChange={(e) => setSelectedEstId(e.target.value)}
+            onChange={(e) => setPickedEstId(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2"
           >
             {establishmentIds.map((id) => (
@@ -209,11 +192,11 @@ export default function ReviewsPage() {
       {verificationRate !== null && (
         <div
           className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium mb-5 ${
-            verificationRate >= 60
-              ? 'bg-green-50 text-green-700'
-              : verificationRate >= 30
-              ? 'bg-amber-50 text-amber-700'
-              : 'bg-gray-100 text-gray-500'
+            {
+              high: 'bg-green-50 text-green-700',
+              mid: 'bg-amber-50 text-amber-700',
+              low: 'bg-gray-100 text-gray-500',
+            }[verificationTier(verificationRate)]
           }`}
         >
           <span>✓</span>

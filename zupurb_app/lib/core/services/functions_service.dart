@@ -142,4 +142,17 @@ class FunctionsService {
   /// RevenueCat webhook and updated Firestore (R8.3 — server is authoritative).
   Future<Map<String, dynamic>> getPlusStatus() =>
       call('getPlusStatus', {}, (r) => Map<String, dynamic>.from(r as Map));
+
+  /// Permanently deletes the signed-in user's account.
+  ///
+  /// Server-side this anonymizes PII immediately (soft delete), cancels upcoming
+  /// reservations, erases private user data (CCPA), and schedules a hard delete
+  /// via TTL. Idempotent — safe to retry.
+  ///
+  /// Required for App Store §5.1.1(v) and Google Play account-deletion policy.
+  ///
+  /// Response shape: `{ "success": true, "hardDeleteScheduledAt"?: string,
+  /// "alreadyDeleted"?: bool }`.
+  Future<Map<String, dynamic>> deleteAccount() =>
+      call('deleteAccount', {}, (r) => Map<String, dynamic>.from(r as Map));
 }

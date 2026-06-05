@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -8,6 +8,18 @@ import { useAuth } from '@/lib/auth-context';
 import { db } from '@/lib/firebase';
 
 type BadgeKey = 'establishments' | 'reviews' | 'claims' | null;
+
+const MOBILE_QUERY = '(max-width: 1023px)';
+
+// External-store reads for the viewport size so the initial value is available
+// at first render (SSR-safe) without a synchronous setState inside an effect.
+function subscribeViewport(onChange: () => void): () => void {
+  const mq = window.matchMedia(MOBILE_QUERY);
+  mq.addEventListener('change', onChange);
+  return () => mq.removeEventListener('change', onChange);
+}
+const isMobileSnapshot = () => window.matchMedia(MOBILE_QUERY).matches;
+const isMobileServerSnapshot = () => false;
 
 const NAV: { href: string; label: string; icon: string; section: string | null; badge: BadgeKey }[] = [
   { href: '/dashboard', label: 'Overview', icon: '◼', section: null, badge: null },
@@ -31,28 +43,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [pendingEstablishments, setPendingEstablishments] = useState(0);
   const [pendingReviews, setPendingReviews] = useState(0);
   const [pendingClaims, setPendingClaims] = useState(0);
-  const [collapsed, setCollapsed] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
+  // Viewport tracked via an external store (SSR-safe, no setState-in-effect).
+  const isMobile = useSyncExternalStore(
+    subscribeViewport,
+    isMobileSnapshot,
+    isMobileServerSnapshot,
+  );
+  // `collapsed` defaults to the viewport state; an explicit user toggle overrides it.
+  const [manualCollapsed, setManualCollapsed] = useState<boolean | null>(null);
+  const collapsed = manualCollapsed ?? isMobile;
+  const setCollapsed = setManualCollapsed;
+  // Dark mode initialised lazily from localStorage; the DOM class is synced via effect.
+  const [darkMode, setDarkMode] = useState<boolean>(
+    () => typeof window !== 'undefined' && localStorage.getItem('zupurb-dark') === 'true',
+  );
 
-  // Apply dark mode from localStorage on mount
   useEffect(() => {
-    const stored = localStorage.getItem('zupurb-dark') === 'true';
-    setDarkMode(stored);
-    if (stored) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, []);
+    document.documentElement.classList.toggle('dark', darkMode);
+  }, [darkMode]);
 
   const toggleDark = () => {
     const next = !darkMode;
     setDarkMode(next);
-    if (next) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
     localStorage.setItem('zupurb-dark', String(next));
   };
 
@@ -61,15 +73,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       router.replace('/login');
     }
   }, [user, isAdmin, loading, router]);
-
-  // On smaller than lg, default to collapsed
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 1023px)');
-    setCollapsed(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setCollapsed(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
 
   // Live pending counts
   useEffect(() => {

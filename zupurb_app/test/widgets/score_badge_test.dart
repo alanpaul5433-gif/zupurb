@@ -40,13 +40,13 @@ void main() {
       expect(size.height, 48.0);
     });
 
-    testWidgets('background is AppColors.primary', (tester) async {
+    testWidgets('mid-range score (4.0) uses amber (warning) background', (tester) async {
       await tester.pumpWidget(_wrap(const ScoreBadge(score: 4.0)));
       final container = tester.widget<Container>(
         find.descendant(of: find.byType(ScoreBadge), matching: find.byType(Container)).first,
       );
       final decoration = container.decoration as BoxDecoration;
-      expect(decoration.color, AppColors.primary);
+      expect(decoration.color, AppColors.warning);
     });
 
     testWidgets('text color is white', (tester) async {
@@ -67,69 +67,66 @@ void main() {
     });
 
     // -------------------------------------------------------------------------
-    // Score-range colour tests (T2 requirement)
+    // Score-range colour tests (T2 / BUG-001 — implemented)
     //
-    // DESIGN NOTE: The Phase-1A ScoreBadge widget uses AppColors.primary for
-    // all score ranges — there is no green/yellow/red branching in the source.
-    // These tests document the actual behaviour. A separate bug (BUG-001) has
-    // been filed requesting the addition of score-range colour logic in Phase 1B.
-    //
-    // These tests WILL FAIL if/when the colour-range feature is implemented,
-    // at which point they must be updated to assert the correct colours.
+    // ScoreBadge colours by quality band (see score_badge.dart _badgeColor):
+    //   score ≥ 4.5         → AppColors.online  (green)
+    //   3.0 ≤ score < 4.5   → AppColors.warning (amber)
+    //   score < 3.0         → AppColors.error   (red)
     // -------------------------------------------------------------------------
 
-    testWidgets('score 4.5 (high range) uses AppColors.primary background',
+    testWidgets('score 4.5 (high range) uses green (online) background',
         (tester) async {
       await tester.pumpWidget(_wrap(const ScoreBadge(score: 4.5)));
       final container = tester.widget<Container>(
         find.descendant(of: find.byType(ScoreBadge), matching: find.byType(Container)).first,
       );
-      expect((container.decoration as BoxDecoration).color, AppColors.primary);
+      expect((container.decoration as BoxDecoration).color, AppColors.online);
     });
 
-    testWidgets('score 5.0 (max) uses AppColors.primary background',
+    testWidgets('score 5.0 (max) uses green (online) background',
         (tester) async {
       await tester.pumpWidget(_wrap(const ScoreBadge(score: 5.0)));
       final container = tester.widget<Container>(
         find.descendant(of: find.byType(ScoreBadge), matching: find.byType(Container)).first,
       );
-      expect((container.decoration as BoxDecoration).color, AppColors.primary);
+      expect((container.decoration as BoxDecoration).color, AppColors.online);
     });
 
-    testWidgets('score 3.0 (mid range) uses AppColors.primary background',
+    testWidgets('score 3.0 (mid range lower bound) uses amber (warning) background',
         (tester) async {
       await tester.pumpWidget(_wrap(const ScoreBadge(score: 3.0)));
       final container = tester.widget<Container>(
         find.descendant(of: find.byType(ScoreBadge), matching: find.byType(Container)).first,
       );
-      expect((container.decoration as BoxDecoration).color, AppColors.primary);
+      expect((container.decoration as BoxDecoration).color, AppColors.warning);
     });
 
-    testWidgets('score 4.4 (upper mid range) uses AppColors.primary background',
+    testWidgets('score 4.4 (upper mid range) uses amber (warning) background',
         (tester) async {
       await tester.pumpWidget(_wrap(const ScoreBadge(score: 4.4)));
       final container = tester.widget<Container>(
         find.descendant(of: find.byType(ScoreBadge), matching: find.byType(Container)).first,
       );
-      expect((container.decoration as BoxDecoration).color, AppColors.primary);
+      expect((container.decoration as BoxDecoration).color, AppColors.warning);
     });
 
-    testWidgets('score 1.0 (low range) uses AppColors.primary background',
+    testWidgets('score 1.0 (low range) uses red (error) background',
         (tester) async {
       await tester.pumpWidget(_wrap(const ScoreBadge(score: 1.0)));
       final container = tester.widget<Container>(
         find.descendant(of: find.byType(ScoreBadge), matching: find.byType(Container)).first,
       );
-      expect((container.decoration as BoxDecoration).color, AppColors.primary);
+      expect((container.decoration as BoxDecoration).color, AppColors.error);
     });
 
-    testWidgets('score 2.9 (low range upper bound) uses AppColors.primary background',
+    testWidgets('score 2.9 (low range upper bound) uses red (error) background',
         (tester) async {
       await tester.pumpWidget(_wrap(const ScoreBadge(score: 2.9)));
       final container = tester.widget<Container>(
         find.descendant(of: find.byType(ScoreBadge), matching: find.byType(Container)).first,
       );
-      expect((container.decoration as BoxDecoration).color, AppColors.primary);
+      expect((container.decoration as BoxDecoration).color, AppColors.error);
     });
 
     testWidgets('semantic label describes score correctly for all ranges',

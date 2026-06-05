@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/config/legal_urls.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/functions_service.dart';
+import '../../state/auth/auth_providers.dart';
 import '../../state/analytics/analytics_providers.dart';
 import '../../state/iap/iap_providers.dart';
 import '../../state/user/user_profile_provider.dart';
@@ -29,6 +31,71 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(analyticsServiceProvider).logScreen('settings');
     });
+  }
+
+  /// Two-step in-app account deletion (Apple §5.1.1(v) + Google Play policy).
+  ///
+  /// Step 1 — explain consequences and require an explicit confirm.
+  /// Step 2 — call the `deleteAccount` callable behind a blocking spinner, then
+  /// sign out and route to /login. The server anonymizes PII immediately and
+  /// schedules a permanent hard delete; this is irreversible.
+  Future<void> _confirmDeleteAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Delete Account'),
+        content: const Text(
+          'This permanently deletes your Zupurb account.\n\n'
+          '• Your profile, reviews, and personal data are erased\n'
+          '• Upcoming reservations are cancelled\n'
+          '• Your points balance is forfeited\n\n'
+          'This cannot be undone. Are you sure?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: const Text('Delete Account'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    // Blocking, non-dismissible progress indicator while the callable runs.
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      await ref.read(functionsServiceProvider).deleteAccount();
+      await AuthService().signOut();
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop(); // dismiss spinner
+      context.go('/login');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Your account has been deleted.')),
+      );
+    } on AppFunctionsException catch (e) {
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop(); // dismiss spinner
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not delete account: ${e.message}')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop(); // dismiss spinner
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not delete account. Please try again.')),
+      );
+    }
   }
 
   @override
@@ -100,7 +167,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               await AuthService().signOut();
               if (context.mounted) context.go('/login');
             }, showChevron: false),
-            _SettingsItem(icon: Icons.delete_outline, label: 'Delete Account', onTap: () => showDialog(context: context, builder: (_) => AlertDialog(title: const Text('Delete Account'), content: const Text('Account deletion will be available in a future update. Please contact support@zupurb.app to request deletion.'), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))])), showChevron: false, destructive: true),
+            _SettingsItem(icon: Icons.delete_outline, label: 'Delete Account', onTap: _confirmDeleteAccount, showChevron: false, destructive: true),
             const Gap(32),
           ],
         ),

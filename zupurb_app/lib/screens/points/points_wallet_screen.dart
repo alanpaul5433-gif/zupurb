@@ -18,7 +18,7 @@ class PointsWalletScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F0ED),
       appBar: AppBar(
-        leading: IconButton(onPressed: () => context.pop(), icon: const Icon(Icons.arrow_back_ios, size: 20, color: AppColors.primary)),
+        leading: IconButton(onPressed: () => context.pop(), tooltip: 'Back', icon: const Icon(Icons.arrow_back_ios, size: 20, color: AppColors.primary, semanticLabel: 'Back')),
         title: const Text('Points Wallet'),
         backgroundColor: const Color(0xFFF5F0ED),
       ),

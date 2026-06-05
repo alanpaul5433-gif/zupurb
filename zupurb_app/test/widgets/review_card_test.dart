@@ -1,27 +1,26 @@
-// Tests for the _ReviewCard widget, which is private inside HomeScreen.
-// It is exercised through HomeScreen since it cannot be instantiated directly.
+// Tests for HomeScreen's review card. HomeScreen now reads recentReviewsProvider
+// (live Firestore stream). With an EMPTY override the screen renders its built-in
+// fallback card (_ReviewCard) — the Phase-1A mock content these tests assert.
 //
-// _ReviewCard is a hard-coded Phase-1A mock component: author name, establishment,
-// score badge, review snippet, AI summary, and food photo thumbnails.
+// Migrated (QA-5a) onto the shared harness: wrapScreen() supplies ProviderScope
+// + Firebase neutralisation; recentReviewsProvider is overridden with an empty
+// stream so the deterministic fallback card renders with no backend.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:go_router/go_router.dart';
+import 'package:zupurb_app/models/review.dart';
 import 'package:zupurb_app/screens/home/home_screen.dart';
+import 'package:zupurb_app/state/reviews/reviews_provider.dart';
 import 'package:zupurb_app/widgets/score_badge.dart';
 
-GoRouter _buildRouter() => GoRouter(
-      initialLocation: '/home',
-      routes: [
-        GoRoute(
-          path: '/home',
-          builder: (context, state) => const HomeScreen(),
-        ),
-        GoRoute(path: '/notifications', builder: (context, state) => const Scaffold()),
-        GoRoute(path: '/search', builder: (context, state) => const Scaffold()),
-      ],
-    );
+import '../helpers/test_app_harness.dart';
 
-Widget _wrap() => MaterialApp.router(routerConfig: _buildRouter());
+Widget _wrap() => wrapScreen(
+      const HomeScreen(),
+      overrides: [
+        recentReviewsProvider.overrideWith((ref) => Stream.value(const <Review>[])),
+      ],
+      stubRoutes: const ['/notifications', '/search'],
+    );
 
 /// Pumps the widget tree while silencing two categories of non-test errors:
 ///

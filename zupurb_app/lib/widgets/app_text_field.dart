@@ -26,7 +26,12 @@ class _AppTextFieldState extends State<AppTextField> {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
+    // Expose the hint as a semantic label so screen readers announce the
+    // field's purpose — `hintText` alone is not surfaced to TalkBack/VoiceOver.
+    return Semantics(
+      textField: true,
+      label: widget.hint,
+      child: TextField(
       controller: widget.controller,
       obscureText: widget.obscure && !_visible,
       keyboardType: widget.keyboardType,
@@ -37,14 +42,17 @@ class _AppTextFieldState extends State<AppTextField> {
             : null,
         suffixIcon: widget.obscure
             ? IconButton(
+                tooltip: _visible ? 'Hide password' : 'Show password',
                 icon: Icon(
                   _visible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
                   color: AppColors.textTertiary,
                   size: 20,
+                  semanticLabel: _visible ? 'Hide password' : 'Show password',
                 ),
                 onPressed: () => setState(() => _visible = !_visible),
               )
             : null,
+      ),
       ),
     );
   }

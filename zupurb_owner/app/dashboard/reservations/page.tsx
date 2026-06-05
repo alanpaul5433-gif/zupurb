@@ -8,6 +8,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db, app } from '@/lib/firebase';
 import { useOwnerAuth } from '@/lib/owner-auth-context';
 import type { Reservation } from '@/lib/types';
+import { filterReservations, tsToMillis, formatDateTime } from '@/lib/owner-logic';
 
 type Tab = 'today' | 'week' | 'upcoming' | 'past';
 
@@ -21,10 +22,14 @@ const STATUS_BADGE: Record<string, string> = {
 
 export default function ReservationsPage() {
   const { establishmentIds } = useOwnerAuth();
-  const [selectedEstId, setSelectedEstId] = useState<string>('');
+  const [pickedEstId, setPickedEstId] = useState<string>('');
+  // Active establishment is derived: the owner's explicit pick, else the first one.
+  const selectedEstId = pickedEstId || establishmentIds[0] || '';
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [tab, setTab] = useState<Tab>('upcoming');
-  const [loading, setLoading] = useState(true);
+  // `loading` is derived: true until the subscription for the active id resolves.
+  const [loadedEstId, setLoadedEstId] = useState<string>('');
+  const loading = !!selectedEstId && loadedEstId !== selectedEstId;
   const [acting, setActing] = useState<string | null>(null);
   const [toast, setToast] = useState('');
   const [toastError, setToastError] = useState(false);
@@ -40,14 +45,7 @@ export default function ReservationsPage() {
   };
 
   useEffect(() => {
-    if (establishmentIds.length > 0 && !selectedEstId) {
-      setSelectedEstId(establishmentIds[0]);
-    }
-  }, [establishmentIds, selectedEstId]);
-
-  useEffect(() => {
     if (!selectedEstId) return;
-    setLoading(true);
     const q = query(
       collection(db, 'reservations'),
       where('estId', '==', selectedEstId),
@@ -55,30 +53,12 @@ export default function ReservationsPage() {
     );
     const unsub = onSnapshot(q, (snap) => {
       setReservations(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Reservation)));
-      setLoading(false);
-    }, () => setLoading(false));
+      setLoadedEstId(selectedEstId);
+    }, () => setLoadedEstId(selectedEstId));
     return unsub;
   }, [selectedEstId]);
 
-  const getScheduledMs = (r: Reservation): number => {
-    const ts = r.scheduledAt as { seconds: number } | null;
-    if (!ts?.seconds) return 0;
-    return ts.seconds * 1000;
-  };
-
-  const filtered = reservations.filter((r) => {
-    const ms = getScheduledMs(r);
-    const now = Date.now();
-    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
-    const weekEnd = new Date(); weekEnd.setDate(weekEnd.getDate() + 7);
-
-    if (tab === 'today') return ms >= todayStart.getTime() && ms <= todayEnd.getTime();
-    if (tab === 'week') return ms >= now && ms <= weekEnd.getTime();
-    if (tab === 'upcoming') return ms >= now && ['pending', 'confirmed'].includes(r.status);
-    if (tab === 'past') return ms < now || ['seated', 'no_show', 'cancelled'].includes(r.status);
-    return true;
-  });
+  const filtered = filterReservations(reservations, tab);
 
   const callMarkReservation = async (
     reservationId: string,
@@ -122,13 +102,8 @@ export default function ReservationsPage() {
     }
   };
 
-  const formatDateTime = (r: Reservation): string => {
-    const ms = getScheduledMs(r);
-    if (!ms) return '—';
-    return new Date(ms).toLocaleString(undefined, {
-      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-    });
-  };
+  const formatReservationTime = (r: Reservation): string =>
+    formatDateTime(tsToMillis(r.scheduledAt));
 
   const TABS: { key: Tab; label: string }[] = [
     { key: 'today', label: 'Today' },
@@ -154,7 +129,7 @@ export default function ReservationsPage() {
           <div className="bg-white rounded-2xl border border-gray-200 shadow-xl w-full max-w-md p-6">
             <h2 className="text-base font-bold text-gray-900 mb-1">Add Owner Note</h2>
             <p className="text-xs text-gray-500 mb-4">
-              Guest: {notesReservation.guestDisplayName ?? 'Unknown'} — {formatDateTime(notesReservation)}
+              Guest: {notesReservation.guestDisplayName ?? 'Unknown'} — {formatReservationTime(notesReservation)}
             </p>
             <textarea
               value={noteText}
@@ -191,7 +166,7 @@ export default function ReservationsPage() {
         {establishmentIds.length > 1 && (
           <select
             value={selectedEstId}
-            onChange={(e) => setSelectedEstId(e.target.value)}
+            onChange={(e) => setPickedEstId(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2"
           >
             {establishmentIds.map((id) => (
@@ -250,7 +225,7 @@ export default function ReservationsPage() {
                     )}
                   </td>
                   <td className="px-5 py-3.5 font-medium text-gray-700">{r.partySize}</td>
-                  <td className="px-5 py-3.5 text-gray-600 text-xs">{formatDateTime(r)}</td>
+                  <td className="px-5 py-3.5 text-gray-600 text-xs">{formatReservationTime(r)}</td>
                   <td className="px-5 py-3.5">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_BADGE[r.status] ?? 'bg-gray-100 text-gray-500'}`}>
                       {r.status.replace('_', ' ')}

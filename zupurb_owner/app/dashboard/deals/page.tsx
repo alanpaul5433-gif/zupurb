@@ -8,6 +8,7 @@ import {
 import { db } from '@/lib/firebase';
 import { useOwnerAuth } from '@/lib/owner-auth-context';
 import type { Deal } from '@/lib/types';
+import { dollarsToCents, parsePointCost, formatExpiry } from '@/lib/owner-logic';
 
 const EMPTY_FORM = {
   title: '',
@@ -20,9 +21,13 @@ const EMPTY_FORM = {
 
 export default function DealsPage() {
   const { establishmentIds } = useOwnerAuth();
-  const [selectedEstId, setSelectedEstId] = useState<string>('');
+  const [pickedEstId, setPickedEstId] = useState<string>('');
+  // Active establishment is derived: the owner's explicit pick, else the first one.
+  const selectedEstId = pickedEstId || establishmentIds[0] || '';
   const [deals, setDeals] = useState<Deal[]>([]);
-  const [loading, setLoading] = useState(true);
+  // `loading` is derived: true until the subscription for the active id resolves.
+  const [loadedEstId, setLoadedEstId] = useState<string>('');
+  const loading = !!selectedEstId && loadedEstId !== selectedEstId;
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
@@ -37,22 +42,15 @@ export default function DealsPage() {
   };
 
   useEffect(() => {
-    if (establishmentIds.length > 0 && !selectedEstId) {
-      setSelectedEstId(establishmentIds[0]);
-    }
-  }, [establishmentIds, selectedEstId]);
-
-  useEffect(() => {
     if (!selectedEstId) return;
-    setLoading(true);
     const q = query(
       collection(db, 'establishments', selectedEstId, 'deals'),
       orderBy('isActive', 'desc'),
     );
     const unsub = onSnapshot(q, (snap) => {
       setDeals(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Deal)));
-      setLoading(false);
-    }, () => setLoading(false));
+      setLoadedEstId(selectedEstId);
+    }, () => setLoadedEstId(selectedEstId));
     return unsub;
   }, [selectedEstId]);
 
@@ -66,8 +64,8 @@ export default function DealsPage() {
       await addDoc(collection(db, 'establishments', selectedEstId, 'deals'), {
         title: form.title.trim(),
         description: form.description.trim(),
-        pointCost: parseInt(form.pointCost) || 0,
-        originalValueCents: Math.round(parseFloat(form.originalValueDollars || '0') * 100),
+        pointCost: parsePointCost(form.pointCost),
+        originalValueCents: dollarsToCents(form.originalValueDollars),
         expiresAt: form.expiresAt ? Timestamp.fromDate(new Date(form.expiresAt)) : null,
         isActive: form.isActive,
         redemptionsCount: 0,
@@ -110,13 +108,6 @@ export default function DealsPage() {
     }
   };
 
-  const formatExpiry = (expiresAt: unknown): string => {
-    if (!expiresAt) return 'No expiry';
-    const ts = expiresAt as { seconds: number };
-    if (ts.seconds) return new Date(ts.seconds * 1000).toLocaleDateString();
-    return 'No expiry';
-  };
-
   return (
     <div className="p-8">
       {toast && (
@@ -139,7 +130,7 @@ export default function DealsPage() {
           {establishmentIds.length > 1 && (
             <select
               value={selectedEstId}
-              onChange={(e) => setSelectedEstId(e.target.value)}
+              onChange={(e) => setPickedEstId(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2"
             >
               {establishmentIds.map((id) => (

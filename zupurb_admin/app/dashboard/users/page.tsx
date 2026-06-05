@@ -55,13 +55,13 @@ function UserDrawer({
 }) {
   const [reviews, setReviews] = useState<DrawerReview[]>([]);
   const [ledger, setLedger] = useState<LedgerEntry[]>([]);
-  const [loadingReviews, setLoadingReviews] = useState(true);
-  const [loadingLedger, setLoadingLedger] = useState(true);
+  // Loading is derived from whether each source has resolved for the current user.
+  const [reviewsForId, setReviewsForId] = useState<string | null>(null);
+  const [ledgerForId, setLedgerForId] = useState<string | null>(null);
+  const loadingReviews = reviewsForId !== user.id;
+  const loadingLedger = ledgerForId !== user.id;
 
   useEffect(() => {
-    setLoadingReviews(true);
-    setLoadingLedger(true);
-
     getDocs(
       query(
         collection(db, 'reviews'),
@@ -70,7 +70,7 @@ function UserDrawer({
       )
     ).then((snap) => {
       setReviews(snap.docs.map((d) => ({ id: d.id, ...d.data() } as DrawerReview)));
-    }).catch(() => {}).finally(() => setLoadingReviews(false));
+    }).catch(() => {}).finally(() => setReviewsForId(user.id));
 
     getDocs(
       query(
@@ -80,7 +80,7 @@ function UserDrawer({
       )
     ).then((snap) => {
       setLedger(snap.docs.map((d) => ({ id: d.id, ...d.data() } as LedgerEntry)));
-    }).catch(() => {}).finally(() => setLoadingLedger(false));
+    }).catch(() => {}).finally(() => setLedgerForId(user.id));
   }, [user.id]);
 
   const tierBadge: Record<string, string> = {

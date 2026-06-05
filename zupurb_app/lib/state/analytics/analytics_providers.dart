@@ -4,7 +4,7 @@
 // analyticsObserverProvider — FirebaseAnalyticsObserver wired into GoRouter
 //                             so every route change is automatically logged.
 
-import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/services/analytics_service.dart';
@@ -16,9 +16,11 @@ final analyticsServiceProvider = Provider<AnalyticsService>(
   name: 'analyticsServiceProvider',
 );
 
-/// [FirebaseAnalyticsObserver] for GoRouter's `observers` list.
-/// Built from the same [FirebaseAnalytics.instance] used by the service.
-final analyticsObserverProvider = Provider<FirebaseAnalyticsObserver>(
+/// Navigator observer for GoRouter's `observers` list — the app supplies a
+/// [FirebaseAnalyticsObserver] for automatic screen tracking. Typed as the
+/// [NavigatorObserver] supertype so tests can override it with a no-op observer
+/// (avoids FirebaseAnalytics platform calls on route changes).
+final analyticsObserverProvider = Provider<NavigatorObserver>(
   (ref) => ref.watch(analyticsServiceProvider).observer,
   name: 'analyticsObserverProvider',
 );
