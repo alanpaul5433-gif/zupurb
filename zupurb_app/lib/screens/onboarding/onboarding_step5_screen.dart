@@ -1,22 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../widgets/app_button.dart';
+import '../../state/onboarding/onboarding_draft_provider.dart';
 
-class OnboardingStep5Screen extends StatefulWidget {
+class OnboardingStep5Screen extends ConsumerStatefulWidget {
   const OnboardingStep5Screen({super.key});
 
   @override
-  State<OnboardingStep5Screen> createState() => _OnboardingStep5ScreenState();
+  ConsumerState<OnboardingStep5Screen> createState() => _OnboardingStep5ScreenState();
 }
 
-class _OnboardingStep5ScreenState extends State<OnboardingStep5Screen> {
-  final Set<String> _selected = {'Italian', 'Japanese'};
+class _OnboardingStep5ScreenState extends ConsumerState<OnboardingStep5Screen> {
+  late Set<String> _selected;
+  late Set<String> _selectedDrinks;
   final _cuisines = ['Italian', 'Mexican', 'Japanese', 'Thai', 'Indian', 'American', 'Mediterranean', 'Chinese', 'Korean', 'Vegan', 'Vegetarian', 'Halal', 'Seafood', 'BBQ', 'Brunch', 'Street Food'];
   final _drinks = ['Non-alcoholic', 'Beer', 'Wine', 'Cocktails'];
-  final Set<String> _selectedDrinks = {};
+
+  @override
+  void initState() {
+    super.initState();
+    final draft = ref.read(onboardingDraftProvider);
+    // Start from whatever the user already chose — no phantom defaults, so an
+    // untouched screen submits an empty set rather than fake preferences.
+    _selected = {...draft.cuisines};
+    _selectedDrinks = {...draft.drinks};
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -85,7 +97,11 @@ class _OnboardingStep5ScreenState extends State<OnboardingStep5Screen> {
             ),
             Padding(
               padding: const EdgeInsets.all(AppDimens.screenPadding),
-              child: AppButton(label: 'Continue', onTap: () => context.go('/onboarding/6')),
+              child: AppButton(label: 'Continue', onTap: () {
+                ref.read(onboardingDraftProvider.notifier).setCuisines(_selected);
+                ref.read(onboardingDraftProvider.notifier).setDrinks(_selectedDrinks);
+                context.go('/onboarding/6');
+              }),
             ),
           ],
         ),

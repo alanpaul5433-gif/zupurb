@@ -176,10 +176,8 @@ void main() {
         overrides: [_nullOfferings()],
       ));
       await tester.pump();
-      expect(
-        find.text('Could not load pricing. Please check your connection.'),
-        findsOneWidget,
-      );
+      expect(find.text('Pricing is coming soon'), findsOneWidget);
+      expect(find.text('Purchasing available soon'), findsOneWidget);
     });
 
     testWidgets('shows Restore Purchases button in fallback state',
@@ -218,10 +216,8 @@ void main() {
       ));
       await tester.pump(); // trigger future resolution
       await tester.pump(); // allow error state rebuild
-      expect(
-        find.text('Could not load pricing. Please check your connection.'),
-        findsOneWidget,
-      );
+      expect(find.text('Pricing is coming soon'), findsOneWidget);
+      expect(find.text('Purchasing available soon'), findsOneWidget);
     });
   });
 

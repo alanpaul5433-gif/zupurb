@@ -80,12 +80,6 @@ class RedeemRewardsScreen extends StatelessWidget {
                 const Icon(Icons.help_outline, color: AppColors.textTertiary, size: 24),
                 const Gap(8),
                 const Text('Rewards are delivered instantly to your registered email address. Locked rewards will be available once you reach the point milestone.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                const Gap(12),
-                TextButton(onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Redemption history coming soon'), duration: Duration(seconds: 2))), child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                  Text('VIEW REDEMPTION HISTORY', style: TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-                  Gap(4),
-                  Icon(Icons.access_time, size: 14, color: AppColors.primary),
-                ])),
               ]),
             ),
             const Gap(32),

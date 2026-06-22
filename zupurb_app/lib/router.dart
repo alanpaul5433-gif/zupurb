@@ -36,15 +36,23 @@ import 'screens/home/home_screen.dart';
 import 'screens/search/search_screen.dart';
 import 'screens/search/search_results_screen.dart';
 import 'screens/discover/discover_screen.dart';
+import 'screens/favorites/favorites_screen.dart';
+import 'screens/profile/edit_profile_screen.dart';
 import 'screens/establishment/establishment_screen.dart';
+import 'screens/entertainer/entertainer_screen.dart';
 import 'screens/review/verify_visit_screen.dart';
 import 'screens/review/rate_experience_screen.dart';
 import 'screens/review/creator_disclosure_screen.dart';
 import 'screens/review/written_review_screen.dart';
 import 'screens/review/review_submitted_screen.dart';
+import 'screens/review/review_detail_screen.dart';
+import 'screens/deals/deal_detail_screen.dart';
+import 'models/review.dart';
+import 'models/deal.dart';
 import 'screens/reservation/time_slot_screen.dart';
 import 'screens/reservation/confirm_booking_screen.dart';
 import 'screens/reservation/my_reservations_screen.dart';
+import 'models/reservation.dart';
 import 'screens/reservation/reservation_pass_screen.dart';
 import 'screens/reservation/zupurb_plus_screen.dart';
 import 'screens/reservation/exclusive_benefits_screen.dart';
@@ -53,6 +61,7 @@ import 'screens/messages/chat_screen.dart';
 import 'screens/profile/own_profile_screen.dart';
 import 'screens/profile/other_profile_screen.dart';
 import 'screens/profile/notifications_screen.dart';
+import 'screens/profile/preferences_screen.dart';
 import 'screens/badges/badges_screen.dart';
 import 'screens/points/points_wallet_screen.dart';
 import 'screens/points/redeem_rewards_screen.dart';
@@ -72,6 +81,15 @@ const _authRoutes = {
   '/signup/phone-otp',
   '/att', // ATT pre-prompt — shown before onboarding on iOS (D6/T9)
 };
+
+/// Auth routes a NEW user passes through on the way INTO onboarding. An
+/// authenticated user must NOT be bounced off these to /home: the signup /
+/// verify screens drive navigation to /onboarding/1 themselves, and the moment
+/// account creation flips auth state, bouncing to /home here disposes the
+/// screen mid-flow and the queued `go('/onboarding/1')` is silently dropped
+/// (its `if (mounted)` guard is already false). That is why brand-new users
+/// never saw the interest-setup onboarding steps.
+const _onboardingEntryRoutes = {'/signup', '/signup/phone-otp', '/att'};
 
 /// Riverpod notifier that bridges Firebase auth state changes to GoRouter's
 /// [refreshListenable] mechanism.
@@ -110,8 +128,12 @@ GoRouter buildRouter(Ref ref) {
         return '/login';
       }
 
-      if (isAuthenticated && isAuthRoute && location != '/splash') {
-        // Already logged in — skip auth screens.
+      if (isAuthenticated &&
+          isAuthRoute &&
+          location != '/splash' &&
+          !_onboardingEntryRoutes.contains(location)) {
+        // Already logged in — skip auth screens (but let signup/verify screens
+        // route new users into onboarding; see [_onboardingEntryRoutes]).
         return '/home';
       }
 
@@ -224,7 +246,13 @@ GoRouter buildRouter(Ref ref) {
           GoRoute(
             path: '/search',
             name: 'search',
-            builder: (context, state) => const SearchScreen(),
+            builder: (context, state) {
+              final tab = (int.tryParse(
+                          state.uri.queryParameters['tab'] ?? '') ??
+                      0)
+                  .clamp(0, 7);
+              return SearchScreen(initialTab: tab);
+            },
           ),
           GoRoute(
             path: '/search/results',
@@ -237,9 +265,24 @@ GoRouter buildRouter(Ref ref) {
             builder: (context, state) => const DiscoverScreen(),
           ),
           GoRoute(
+            path: '/favourites',
+            name: 'favourites',
+            builder: (context, state) => const FavoritesScreen(),
+          ),
+          GoRoute(
             path: '/messages',
             name: 'messages',
             builder: (context, state) => const MessagesListScreen(),
+          ),
+          GoRoute(
+            path: '/profile/edit',
+            name: 'edit-profile',
+            builder: (context, state) => const EditProfileScreen(),
+          ),
+          GoRoute(
+            path: '/preferences',
+            name: 'preferences',
+            builder: (context, state) => const PreferencesScreen(),
           ),
           GoRoute(
             path: '/profile',
@@ -292,7 +335,14 @@ GoRouter buildRouter(Ref ref) {
         path: '/establishment/:id',
         name: 'establishment',
         builder: (context, state) => EstablishmentScreen(
-          id: state.pathParameters['id'] ?? 'social-lounge',
+          id: state.pathParameters['id'] ?? 'the-social-lounge',
+        ),
+      ),
+      GoRoute(
+        path: '/entertainer/:id',
+        name: 'entertainer',
+        builder: (context, state) => EntertainerScreen(
+          id: state.pathParameters['id']!,
         ),
       ),
       GoRoute(
@@ -318,22 +368,48 @@ GoRouter buildRouter(Ref ref) {
       GoRoute(
         path: '/review/submitted',
         name: 'review-submitted',
-        builder: (context, state) => const ReviewSubmittedScreen(),
+        builder: (context, state) => ReviewSubmittedScreen(
+          result: state.extra is Map ? Map<String, dynamic>.from(state.extra as Map) : null,
+        ),
+      ),
+      GoRoute(
+        path: '/review/detail',
+        name: 'review-detail',
+        builder: (context, state) {
+          final review = state.extra as Review?;
+          if (review == null) return const ReviewSubmittedScreen(); // fallback
+          return ReviewDetailScreen(review: review);
+        },
+      ),
+      GoRoute(
+        path: '/deal/detail',
+        name: 'deal-detail',
+        builder: (context, state) {
+          final deal = state.extra as Deal?;
+          if (deal == null) return const ReviewSubmittedScreen(); // fallback
+          return DealDetailScreen(deal: deal);
+        },
       ),
       GoRoute(
         path: '/reservation/slots',
         name: 'reservation-slots',
-        builder: (context, state) => const TimeSlotScreen(),
+        builder: (context, state) => TimeSlotScreen(
+          args: state.extra is Map ? Map<String, dynamic>.from(state.extra as Map) : const {},
+        ),
       ),
       GoRoute(
         path: '/reservation/confirm',
         name: 'reservation-confirm',
-        builder: (context, state) => const ConfirmBookingScreen(),
+        builder: (context, state) => ConfirmBookingScreen(
+          args: state.extra is Map ? Map<String, dynamic>.from(state.extra as Map) : const {},
+        ),
       ),
       GoRoute(
         path: '/reservation/pass',
         name: 'reservation-pass',
-        builder: (context, state) => const ReservationPassScreen(),
+        builder: (context, state) => ReservationPassScreen(
+          result: state.extra is CreateReservationResult ? state.extra as CreateReservationResult : null,
+        ),
       ),
       GoRoute(
         path: '/zupurb-plus',
@@ -355,7 +431,7 @@ GoRouter buildRouter(Ref ref) {
       GoRoute(
         path: '/profile/:id',
         name: 'other-profile',
-        builder: (context, state) => const OtherProfileScreen(),
+        builder: (context, state) => OtherProfileScreen(userId: state.pathParameters['id'] ?? ''),
       ),
     ],
   );

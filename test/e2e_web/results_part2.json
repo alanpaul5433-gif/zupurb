@@ -1,0 +1,142 @@
+{
+  "results": [
+    {
+      "id": "DISCOVER-LOAD",
+      "s": "PASS",
+      "d": "Discover loaded (45 nodes)"
+    },
+    {
+      "id": "DISCOVER-AGE-GATE",
+      "s": "PASS",
+      "d": "Age gate appeared with labeled buttons"
+    },
+    {
+      "id": "F1-GO-BACK",
+      "s": "PASS",
+      "d": "\"Go back without confirming age\" dismissed gate"
+    },
+    {
+      "id": "F1",
+      "s": "PARTIAL",
+      "d": "Age gate closed but establishment content unclear",
+      "det": "                                "
+    },
+    {
+      "id": "EST-LOAD",
+      "s": "FAIL",
+      "d": "Establishment not reached",
+      "det": "                                ",
+      "sev": "P1"
+    },
+    {
+      "id": "MESSAGES-LOAD",
+      "s": "PASS",
+      "d": "Messages loaded (33 nodes)"
+    },
+    {
+      "id": "F9-MESSAGES",
+      "s": "PASS",
+      "d": "Conversation tap opened chat (33 nodes)"
+    },
+    {
+      "id": "MESSAGES-INPUT",
+      "s": "FAIL",
+      "d": "No text input in chat",
+      "det": "",
+      "sev": "P1"
+    },
+    {
+      "id": "MESSAGES-BACK",
+      "s": "PASS",
+      "d": "Chat back button at (28,28)"
+    },
+    {
+      "id": "MESSAGES-BACK-WORKS",
+      "s": "PARTIAL",
+      "d": "Back pressed, URL: https://zupurb-dev.web.app/#/discover",
+      "det": ""
+    },
+    {
+      "id": "PROFILE-LOAD",
+      "s": "PASS",
+      "d": "Profile loaded (48 nodes)"
+    },
+    {
+      "id": "PROFILE-INFO",
+      "s": "PARTIAL",
+      "d": "User info not in labels",
+      "det": ""
+    },
+    {
+      "id": "PROFILE-TABS",
+      "s": "PASS",
+      "d": "4 content tabs at y~553"
+    },
+    {
+      "id": "PROFILE-REWARDS",
+      "s": "PARTIAL",
+      "d": "Rewards not confirmed in labels",
+      "det": ""
+    },
+    {
+      "id": "SETTINGS-LOAD",
+      "s": "PASS",
+      "d": "Settings loaded (22 nodes, URL: https://zupurb-dev.web.app/#/profile)"
+    },
+    {
+      "id": "F10-PERSONAL",
+      "s": "PARTIAL",
+      "d": "Personal Info button not found",
+      "det": ""
+    },
+    {
+      "id": "F10-EMAIL",
+      "s": "PARTIAL",
+      "d": "Email Prefs — coming soon not confirmed",
+      "det": "  dialog             "
+    },
+    {
+      "id": "SETTINGS-PRIVACY",
+      "s": "PARTIAL",
+      "d": "Privacy button not found by label",
+      "det": ""
+    },
+    {
+      "id": "F10-DELETE",
+      "s": "FAIL",
+      "d": "Delete Account button not found",
+      "det": "                     ",
+      "sev": "P1"
+    },
+    {
+      "id": "SETTINGS-LOGOUT",
+      "s": "PARTIAL",
+      "d": "Logout not found by label",
+      "det": ""
+    },
+    {
+      "id": "ROUTE-POINTS",
+      "s": "PASS",
+      "d": "/points loaded (37 nodes)"
+    },
+    {
+      "id": "ROUTE-BADGES",
+      "s": "PASS",
+      "d": "/badges loaded (35 nodes)"
+    },
+    {
+      "id": "ROUTE-REDEEM",
+      "s": "PASS",
+      "d": "/redeem loaded (26 nodes)"
+    }
+  ],
+  "errors": [
+    "PE:Error",
+    "PE:Error",
+    "Access to XMLHttpRequest at 'https://randomuser.me/api/portraits/women/44.jpg' from origin 'https://",
+    "Failed to load resource: net::ERR_FAILED",
+    "Access to XMLHttpRequest at 'https://randomuser.me/api/portraits/men/46.jpg' from origin 'https://zu",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: the server responded with a status of 404 ()"
+  ]
+}

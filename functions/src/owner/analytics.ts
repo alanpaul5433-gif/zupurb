@@ -149,8 +149,6 @@ export const getOwnerAnalytics = onRequest({ region: 'us-central1', cors: true }
         reviewCount: est.reviewCount ?? 0,
         scoreTrend,
         upcomingReservations: upcomingSnap.size,
-        // 1a. AI summary — field lives on establishment doc (populated async by generateReviewSummary CF)
-        aiSummary: (est.aiSummary as string | undefined) ?? null,
         followerCount,
         demographicScores,
         mostHelpfulReview,

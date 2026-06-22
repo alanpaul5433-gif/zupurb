@@ -11,6 +11,8 @@ class UserProfile {
   final int pointsBalance;
   final String loyaltyTier;
   final bool onboardingComplete;
+  /// Taste cohort driving the "People Like You" rating (null until onboarding sets it).
+  final String? tasteCohort;
 
   const UserProfile({
     required this.uid,
@@ -23,6 +25,7 @@ class UserProfile {
     required this.pointsBalance,
     required this.loyaltyTier,
     required this.onboardingComplete,
+    this.tasteCohort,
   });
 
   factory UserProfile.fromFirestore(DocumentSnapshot doc) {
@@ -38,6 +41,7 @@ class UserProfile {
       pointsBalance: (d['pointsBalance'] as num?)?.toInt() ?? 0,
       loyaltyTier: d['loyaltyTier'] as String? ?? 'bronze',
       onboardingComplete: d['onboardingComplete'] as bool? ?? false,
+      tasteCohort: d['tasteCohort'] as String?,
     );
   }
 }

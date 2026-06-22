@@ -453,10 +453,6 @@ export interface ReviewDoc {
   title: string | null;
   body: string | null;
 
-  // AI-generated summary (populated async)
-  aiSummary: string | null;
-  aiSummaryGeneratedAt: Timestamp | null;
-
   // Media
   mediaIds: string[];         // Storage object IDs
 

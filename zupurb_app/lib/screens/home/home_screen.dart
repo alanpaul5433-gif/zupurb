@@ -8,7 +8,15 @@ import '../../theme/dimens.dart';
 import '../../widgets/score_badge.dart';
 import '../../widgets/points_chip.dart';
 import '../../state/reviews/reviews_provider.dart';
+import '../../state/reviews/review_likes_provider.dart';
+import '../../state/deals/deals_provider.dart';
+import '../../state/user/creators_provider.dart';
+import '../../state/user/follow_provider.dart';
 import '../../models/review.dart';
+import '../../models/deal.dart';
+import '../../models/user_profile.dart';
+import '../../widgets/user_avatar.dart';
+import '../../widgets/app_drawer.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -25,6 +33,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F0ED),
+      // The slide-out nav drawer must live on THIS Scaffold: Scaffold.of() in the
+      // hamburger below resolves to the nearest Scaffold (this one), not MainShell's.
+      drawer: const AppDrawer(),
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -37,12 +48,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     const Gap(12),
                     Row(
                       children: [
-                        CircleAvatar(
-                          radius: 20,
-                          backgroundColor: AppColors.border,
-                          child: const Icon(Icons.person, color: AppColors.textTertiary),
+                        // Hamburger — opens the slide-out AppDrawer
+                        Builder(
+                          builder: (drawerCtx) => Semantics(
+                            label: 'Open navigation menu',
+                            button: true,
+                            child: IconButton(
+                              onPressed: () => Scaffold.of(drawerCtx).openDrawer(),
+                              tooltip: 'Menu',
+                              icon: const Icon(Icons.menu, color: AppColors.textPrimary, size: 24),
+                            ),
+                          ),
                         ),
-                        const Gap(10),
+                        const Gap(2),
                         const Text('Zupurb', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A))),
                         const Spacer(),
                         IconButton(
@@ -84,9 +102,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     const Gap(16),
                     _DealsBanner(),
                     const Gap(20),
-                    const Text('Recent Reviews', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A))),
+                    Text(_sectionTitleFor(_tabIndex), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A))),
                     const Gap(12),
-                    _LiveReviewFeed(),
+                    _bodyFor(_tabIndex),
                     const Gap(24),
                   ],
                 ),
@@ -96,6 +114,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
       ),
     );
+  }
+
+  String _sectionTitleFor(int i) {
+    switch (i) {
+      case 4: // Deals
+        return 'Deals';
+      case 2: // Feed
+      case 3: // Creators
+        return _tabs[i];
+      default: // 0 All, 1 Reviews
+        return 'Recent Reviews';
+    }
+  }
+
+  Widget _bodyFor(int i) {
+    switch (i) {
+      case 4: // Deals
+        return _DealsFeed();
+      case 2: // Feed
+        return _CommunityFeed();
+      case 3: // Creators
+        return _CreatorsList();
+      default: // 0 All, 1 Reviews
+        return _LiveReviewFeed();
+    }
   }
 }
 
@@ -123,30 +166,24 @@ class _LiveReviewFeed extends ConsumerWidget {
   }
 }
 
-class _ReviewCardFromData extends StatefulWidget {
+class _ReviewCardFromData extends ConsumerStatefulWidget {
   final Review review;
   const _ReviewCardFromData({required this.review});
 
   @override
-  State<_ReviewCardFromData> createState() => _ReviewCardFromDataState();
+  ConsumerState<_ReviewCardFromData> createState() => _ReviewCardFromDataState();
 }
 
-class _ReviewCardFromDataState extends State<_ReviewCardFromData> {
-  late int _likes;
-  bool _liked = false;
+class _ReviewCardFromDataState extends ConsumerState<_ReviewCardFromData> {
   bool _disliked = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _likes = widget.review.helpfulVotes;
-  }
 
   @override
   Widget build(BuildContext context) {
     final r = widget.review;
+    final _liked = ref.watch(reviewLikesProvider).contains(r.id);
+    final _likes = r.helpfulVotes + (_liked ? 1 : 0);
     return GestureDetector(
-      onTap: () => context.push('/establishment/${r.estId.isNotEmpty ? r.estId : '1'}'),
+      onTap: () => context.push('/review/detail', extra: r),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -161,22 +198,16 @@ class _ReviewCardFromDataState extends State<_ReviewCardFromData> {
                 children: [
                   GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onTap: () => context.push('/profile/${r.authorName.replaceAll(' ', '_').toLowerCase()}'),
+                    onTap: r.authorUid.isEmpty ? null : () => context.push('/profile/${r.authorUid}'),
                     child: Row(
                       children: [
-                        CircleAvatar(
-                          radius: 20,
-                          backgroundImage: r.authorPhotoUrl.isNotEmpty
-                              ? NetworkImage(r.authorPhotoUrl)
-                              : const NetworkImage('https://i.pravatar.cc/150?img=44'),
-                          onBackgroundImageError: (e, s) {},
-                        ),
+                        UserAvatar(name: r.authorName, photoUrl: r.authorPhotoUrl, radius: 20),
                         const Gap(10),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(r.authorName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-                            Text('${r.estId} • ${r.verificationTier}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                            Text('${r.venueLabel} • ${r.verificationTier}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                           ],
                         ),
                       ],
@@ -187,27 +218,6 @@ class _ReviewCardFromDataState extends State<_ReviewCardFromData> {
                 ],
               ),
             ),
-            if (r.aiSummary.isNotEmpty)
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(children: [
-                      Icon(Icons.auto_awesome, color: AppColors.primary, size: 14),
-                      Gap(6),
-                      Text('AI SUMMARY', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary, letterSpacing: 0.5)),
-                    ]),
-                    const Gap(6),
-                    Text(r.aiSummary, style: const TextStyle(fontSize: 13, color: Color(0xFF444444))),
-                  ],
-                ),
-              ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               child: Text(r.text, style: const TextStyle(fontSize: 13, color: Color(0xFF444444), height: 1.5)),
@@ -242,16 +252,8 @@ class _ReviewCardFromDataState extends State<_ReviewCardFromData> {
                     button: true,
                     child: GestureDetector(
                       onTap: () {
-                        setState(() {
-                          if (_liked) {
-                            _liked = false;
-                            _likes--;
-                          } else {
-                            _liked = true;
-                            if (_disliked) _disliked = false;
-                            _likes++;
-                          }
-                        });
+                        if (_disliked) setState(() => _disliked = false);
+                        ref.read(reviewLikesProvider.notifier).toggle(r.id);
                       },
                       child: SizedBox(
                         height: 44,
@@ -272,14 +274,11 @@ class _ReviewCardFromDataState extends State<_ReviewCardFromData> {
                     button: true,
                     child: GestureDetector(
                       onTap: () {
-                        setState(() {
-                          if (_disliked) {
-                            _disliked = false;
-                          } else {
-                            _disliked = true;
-                            if (_liked) { _liked = false; _likes--; }
-                          }
-                        });
+                        // Disliking removes an existing like (persisted via provider).
+                        if (!_disliked && _liked) {
+                          ref.read(reviewLikesProvider.notifier).toggle(r.id);
+                        }
+                        setState(() => _disliked = !_disliked);
                       },
                       child: SizedBox(
                         width: 44,
@@ -360,7 +359,7 @@ class _DealsBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 130,
+      height: 162,
       child: Row(
         children: [
           Expanded(
@@ -485,26 +484,6 @@ class _ReviewCardState extends State<_ReviewCard> {
                 ),
                 const Spacer(),
                 const ScoreBadge(score: 4.2),
-              ],
-            ),
-          ),
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.primaryLight,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [
-                  Icon(Icons.auto_awesome, color: AppColors.primary, size: 14),
-                  Gap(6),
-                  Text('AI SUMMARY', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary, letterSpacing: 0.5)),
-                ]),
-                Gap(6),
-                Text('Vibrant atmosphere with exceptional service. The seafood selection stands out as the main highlight.', style: TextStyle(fontSize: 13, color: Color(0xFF444444))),
               ],
             ),
           ),
@@ -649,3 +628,185 @@ class _CircleImage extends StatelessWidget {
   );
 }
 
+// ── Deals tab feed — reads top-level active deals ──────────────────────────
+class _DealsFeed extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final dealsAsync = ref.watch(allDealsProvider);
+    return dealsAsync.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 40),
+        child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      ),
+      error: (err, _) => const _HomeEmptyState(),
+      data: (deals) {
+        if (deals.isEmpty) return const _HomeEmptyState();
+        return Column(
+          children: deals
+              .map((d) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _HomeDealCard(deal: d),
+                  ))
+              .toList(),
+        );
+      },
+    );
+  }
+}
+
+class _HomeDealCard extends StatelessWidget {
+  final Deal deal;
+  const _HomeDealCard({required this.deal});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: '${deal.title} deal at ${deal.pointCost} points',
+      button: true,
+      child: GestureDetector(
+        onTap: () => context.push('/deal/detail', extra: deal),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(6)),
+                      child: Text(deal.title, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                    ),
+                    const Gap(6),
+                    Text(deal.description, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                    const Gap(8),
+                    PointsChip(points: deal.pointCost),
+                  ],
+                ),
+              ),
+              const ExcludeSemantics(child: Icon(Icons.chevron_right, color: AppColors.textTertiary)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeEmptyState extends StatelessWidget {
+  const _HomeEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 16),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      child: const Column(
+        children: [
+          Icon(Icons.inbox_outlined, size: 40, color: AppColors.textTertiary),
+          Gap(12),
+          Text('Nothing here yet', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+          Gap(4),
+          Text('Check back soon for new content.', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Feed tab — community review activity from all users ────────────────────
+class _CommunityFeed extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(feedReviewsProvider);
+    return async.when(
+      loading: () => const Padding(padding: EdgeInsets.symmetric(vertical: 40), child: Center(child: CircularProgressIndicator(color: AppColors.primary))),
+      error: (e, _) => const _HomeEmptyState(),
+      data: (reviews) {
+        if (reviews.isEmpty) return const _HomeEmptyState();
+        return Column(
+          children: reviews
+              .map((r) => Padding(padding: const EdgeInsets.only(bottom: 12), child: _ReviewCardFromData(review: r)))
+              .toList(),
+        );
+      },
+    );
+  }
+}
+
+// ── Creators tab — real creator/member profiles ───────────────────────────
+class _CreatorsList extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(creatorsProvider);
+    return async.when(
+      loading: () => const Padding(padding: EdgeInsets.symmetric(vertical: 40), child: Center(child: CircularProgressIndicator(color: AppColors.primary))),
+      error: (e, _) => const _HomeEmptyState(),
+      data: (creators) {
+        if (creators.isEmpty) return const _HomeEmptyState();
+        return Column(
+          children: creators
+              .map((p) => Padding(padding: const EdgeInsets.only(bottom: 12), child: _CreatorCard(profile: p)))
+              .toList(),
+        );
+      },
+    );
+  }
+}
+
+class _CreatorCard extends ConsumerWidget {
+  final UserProfile profile;
+  const _CreatorCard({required this.profile});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final p = profile;
+    final isFollowing = ref.watch(followProvider).contains(p.uid);
+    return Semantics(
+      label: '${p.displayName}, ${p.reviewCount} reviews',
+      button: true,
+      child: GestureDetector(
+        onTap: () => context.push('/profile/${p.uid}'),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+          child: Row(
+            children: [
+              UserAvatar(name: p.displayName, photoUrl: p.photoUrl, radius: 24),
+              const Gap(12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(p.displayName, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A)), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    if (p.bio != null && p.bio!.isNotEmpty) ...[
+                      const Gap(2),
+                      Text(p.bio!, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ],
+                    const Gap(4),
+                    Text('${p.reviewCount} reviews · ${p.followersCount} followers', style: const TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                  ],
+                ),
+              ),
+              const Gap(8),
+              ElevatedButton(
+                onPressed: () => ref.read(followProvider.notifier).toggle(p.uid),
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(88, 36),
+                  backgroundColor: isFollowing ? Colors.white : AppColors.primary,
+                  foregroundColor: isFollowing ? AppColors.primary : Colors.white,
+                  side: isFollowing ? const BorderSide(color: AppColors.primary) : BorderSide.none,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                ),
+                child: Text(isFollowing ? 'Following' : 'Follow'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

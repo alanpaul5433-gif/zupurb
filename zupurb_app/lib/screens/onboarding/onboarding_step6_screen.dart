@@ -1,20 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../widgets/app_button.dart';
+import '../../state/onboarding/onboarding_draft_provider.dart';
 
-class OnboardingStep6Screen extends StatefulWidget {
+class OnboardingStep6Screen extends ConsumerStatefulWidget {
   const OnboardingStep6Screen({super.key});
 
   @override
-  State<OnboardingStep6Screen> createState() => _OnboardingStep6ScreenState();
+  ConsumerState<OnboardingStep6Screen> createState() => _OnboardingStep6ScreenState();
 }
 
-class _OnboardingStep6ScreenState extends State<OnboardingStep6Screen> {
-  final Set<String> _selected = {'Karaoke', 'Darts'};
+class _OnboardingStep6ScreenState extends ConsumerState<OnboardingStep6Screen> {
+  late Set<String> _selected;
   final _activities = ['Karaoke', 'Pool & Billiards', 'Darts', 'Trivia Nights', 'Live Music', 'Dancing', 'Shuffleboard', 'Speed Dating', 'Brunch', 'Happy Hour', 'Taco Tuesday', 'Mechanical Bull', 'Sports Viewing', 'Comedy Nights', 'DJ Sets'];
+
+  @override
+  void initState() {
+    super.initState();
+    final draft = ref.read(onboardingDraftProvider);
+    // No phantom defaults — an untouched screen submits nothing, not fake picks.
+    _selected = {...draft.activities};
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -80,7 +90,10 @@ class _OnboardingStep6ScreenState extends State<OnboardingStep6Screen> {
             ),
             Padding(
               padding: const EdgeInsets.all(AppDimens.screenPadding),
-              child: AppButton(label: 'Continue', onTap: () => context.go('/onboarding/7')),
+              child: AppButton(label: 'Continue', onTap: () {
+                ref.read(onboardingDraftProvider.notifier).setActivities(_selected);
+                context.go('/onboarding/7');
+              }),
             ),
           ],
         ),

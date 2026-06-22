@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
@@ -15,7 +17,86 @@ class AddPlaceScreen extends StatefulWidget {
 class _AddPlaceScreenState extends State<AddPlaceScreen> {
   final Set<String> _tags = {'Italian'};
   String _priceRange = '\$\$';
+  String _selectedType = '';
+  bool _loading = false;
   final _allTags = ['Italian', 'Mexican', 'Bar', 'Pet-friendly', 'Vegan-friendly'];
+  final _typeOptions = ['Restaurant', 'Bar', 'Cafe', 'Club', 'Lounge', 'Other'];
+
+  final _nameController = TextEditingController();
+  final _descController = TextEditingController();
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a venue name')));
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      final ref = FirebaseFirestore.instance.collection('establishments').doc();
+      await ref.set({
+        'id': ref.id,
+        'name': name,
+        'type': _selectedType.isEmpty ? 'Restaurant' : _selectedType,
+        'area': 'User Submitted',
+        'imageUrl': '',
+        'score': 0.0,
+        'priceRange': _priceRange,
+        'distanceKm': 0.0,
+        'openUntil': 'Unknown',
+        'hasAlcohol': false,
+        'hasReservations': false,
+        'hasDeals': false,
+        'isActive': false,
+        'tags': _tags.toList(),
+        'description': _descController.text.trim(),
+        'submittedBy': uid,
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      if (uid != null) {
+        await FirebaseFirestore.instance.doc('userBalances/$uid').set({
+          'userId': uid,
+          'balance': FieldValue.increment(150),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+        await FirebaseFirestore.instance.doc('users/$uid').set({
+          'pointsBalance': FieldValue.increment(150),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+      if (mounted) context.push('/review/verify');
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _showTypePicker() {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: _typeOptions.map((t) => ListTile(
+          title: Text(t),
+          trailing: _selectedType == t ? const Icon(Icons.check, color: AppColors.primary) : null,
+          onTap: () {
+            setState(() => _selectedType = t);
+            Navigator.of(context).pop();
+          },
+        )).toList(),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,19 +148,22 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
             const Gap(20),
             _Label('Venue Name *'),
             const Gap(8),
-            _Field(hint: 'Enter establishment name'),
+            _Field(hint: 'Enter establishment name', controller: _nameController),
             const Gap(16),
             _Label('Establishment Type'),
             const Gap(8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.border)),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Select type...', style: TextStyle(color: AppColors.textTertiary, fontSize: 14)),
-                  Icon(Icons.keyboard_arrow_down, color: AppColors.textTertiary),
-                ],
+            GestureDetector(
+              onTap: _showTypePicker,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.border)),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(_selectedType.isEmpty ? 'Select type...' : _selectedType, style: TextStyle(color: _selectedType.isEmpty ? AppColors.textTertiary : AppColors.textPrimary, fontSize: 14)),
+                    const Icon(Icons.keyboard_arrow_down, color: AppColors.textTertiary),
+                  ],
+                ),
               ),
             ),
             const Gap(16),
@@ -102,9 +186,10 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
               height: 100,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.border)),
-              child: const TextField(
+              child: TextField(
+                controller: _descController,
                 maxLines: null,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   hintText: 'Tell us about this hidden gem...',
                   hintStyle: TextStyle(color: AppColors.textTertiary, fontSize: 13),
                   border: InputBorder.none,
@@ -175,7 +260,7 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
               ),
             ),
             const Gap(24),
-            AppButton(label: 'Save & Continue', onTap: () => context.push('/review/verify')),
+            AppButton(label: _loading ? 'Saving...' : 'Save & Continue', onTap: _loading ? null : _save),
             const Gap(32),
           ],
         ),
@@ -194,13 +279,15 @@ class _Label extends StatelessWidget {
 
 class _Field extends StatelessWidget {
   final String hint;
-  const _Field({required this.hint});
+  final TextEditingController? controller;
+  const _Field({required this.hint, this.controller});
 
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.border)),
     child: TextField(
+      controller: controller,
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: const TextStyle(color: AppColors.textTertiary, fontSize: 14),

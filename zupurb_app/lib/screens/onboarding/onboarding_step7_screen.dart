@@ -1,22 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../widgets/app_button.dart';
+import '../../state/onboarding/onboarding_draft_provider.dart';
 
 // P0-3 / P0-7: Replace duplicate "What Do You Like To Do?" with Sensitive Topics screen
-class OnboardingStep7Screen extends StatefulWidget {
+class OnboardingStep7Screen extends ConsumerStatefulWidget {
   const OnboardingStep7Screen({super.key});
 
   @override
-  State<OnboardingStep7Screen> createState() => _OnboardingStep7ScreenState();
+  ConsumerState<OnboardingStep7Screen> createState() => _OnboardingStep7ScreenState();
 }
 
-class _OnboardingStep7ScreenState extends State<OnboardingStep7Screen> {
+class _OnboardingStep7ScreenState extends ConsumerState<OnboardingStep7Screen> {
   String _political = '';
   String _religion = '';
   bool _skipSensitive = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final draft = ref.read(onboardingDraftProvider);
+    _political = draft.political;
+    _religion = draft.religion;
+    _skipSensitive = draft.skipSensitive;
+  }
 
   final _politicalOptions = ['Very Liberal', 'Liberal', 'Moderate', 'Conservative', 'Very Conservative', 'Prefer not to say'];
   final _religionOptions = ['Christian', 'Muslim', 'Jewish', 'Hindu', 'Buddhist', 'Atheist / Agnostic', 'Spiritual', 'Prefer not to say'];
@@ -126,7 +137,13 @@ class _OnboardingStep7ScreenState extends State<OnboardingStep7Screen> {
             ),
             Padding(
               padding: const EdgeInsets.all(AppDimens.screenPadding),
-              child: AppButton(label: 'Continue', onTap: () => context.go('/onboarding/8')),
+              child: AppButton(label: 'Continue', onTap: () {
+                final notifier = ref.read(onboardingDraftProvider.notifier);
+                notifier.setPolitical(_political);
+                notifier.setReligion(_religion);
+                notifier.setSkipSensitive(_skipSensitive);
+                context.go('/onboarding/8');
+              }),
             ),
           ],
         ),

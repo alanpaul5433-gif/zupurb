@@ -97,6 +97,11 @@ String _mapAuthCode(String code) {
       return 'Please enter a valid phone number.';
     case 'session-expired':
       return 'The verification code has expired. Please resend.';
+    case 'operation-not-allowed':
+      return 'Phone sign-in is not available yet. Please use email or a social login.';
+    case 'captcha-check-failed':
+    case 'web-context-cancelled':
+      return 'Verification could not be completed. Please try again.';
     case 'sign_in_canceled':
     case 'canceled':
       return 'Sign-in was cancelled.';
@@ -166,13 +171,21 @@ class AuthService {
 
   /// Signs out from Firebase Auth and disconnects any social provider session.
   Future<void> signOut() async {
+    // Best-effort social disconnects so the provider's account-picker appears
+    // again on next sign-in. These MUST NOT block the Firebase sign-out: on web
+    // the Google/Facebook SDKs can throw (e.g. JS SDK not initialized), and that
+    // error is not a FirebaseAuthException — letting it escape would leave the
+    // user signed in. Swallow them; the Firebase sign-out below is what matters.
     try {
-      // Disconnect social sessions so the provider's account-picker
-      // appears again on the next sign-in rather than silently re-authenticating.
       if (await _googleSignIn.isSignedIn()) {
         await _googleSignIn.signOut();
       }
+    } catch (_) {/* non-fatal */}
+    try {
       await FacebookAuth.instance.logOut();
+    } catch (_) {/* non-fatal */}
+
+    try {
       await _auth.signOut();
     } on FirebaseAuthException catch (e) {
       throw AppAuthException(message: _mapAuthCode(e.code), code: e.code);

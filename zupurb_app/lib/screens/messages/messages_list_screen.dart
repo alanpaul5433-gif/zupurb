@@ -66,7 +66,8 @@ class _MessagesListScreenState extends ConsumerState<MessagesListScreen> {
               ),
             ),
             const Gap(12),
-            Padding(
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: AppDimens.screenPadding),
               child: Row(
                 children: _tabs.asMap().entries.map((e) => GestureDetector(

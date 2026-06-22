@@ -1,0 +1,175 @@
+{
+  "results": [
+    {
+      "id": "LOGIN",
+      "status": "PASS",
+      "desc": "Try Demo succeeded — navigated to https://zupurb-dev.web.app/#/home"
+    },
+    {
+      "id": "HOME-LOAD",
+      "status": "PARTIAL",
+      "desc": "Home loaded but semantic tree sparse",
+      "detail": "0 nodes — check screenshot"
+    },
+    {
+      "id": "HOME-TABS",
+      "status": "PARTIAL",
+      "desc": "Tab bar not confirmed via labels",
+      "detail": "Check screenshot"
+    },
+    {
+      "id": "F8",
+      "status": "FAIL",
+      "desc": "Review card body tap — no navigation detected",
+      "detail": "URL unchanged: https://zupurb-dev.web.app/#/home",
+      "severity": "P1"
+    },
+    {
+      "id": "F7",
+      "status": "PARTIAL",
+      "desc": "Only 0 small buttons found in card area",
+      "detail": "Like/dislike may not have semantic roles"
+    },
+    {
+      "id": "HOME-NOTIF",
+      "status": "PARTIAL",
+      "desc": "Bell button not found (no button in top-right area)",
+      "detail": ""
+    },
+    {
+      "id": "SEARCH-LOAD",
+      "status": "PARTIAL",
+      "desc": "Search sparse",
+      "detail": "0 nodes"
+    },
+    {
+      "id": "F2",
+      "status": "FAIL",
+      "desc": "No textbox/searchbox in semantic tree and no input candidate in search area",
+      "detail": "",
+      "severity": "P1"
+    },
+    {
+      "id": "SEARCH-FILTERS",
+      "status": "PARTIAL",
+      "desc": "No filter controls in semantic tree",
+      "detail": ""
+    },
+    {
+      "id": "SEARCH-RESULTS",
+      "status": "PARTIAL",
+      "desc": "Search submit — results unclear",
+      "detail": "0 → 0 nodes"
+    },
+    {
+      "id": "F5",
+      "status": "PARTIAL",
+      "desc": "Cannot test — did not reach results screen",
+      "detail": ""
+    },
+    {
+      "id": "F3",
+      "status": "PARTIAL",
+      "desc": "No recent search X buttons found",
+      "detail": "0 small buttons found in list area"
+    },
+    {
+      "id": "F4",
+      "status": "PARTIAL",
+      "desc": "No recent search items found in semantic tree",
+      "detail": ""
+    },
+    {
+      "id": "DISCOVER-LOAD",
+      "status": "PARTIAL",
+      "desc": "Discover sparse",
+      "detail": ""
+    },
+    {
+      "id": "F1",
+      "status": "FAIL",
+      "desc": "Discover tap did not show age gate or establishment",
+      "detail": "",
+      "severity": "P1"
+    },
+    {
+      "id": "EST-LOAD",
+      "status": "FAIL",
+      "desc": "Could not reach Establishment screen",
+      "detail": "",
+      "severity": "P1"
+    },
+    {
+      "id": "RES-TIMESLOT",
+      "status": "FAIL",
+      "desc": "SKIPPED — establishment not reached",
+      "detail": "",
+      "severity": "P1"
+    },
+    {
+      "id": "REVIEW-VERIFY",
+      "status": "FAIL",
+      "desc": "SKIPPED — establishment not reached",
+      "detail": "",
+      "severity": "P1"
+    },
+    {
+      "id": "MESSAGES-LOAD",
+      "status": "FAIL",
+      "desc": "Messages not loaded",
+      "detail": "0 nodes",
+      "severity": "P1"
+    },
+    {
+      "id": "PROFILE-LOAD",
+      "status": "PARTIAL",
+      "desc": "Profile sparse",
+      "detail": "0 nodes"
+    },
+    {
+      "id": "SETTINGS-LOAD",
+      "status": "FAIL",
+      "desc": "Settings not loaded",
+      "detail": "0 nodes",
+      "severity": "P1"
+    },
+    {
+      "id": "ROUTE-POINTS",
+      "status": "PARTIAL",
+      "desc": "/#/points sparse — check screenshot",
+      "detail": "0 nodes"
+    },
+    {
+      "id": "ROUTE-BADGES",
+      "status": "PARTIAL",
+      "desc": "/#/badges sparse — check screenshot",
+      "detail": "0 nodes"
+    },
+    {
+      "id": "ROUTE-REDEEM",
+      "status": "PARTIAL",
+      "desc": "/#/redeem sparse — check screenshot",
+      "detail": "0 nodes"
+    }
+  ],
+  "consoleErrors": [
+    "PAGE_ERROR: Error",
+    "PAGE_ERROR: Error",
+    "Access to XMLHttpRequest at 'https://randomuser.me/api/portraits/women/44.jpg' from origin 'https://zupurb-dev.web.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+    "Failed to load resource: net::ERR_FAILED",
+    "Access to XMLHttpRequest at 'https://randomuser.me/api/portraits/women/65.jpg' from origin 'https://zupurb-dev.web.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+    "Failed to load resource: net::ERR_FAILED",
+    "Access to XMLHttpRequest at 'https://randomuser.me/api/portraits/men/32.jpg' from origin 'https://zupurb-dev.web.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+    "Failed to load resource: net::ERR_FAILED",
+    "Access to XMLHttpRequest at 'https://randomuser.me/api/portraits/men/46.jpg' from origin 'https://zupurb-dev.web.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: the server responded with a status of 404 ()"
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 8,
+    "partial": 15,
+    "total": 24
+  },
+  "durationMs": 84676
+}

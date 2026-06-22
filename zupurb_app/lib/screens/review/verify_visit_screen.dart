@@ -1,27 +1,57 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../widgets/app_button.dart';
+import '../../state/reviews/review_draft_provider.dart';
+import '../../core/services/review_photo_service.dart';
 
-class VerifyVisitScreen extends StatefulWidget {
+class VerifyVisitScreen extends ConsumerStatefulWidget {
   const VerifyVisitScreen({super.key});
 
   @override
-  State<VerifyVisitScreen> createState() => _VerifyVisitScreenState();
+  ConsumerState<VerifyVisitScreen> createState() => _VerifyVisitScreenState();
 }
 
-class _VerifyVisitScreenState extends State<VerifyVisitScreen> {
-  int _selected = 0;
+class _VerifyVisitScreenState extends ConsumerState<VerifyVisitScreen> {
+  int _selected = 2;
+  final _photoUrls = <String>[];
+  bool _uploading = false;
+
+  Future<void> _pickPhotos() async {
+    if (_uploading) return;
+    setState(() => _uploading = true);
+    try {
+      final urls = await ReviewPhotoService().pickAndUpload(maxImages: 3);
+      if (urls.isNotEmpty) {
+        setState(() {
+          _photoUrls
+            ..clear()
+            ..addAll(urls);
+        });
+        ref.read(reviewDraftProvider.notifier).setPhotoUrls(_photoUrls);
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not upload photos. Please try again.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final estName = ref.watch(reviewDraftProvider).estName;
     return Scaffold(
       backgroundColor: const Color(0xFFF5F0ED),
       appBar: AppBar(
         leading: IconButton(onPressed: () => context.pop(), icon: const Icon(Icons.arrow_back_ios, size: 20, color: AppColors.primary)),
-        title: const Text('Lumiere'),
+        title: Text(estName.isEmpty ? 'Write a Review' : estName),
         backgroundColor: const Color(0xFFF5F0ED),
       ),
       body: Column(
@@ -65,9 +95,9 @@ class _VerifyVisitScreenState extends State<VerifyVisitScreen> {
                     icon: Icons.verified_outlined,
                     title: 'Verified Visit',
                     badge: 'RECOMMENDED',
-                    subtitle: 'Upload receipt + photos',
-                    points: 80,
-                    highlighted: true,
+                    subtitle: 'Add photos of your visit',
+                    points: 75,
+                    highlighted: _selected == 0,
                     onTap: () => setState(() => _selected = 0),
                   ),
                   const Gap(10),
@@ -76,8 +106,8 @@ class _VerifyVisitScreenState extends State<VerifyVisitScreen> {
                     selected: _selected == 1,
                     icon: Icons.photo_camera_outlined,
                     title: 'Partially Verified',
-                    subtitle: 'Photo verification (no receipt)',
-                    points: 25,
+                    subtitle: 'Add a photo (no receipt)',
+                    points: 75,
                     onTap: () => setState(() => _selected = 1),
                   ),
                   const Gap(10),
@@ -91,73 +121,56 @@ class _VerifyVisitScreenState extends State<VerifyVisitScreen> {
                     onTap: () => setState(() => _selected = 2),
                   ),
                   const Gap(20),
-                  if (_selected == 0) ...[
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.border, style: BorderStyle.solid),
-                      ),
-                      child: const Column(
-                        children: [
-                          Icon(Icons.receipt_long_outlined, color: AppColors.primary, size: 36),
-                          Gap(8),
-                          Text('Upload Receipt Photo', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                          Gap(4),
-                          Text('Accepts JPG, PNG or PDF', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                        ],
-                      ),
-                    ),
-                    const Gap(12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(10)),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.add_a_photo_outlined, color: AppColors.primary, size: 18),
-                          Gap(8),
-                          Text('+ Add venue photos', style: TextStyle(fontSize: 13, color: AppColors.primary, fontWeight: FontWeight.w500)),
-                        ],
-                      ),
-                    ),
-                  ] else if (_selected == 1) ...[
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.border, style: BorderStyle.solid),
-                      ),
-                      child: const Column(
-                        children: [
-                          Icon(Icons.add_a_photo_outlined, color: AppColors.primary, size: 36),
-                          Gap(8),
-                          Text('Upload Visit Photos', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                          Gap(4),
-                          Text('Photos must include timestamp metadata', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                          Gap(12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.access_time, size: 14, color: AppColors.textTertiary),
-                              Gap(4),
-                              Text('Taken: Today, 8:42 PM', style: TextStyle(fontSize: 12, color: AppColors.textTertiary)),
+                  if (_selected != 2) ...[
+                    GestureDetector(
+                      onTap: _uploading ? null : _pickPhotos,
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: _photoUrls.isNotEmpty ? AppColors.primary : AppColors.border),
+                        ),
+                        child: Column(
+                          children: [
+                            if (_uploading) ...[
+                              const SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primary)),
+                              const Gap(10),
+                              const Text('Uploading…', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                            ] else if (_photoUrls.isNotEmpty) ...[
+                              const Icon(Icons.check_circle, color: AppColors.primary, size: 36),
+                              const Gap(8),
+                              Text('${_photoUrls.length} photo${_photoUrls.length == 1 ? '' : 's'} added', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                              const Gap(4),
+                              const Text('Tap to change', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                            ] else ...[
+                              const Icon(Icons.add_a_photo_outlined, color: AppColors.primary, size: 36),
+                              const Gap(8),
+                              const Text('Add photos of your visit', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                              const Gap(4),
+                              const Text('JPG, PNG or WebP · up to 3 photos', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                             ],
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (_photoUrls.isNotEmpty) ...[
+                      const Gap(8),
+                      SizedBox(
+                        height: 64,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _photoUrls.length,
+                          separatorBuilder: (_, __) => const Gap(8),
+                          itemBuilder: (_, i) => ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(_photoUrls[i], width: 64, height: 64, fit: BoxFit.cover,
+                                errorBuilder: (c, e, s) => Container(width: 64, height: 64, color: AppColors.border)),
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                    const Gap(12),
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(10)),
-                      child: const Row(
-                        children: [
-                          SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
-                          Gap(10),
-                          Text('AI validating photo...', style: TextStyle(fontSize: 13, color: AppColors.primary, fontWeight: FontWeight.w500)),
-                        ],
-                      ),
-                    ),
+                    ],
                   ],
                   const Gap(24),
                 ],
@@ -166,7 +179,21 @@ class _VerifyVisitScreenState extends State<VerifyVisitScreen> {
           ),
           Padding(
             padding: const EdgeInsets.all(AppDimens.screenPadding),
-            child: AppButton(label: 'Continue', onTap: () => context.push('/review/rate')),
+            child: AppButton(
+              label: 'Continue',
+              onTap: () {
+                if (_selected != 2 && _photoUrls.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Add at least one photo to verify your visit, or pick Unverified.'), duration: Duration(seconds: 2)),
+                  );
+                  return;
+                }
+                final notifier = ref.read(reviewDraftProvider.notifier);
+                notifier.setTier(_selected);
+                notifier.setPhotoUrls(_selected == 2 ? <String>[] : _photoUrls);
+                context.push('/review/rate');
+              },
+            ),
           ),
         ],
       ),
@@ -183,6 +210,7 @@ class _VerificationOption extends StatelessWidget {
   final String subtitle;
   final int points;
   final bool highlighted;
+  final bool comingSoon;
   final VoidCallback onTap;
 
   const _VerificationOption({
@@ -194,6 +222,7 @@ class _VerificationOption extends StatelessWidget {
     required this.subtitle,
     required this.points,
     this.highlighted = false,
+    this.comingSoon = false,
     required this.onTap,
   });
 
@@ -234,7 +263,9 @@ class _VerificationOption extends StatelessWidget {
                 Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
               ],
             )),
-            Text('$points pts', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+            comingSoon
+                ? const Text('Soon', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textTertiary))
+                : Text('$points pts', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
           ],
         ),
       ),

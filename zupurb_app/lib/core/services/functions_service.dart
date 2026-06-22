@@ -123,6 +123,15 @@ class FunctionsService {
   Future<Map<String, dynamic>> getReservations() =>
       call('getReservations', {}, (r) => Map<String, dynamic>.from(r as Map));
 
+  Future<Map<String, dynamic>> redeemDeal({
+    required String dealId,
+    required String idempotencyKey,
+  }) => call(
+        'redeemDeal',
+        {'dealId': dealId, 'idempotencyKey': idempotencyKey},
+        (r) => Map<String, dynamic>.from(r as Map),
+      );
+
   Future<Map<String, dynamic>> getNotifications() =>
       call('getNotifications', {}, (r) => Map<String, dynamic>.from(r as Map));
 

@@ -295,8 +295,6 @@ export const submitReview = onCall(
       disclosureCategory: "none",
       title: null,
       body: bodyText.length > 0 ? bodyText : null,
-      aiSummary: null,
-      aiSummaryGeneratedAt: null,
       mediaIds: [],
       upvoteCount: 0,
       downvoteCount: 0,

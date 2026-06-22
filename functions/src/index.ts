@@ -19,6 +19,7 @@ initializeApp();
 
 export { onUserCreate }     from "./triggers/onUserCreate";
 export { onUserDelete }     from "./triggers/onUserDelete";
+export { seedDemoData }     from "./admin/seedDemoData"; // temporary demo seeder
 export { completeOnboarding }       from "./http/completeOnboarding";
 export { updateProfile }            from "./http/updateProfile";
 export { checkUsernameAvailable }   from "./http/checkUsernameAvailable";
@@ -56,7 +57,6 @@ export { quarantineReview }        from "./moderation/quarantine";
 // B4 legacy kept as submitReview_b4 for backward compatibility — remove in B6 cleanup (FIX_LIST P1).
 export { submitReview }               from "./reviews/submit";
 export { updateEstablishmentScore }   from "./reviews/aggregation";
-export { generateReviewSummary }      from "./reviews/aiSummary";
 export { submitReview as submitReview_b4 } from "./http/submitReview";
 export { recomputeEstablishmentScore } from "./http/recomputeEstablishmentScore";
 export { getEstablishmentScore }       from "./http/getEstablishmentScore";

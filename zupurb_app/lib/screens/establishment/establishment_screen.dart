@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../widgets/app_button.dart';
@@ -9,8 +12,87 @@ import '../../widgets/score_badge.dart';
 import '../../core/utils/age_gate_guard.dart';
 import '../../state/establishments/establishments_provider.dart';
 import '../../state/reviews/reviews_provider.dart';
+import '../../state/deals/deals_provider.dart';
 import '../../models/establishment.dart';
+import '../../models/menu_item.dart';
 import '../../models/review.dart';
+import '../../models/deal.dart';
+import '../../widgets/favorite_heart_button.dart';
+import '../../widgets/dual_score.dart';
+import '../../state/reviews/review_draft_provider.dart';
+
+// --------------------------------------------------------------------------
+// Menu item photo helpers
+// --------------------------------------------------------------------------
+
+/// Deterministic photo URL for well-known menu item names.
+const _kMenuItemPhotos = <String, String>{
+  'Truffle Burrata': 'https://images.unsplash.com/photo-1608897013039-887f21d8c804?w=400&q=80',
+  'Crispy Calamari': 'https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?w=400&q=80',
+  'Wood-Fired Salmon': 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=400&q=80',
+  'Dry-Aged Ribeye': 'https://images.unsplash.com/photo-1546964124-0cce460f38ef?w=400&q=80',
+  'Wild Mushroom Risotto': 'https://images.unsplash.com/photo-1476124369491-e7addf5db371?w=400&q=80',
+  'Smoked Old Fashioned': 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=400&q=80',
+  'Garden Spritz': 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=400&q=80',
+  'Dark Chocolate Torte': 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=400&q=80',
+};
+
+/// Generic fallback photos by category.
+const _kCategoryFallbacks = <String, String>{
+  'Starters': 'https://images.unsplash.com/photo-1541014741259-de529411b96a?w=400&q=80',
+  'Mains': 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&q=80',
+  'Drinks': 'https://images.unsplash.com/photo-1544145945-f90425340c7e?w=400&q=80',
+  'Desserts': 'https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=400&q=80',
+};
+
+/// Resolves the best available photo URL for a [MenuItem].
+String _menuItemPhotoUrl(MenuItem item) {
+  if (item.imageUrl.isNotEmpty) return item.imageUrl;
+  final byName = _kMenuItemPhotos[item.name];
+  if (byName != null) return byName;
+  return _kCategoryFallbacks[item.category] ??
+      'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&q=80';
+}
+
+/// Thumbnail widget for a menu item. Falls back gracefully on load error.
+class _MenuItemThumbnail extends StatelessWidget {
+  final String url;
+  const _MenuItemThumbnail({required this.url});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: Image.network(
+        url,
+        width: 56,
+        height: 56,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return Container(
+            width: 56,
+            height: 56,
+            color: AppColors.border,
+            child: const Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.textTertiary),
+              ),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) => Container(
+          width: 56,
+          height: 56,
+          color: AppColors.border,
+          child: const Icon(Icons.restaurant, size: 22, color: AppColors.textTertiary),
+        ),
+      ),
+    );
+  }
+}
 
 // Tags that require age verification.
 const _kRestrictedTags = {'nightlife', 'bar', 'club', 'lounge'};
@@ -21,15 +103,19 @@ bool _establishmentRequiresAgeGate(Establishment? est) {
   return est.tags.any((tag) => _kRestrictedTags.contains(tag.toLowerCase()));
 }
 
-// Numeric legacy IDs (e.g. '1') map to the canonical Firestore document ID.
+// Numeric legacy IDs (e.g. '1') map to a real seeded Firestore document ID so
+// placeholder/fallback navigation never lands on a non-existent establishment
+// (which would make Reserve / Write a Review fail backend not-found).
 String _resolveEstId(String rawId) {
   const legacyMap = {
-    '1': 'social-lounge',
-    '2': 'rooftop-garden',
-    '3': 'amber-bistro',
-    '4': 'velvet-lounge',
-    '5': 'atrium-cafe',
-    '6': 'bloom-gardenia',
+    '1': 'the-social-lounge',
+    '2': 'bloom-gardenia',
+    '3': 'amber-ember',
+    '4': 'brooklyn-smokehouse',
+    '5': 'the-atrium-cafe',
+    '6': 'the-gilded-owl',
+    'social-lounge': 'the-social-lounge',
+    'atrium-cafe': 'the-atrium-cafe',
   };
   return legacyMap[rawId] ?? rawId;
 }
@@ -68,6 +154,8 @@ class _EstablishmentScreenState extends ConsumerState<EstablishmentScreen> {
   Widget build(BuildContext context) {
     final estAsync = ref.watch(establishmentProvider(_estId));
     final reviewsAsync = ref.watch(establishmentReviewsProvider(_estId));
+    final dealsAsync = ref.watch(establishmentDealsProvider(_estId));
+    final menuAsync = ref.watch(establishmentMenuProvider(_estId));
 
     // Trigger age gate once establishment data arrives.
     estAsync.whenData((est) {
@@ -78,13 +166,72 @@ class _EstablishmentScreenState extends ConsumerState<EstablishmentScreen> {
     });
 
     return estAsync.when(
-      loading: () => _buildScaffold(context, reviewsAsync, null),
-      error: (err, _) => _buildScaffold(context, reviewsAsync, null),
-      data: (est) => _buildScaffold(context, reviewsAsync, est),
+      loading: () => _buildScaffold(context, reviewsAsync, dealsAsync, menuAsync, null),
+      error: (err, _) => _buildScaffold(context, reviewsAsync, dealsAsync, menuAsync, null),
+      data: (est) => _buildScaffold(context, reviewsAsync, dealsAsync, menuAsync, est),
     );
   }
 
-  Widget _buildScaffold(BuildContext context, AsyncValue<List<Review>> reviewsAsync, Establishment? est) {
+  List<Widget> _buildMenuCategories(List<MenuItem> items) {
+    // Items are pre-sorted by category then sortOrder from the provider.
+    final categories = <String>[];
+    for (final item in items) {
+      if (!categories.contains(item.category)) categories.add(item.category);
+    }
+    final result = <Widget>[];
+    for (final cat in categories) {
+      final catItems = items.where((i) => i.category == cat).toList();
+      result.add(
+        Container(
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 6),
+                child: Text(
+                  cat.toUpperCase(),
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textSecondary, letterSpacing: 0.8),
+                ),
+              ),
+              for (int i = 0; i < catItems.length; i++) ...[
+                if (i > 0)
+                  const Divider(height: 1, indent: 14, endIndent: 14),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _MenuItemThumbnail(url: _menuItemPhotoUrl(catItems[i])),
+                      const Gap(12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(catItems[i].name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1A1A1A))),
+                            if (catItems[i].description.isNotEmpty) ...[
+                              const Gap(2),
+                              Text(catItems[i].description, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary), maxLines: 2, overflow: TextOverflow.ellipsis),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const Gap(12),
+                      Text(catItems[i].priceLabel, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A))),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+      result.add(const Gap(8));
+    }
+    return result;
+  }
+
+  Widget _buildScaffold(BuildContext context, AsyncValue<List<Review>> reviewsAsync, AsyncValue<List<Deal>> dealsAsync, AsyncValue<List<MenuItem>> menuAsync, Establishment? est) {
     final name = est?.name ?? 'The Social Lounge';
     final typeArea = est != null ? '${est.type} · ${est.area}' : 'Restaurant & Bar · Downtown LA';
     final score = est?.score ?? 4.4;
@@ -109,6 +256,15 @@ class _EstablishmentScreenState extends ConsumerState<EstablishmentScreen> {
               tooltip: 'Back',
               icon: const CircleAvatar(backgroundColor: Colors.white, child: Icon(Icons.arrow_back_ios, size: 16, color: AppColors.textPrimary)),
             ),
+            actions: [
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: CircleAvatar(
+                  backgroundColor: Colors.white,
+                  child: FavoriteHeartButton(establishmentId: _estId, size: 20),
+                ),
+              ),
+            ],
             flexibleSpace: FlexibleSpaceBar(
               background: Image.network(
                 imageUrl,
@@ -136,7 +292,7 @@ class _EstablishmentScreenState extends ConsumerState<EstablishmentScreen> {
                           ],
                         ),
                       ),
-                      ScoreBadge(score: score, size: 48),
+                      DualScore(generalScore: score, plyByCohort: est?.plyByCohort, plyCountByCohort: est?.plyCountByCohort, badgeSize: 48),
                     ],
                   ),
                   const Gap(12),
@@ -150,41 +306,52 @@ class _EstablishmentScreenState extends ConsumerState<EstablishmentScreen> {
                     ],
                   ),
                   const Gap(16),
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(12)),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.people_outline, color: AppColors.primary, size: 18),
-                        Gap(8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('From People Like You: 9.1', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary)),
-                              Text('Rated higher by users with your background', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Gap(16),
                   Row(
                     children: [
-                      Expanded(child: AppButton(label: 'Write a Review', onTap: () => context.push('/review/verify'))),
+                      Expanded(child: AppButton(label: 'Write a Review', onTap: () { ref.read(reviewDraftProvider.notifier).start(_estId, name); context.push('/review/verify'); })),
                       const Gap(10),
-                      Expanded(child: AppButton(label: 'Reserve', onTap: () => context.push('/reservation/slots'))),
+                      Expanded(child: AppButton(label: 'Reserve', onTap: () => context.push('/reservation/slots', extra: {'estId': _estId, 'estName': est?.name ?? 'Venue', 'imageUrl': est?.imageUrl ?? ''}))),
                     ],
                   ),
-                  const Gap(20),
-                  const Text('Active Deals', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A))),
-                  const Gap(10),
-                  const _DealCard(
-                    label: 'Free Appetizer',
-                    description: 'Free appetizer with any entree purchase',
-                    points: 800,
+                  // Active Deals — shown only when the venue has active deals.
+                  ...dealsAsync.maybeWhen(
+                    data: (deals) => deals.isEmpty
+                        ? <Widget>[]
+                        : <Widget>[
+                            const Gap(20),
+                            const Text('Active Deals', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A))),
+                            const Gap(10),
+                            for (final d in deals) ...[
+                              _DealCard(
+                                label: d.title,
+                                description: d.description,
+                                points: d.pointCost,
+                                onTap: () => context.push('/deal/detail', extra: d),
+                              ),
+                              const Gap(8),
+                            ],
+                          ],
+                    orElse: () => <Widget>[],
                   ),
+                  // Menu — grouped by category; hidden when empty.
+                  ...menuAsync.maybeWhen(
+                    data: (items) => items.isEmpty
+                        ? <Widget>[]
+                        : <Widget>[
+                            const Gap(20),
+                            const Text('Menu', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A))),
+                            const Gap(10),
+                            ..._buildMenuCategories(items),
+                          ],
+                    orElse: () => <Widget>[],
+                  ),
+                  // Location section — only once the venue has loaded.
+                  if (est != null) ...[
+                    const Gap(20),
+                    const Text('Location', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A))),
+                    const Gap(10),
+                    _LocationCard(est: est),
+                  ],
                   const Gap(20),
                   const Text('Recent Reviews', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A))),
                   const Gap(10),
@@ -228,6 +395,126 @@ class _EstablishmentScreenState extends ConsumerState<EstablishmentScreen> {
   }
 }
 
+class _LocationCard extends StatelessWidget {
+  final Establishment? est;
+  const _LocationCard({required this.est});
+
+  Future<void> _openMaps() async {
+    final Uri uri;
+    if (est != null && est!.lat != null && est!.lng != null) {
+      uri = Uri.parse(
+        'https://www.google.com/maps/search/?api=1&query=${est!.lat},${est!.lng}',
+      );
+    } else {
+      final query = Uri.encodeComponent('${est?.name ?? ''} ${est?.area ?? ''}');
+      uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
+    }
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      // Silently fail — no Maps key required, best-effort.
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final area = est?.area ?? '';
+    final address = est?.address ?? '';
+    final lat = est?.lat;
+    final lng = est?.lng;
+    final hasCoords = lat != null && lng != null;
+
+    return Container(
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Embedded OSM map — only when coordinates are available.
+          if (hasCoords) ...[
+            SizedBox(
+              height: 160,
+              child: FlutterMap(
+                options: MapOptions(
+                  initialCenter: LatLng(lat, lng),
+                  initialZoom: 15.0,
+                  interactionOptions: const InteractionOptions(
+                    flags: InteractiveFlag.pinchZoom | InteractiveFlag.drag,
+                  ),
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'com.zupurb.app',
+                    maxNativeZoom: 19,
+                  ),
+                  MarkerLayer(
+                    markers: [
+                      Marker(
+                        point: LatLng(lat, lng),
+                        width: 36,
+                        height: 36,
+                        child: const DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(Icons.location_on, color: Colors.white, size: 22),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const ExcludeSemantics(child: Icon(Icons.location_on_outlined, size: 16, color: AppColors.primary)),
+                    const Gap(6),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (area.isNotEmpty)
+                            Text(area, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1A1A1A))),
+                          if (address.isNotEmpty)
+                            Text(address, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const Gap(12),
+                GestureDetector(
+                  onTap: _openMaps,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        'Open in Maps',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _InfoChip extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -255,13 +542,14 @@ class _DealCard extends StatelessWidget {
   final String label;
   final String description;
   final int points;
+  final VoidCallback? onTap;
 
-  const _DealCard({required this.label, required this.description, required this.points});
+  const _DealCard({required this.label, required this.description, required this.points, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Deal details coming soon'), duration: Duration(seconds: 2))),
+      onTap: onTap ?? () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Deal details coming soon'), duration: Duration(seconds: 2))),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),

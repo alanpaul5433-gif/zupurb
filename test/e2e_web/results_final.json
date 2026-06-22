@@ -1,0 +1,77 @@
+{
+  "results": [
+    {
+      "id": "LOGIN",
+      "status": "PASS",
+      "desc": "Try Demo authenticated — URL: https://zupurb-dev.web.app/#/home"
+    },
+    {
+      "id": "HOME-LOAD",
+      "status": "PARTIAL",
+      "desc": "Home loaded but semantic tree thin",
+      "detail": "0 nodes"
+    },
+    {
+      "id": "HOME-TABS",
+      "status": "PARTIAL",
+      "desc": "Tab bar buttons not found",
+      "detail": "0 buttons at y=130-175"
+    },
+    {
+      "id": "HOME-CARDS",
+      "status": "PARTIAL",
+      "desc": "Review cards not found in semantic tree",
+      "detail": ""
+    },
+    {
+      "id": "F8",
+      "status": "FAIL",
+      "desc": "Review card body tap did not navigate to establishment",
+      "detail": "Nodes: 0→0",
+      "severity": "P1"
+    },
+    {
+      "id": "F7",
+      "status": "PARTIAL",
+      "desc": "Only 0 action buttons found at y=748-790",
+      "detail": "Like/dislike may be visual-only"
+    },
+    {
+      "id": "HOME-NOTIF",
+      "status": "PARTIAL",
+      "desc": "Bell button not found in top-right",
+      "detail": ""
+    },
+    {
+      "id": "SEARCH-LOAD",
+      "status": "PARTIAL",
+      "desc": "Search sparse",
+      "detail": "0 nodes"
+    },
+    {
+      "id": "F2",
+      "status": "FAIL",
+      "desc": "Search input has no textbox role and text typing has no effect",
+      "detail": "",
+      "severity": "P1"
+    },
+    {
+      "id": "SEARCH-FILTERS",
+      "status": "PARTIAL",
+      "desc": "No switch-role filter controls found",
+      "detail": ""
+    }
+  ],
+  "consoleErrors": [
+    "PAGE_ERROR: Error",
+    "PAGE_ERROR: Error",
+    "Access to XMLHttpRequest at 'https://randomuser.me/api/portraits/women/44.jpg' from origin 'https://zupurb-dev.web.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+    "Failed to load resource: net::ERR_FAILED"
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 2,
+    "partial": 7,
+    "total": 10
+  }
+}

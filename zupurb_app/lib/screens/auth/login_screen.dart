@@ -62,7 +62,11 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _onTryDemo() async {
     setState(() => _demoLoading = true);
     try {
-      await AuthService().signInAnonymously();
+      // Sign in as the seeded demo account (Ava) for a fully-populated
+      // experience. Anonymous auth is intentionally not used — an anonymous
+      // user would have no profile/points/reviews and the app would look empty.
+      await AuthService()
+          .signInWithEmailAndPassword('ava@zupurbdemo.app', 'Zupurb#Demo1');
       // Auth state listener in the router handles navigation — no push needed.
     } catch (_) {
       if (mounted) {

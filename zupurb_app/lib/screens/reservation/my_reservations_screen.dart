@@ -1,33 +1,49 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import '../../models/reservation.dart';
+import '../../state/reservations/reservations_provider.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
-import '../../widgets/app_button.dart';
 
-class MyReservationsScreen extends StatefulWidget {
+class MyReservationsScreen extends ConsumerStatefulWidget {
   const MyReservationsScreen({super.key});
 
   @override
-  State<MyReservationsScreen> createState() => _MyReservationsScreenState();
+  ConsumerState<MyReservationsScreen> createState() => _MyReservationsScreenState();
 }
 
-class _MyReservationsScreenState extends State<MyReservationsScreen> {
+class _MyReservationsScreenState extends ConsumerState<MyReservationsScreen> {
+  static const _months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   int _tab = 0;
   final _tabs = ['Upcoming', 'Past', 'Cancelled'];
 
+  List<Reservation> _filter(List<Reservation> all) {
+    switch (_tab) {
+      case 2: // Cancelled
+        return all.where((r) => r.isCancelled).toList();
+      case 1: // Past
+        return all.where((r) => !r.isCancelled && !r.isUpcoming).toList();
+      default: // Upcoming
+        return all.where((r) => r.isUpcoming).toList();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final async = ref.watch(myReservationsProvider);
     return Scaffold(
       backgroundColor: const Color(0xFFF5F0ED),
       appBar: AppBar(
-        leading: IconButton(onPressed: () => context.pop(), icon: const Icon(Icons.arrow_back_ios, size: 20, color: AppColors.primary)),
+        leading: IconButton(onPressed: () => context.canPop() ? context.pop() : context.go('/home'), icon: const Icon(Icons.arrow_back_ios, size: 20, color: AppColors.primary)),
         title: const Text('My Reservations'),
         backgroundColor: const Color(0xFFF5F0ED),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push('/reservation/slots'),
+        onPressed: () => context.push('/discover'),
         backgroundColor: AppColors.primary,
+        tooltip: 'Find a venue to book',
         child: const Icon(Icons.add, color: Colors.white),
       ),
       body: Column(
@@ -52,72 +68,23 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
           ),
           const Gap(16),
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: AppDimens.screenPadding),
-              children: [
-                _ReservationCard(
-                  status: 'Confirmed',
-                  statusColor: AppColors.success,
-                  name: 'The Social Lounge',
-                  date: 'Oct 24, 2026',
-                  time: '08:30 PM',
-                  guests: '4 People',
-                  imageUrl: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800',
-                  onViewPass: () => context.push('/reservation/pass'),
-                ),
-                const Gap(16),
-                // P1-17: "Requested" removed — instant-confirm flow (R5.3)
-                _ReservationCard(
-                  status: 'Upcoming',
-                  statusColor: AppColors.primary,
-                  name: 'Havana Social Club',
-                  date: 'Oct 24, 2026',
-                  time: '08:30 PM',
-                  guests: '2 People',
-                  imageUrl: 'https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=800',
-                  onViewPass: () => context.push('/reservation/pass'),
-                  showCancel: true,
-                ),
-                const Gap(20),
-                const Text('Nearby Venues', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A))),
-                const Gap(12),
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-                  child: Row(
-                    children: [
-                      CircleAvatar(radius: 22, backgroundImage: NetworkImage('https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=100')),
-                      const Gap(10),
-                      const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('The Artisan Kitchen', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                        Text('Oct 12 · 8 Guests · Completed', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                      ])),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(6)),
-                        child: const Text('+450 pts', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary)),
-                      ),
-                    ],
-                  ),
-                ),
-                const Gap(24),
-                Container(
-                  height: 100,
-                  decoration: BoxDecoration(color: const Color(0xFFF0EAE5), borderRadius: BorderRadius.circular(16)),
-                  child: const Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.calendar_today_outlined, color: AppColors.textTertiary, size: 28),
-                      Gap(8),
-                      Text('Looking For Something Else?', style: TextStyle(fontSize: 13, color: AppColors.textTertiary)),
-                      Text('Explore New Hotspots', style: TextStyle(fontSize: 13, color: AppColors.primary, fontWeight: FontWeight.w600)),
-                    ],
-                  ),
-                ),
-                const Gap(24),
-                AppButton(label: 'Save & Continue', onTap: () => context.go('/home')),
-                const Gap(32),
-              ],
+            child: async.when(
+              loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+              error: (e, _) => _Empty(icon: Icons.error_outline, title: 'Could not load reservations', subtitle: 'Pull to retry.', onRetry: () => ref.invalidate(myReservationsProvider)),
+              data: (all) {
+                final items = _filter(all);
+                return RefreshIndicator(
+                  onRefresh: () async => ref.invalidate(myReservationsProvider),
+                  child: items.isEmpty
+                      ? ListView(children: const [Gap(80), _Empty(icon: Icons.event_busy, title: 'No reservations here', subtitle: 'Book a table from a venue page to see it here.')])
+                      : ListView.separated(
+                          padding: const EdgeInsets.symmetric(horizontal: AppDimens.screenPadding),
+                          itemCount: items.length,
+                          separatorBuilder: (_, __) => const Gap(12),
+                          itemBuilder: (_, i) => _ReservationCard(r: items[i], months: _months),
+                        ),
+                );
+              },
             ),
           ),
         ],
@@ -126,97 +93,98 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
   }
 }
 
-class _ReservationCard extends StatelessWidget {
-  final String status;
-  final Color statusColor;
-  final String name;
-  final String date;
-  final String time;
-  final String guests;
-  final String imageUrl;
-  final VoidCallback onViewPass;
-  final bool showCancel;
-
-  const _ReservationCard({
-    required this.status,
-    required this.statusColor,
-    required this.name,
-    required this.date,
-    required this.time,
-    required this.guests,
-    required this.imageUrl,
-    required this.onViewPass,
-    this.showCancel = false,
-  });
+class _Empty extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback? onRetry;
+  const _Empty({required this.icon, required this.title, required this.subtitle, this.onRetry});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                child: Image.network(imageUrl, height: 140, width: double.infinity, fit: BoxFit.cover),
-              ),
-              Positioned(
-                top: 10,
-                left: 10,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.9), borderRadius: BorderRadius.circular(6)),
-                  child: Text(status, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
-                ),
-              ),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 44, color: AppColors.textTertiary),
+            const Gap(12),
+            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            const Gap(4),
+            Text(subtitle, textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+            if (onRetry != null) ...[
+              const Gap(12),
+              TextButton(onPressed: onRetry, child: const Text('Retry')),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReservationCard extends StatelessWidget {
+  final Reservation r;
+  final List<String> months;
+  const _ReservationCard({required this.r, required this.months});
+
+  (Color, String) get _statusStyle {
+    switch (r.status) {
+      case 'confirmed':
+        return (AppColors.success, 'Confirmed');
+      case 'checked_in':
+        return (AppColors.primary, 'Checked In');
+      case 'completed':
+        return (AppColors.textSecondary, 'Completed');
+      case 'no_show':
+        return (AppColors.error, 'No Show');
+      case 'cancelled':
+        return (AppColors.error, 'Cancelled');
+      default:
+        return (AppColors.textSecondary, r.status);
+    }
+  }
+
+  String _when() {
+    final dt = r.scheduledAt;
+    if (dt == null) return '';
+    final h = dt.hour == 0 ? 12 : (dt.hour > 12 ? dt.hour - 12 : dt.hour);
+    final ampm = dt.hour >= 12 ? 'PM' : 'AM';
+    final mm = dt.minute.toString().padLeft(2, '0');
+    return '${months[dt.month]} ${dt.day} · $h:$mm $ampm';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final (color, label) = _statusStyle;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(12)),
+            child: const Icon(Icons.event_available, color: AppColors.primary),
           ),
-          Padding(
-            padding: const EdgeInsets.all(14),
+          const Gap(12),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                const Gap(6),
-                Row(children: [
-                  const Text('DATE', style: TextStyle(fontSize: 10, color: AppColors.textTertiary, fontWeight: FontWeight.w600)),
-                  const Gap(12),
-                  const Text('TIME', style: TextStyle(fontSize: 10, color: AppColors.textTertiary, fontWeight: FontWeight.w600)),
-                  const Gap(12),
-                  const Text('GUEST', style: TextStyle(fontSize: 10, color: AppColors.textTertiary, fontWeight: FontWeight.w600)),
-                ]),
+                Text(r.estName, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
                 const Gap(2),
-                Row(children: [
-                  Text(date, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-                  const Gap(12),
-                  Text(time, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-                  const Gap(12),
-                  Text(guests, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-                ]),
-                const Gap(10),
-                Row(
-                  children: [
-                    Expanded(child: ElevatedButton(
-                      onPressed: onViewPass,
-                      style: ElevatedButton.styleFrom(minimumSize: const Size(0, 42), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100))),
-                      child: const Text('View Pass'),
-                    )),
-                    const Gap(10),
-                    if (showCancel)
-                      Container(
-                        width: 42,
-                        height: 42,
-                        decoration: BoxDecoration(color: AppColors.primaryLight, shape: BoxShape.circle),
-                        child: const Icon(Icons.close, color: AppColors.primary, size: 18),
-                      )
-                    else
-                      const Icon(Icons.more_horiz, color: AppColors.textTertiary),
-                  ],
-                ),
+                Text('${_when()} · ${r.partySize} ${r.partySize == 1 ? 'guest' : 'guests'}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
               ],
             ),
+          ),
+          const Gap(8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(6)),
+            child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
           ),
         ],
       ),

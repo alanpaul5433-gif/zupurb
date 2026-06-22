@@ -48,7 +48,9 @@ const GetReservationsSchema = z.object({
 // ---------------------------------------------------------------------------
 
 export const getReservations = onCall(
-  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: true },
+  // enforceAppCheck temporarily relaxed for web/demo testing (auth still required).
+  // TODO BUG-SEC-04: re-enable + configure web reCAPTCHA before production.
+  { region: "us-central1", memory: "256MiB", timeoutSeconds: 60, enforceAppCheck: false },
   async (request) => {
   const traceId = newTraceId();
 

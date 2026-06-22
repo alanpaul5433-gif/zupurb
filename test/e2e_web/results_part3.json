@@ -1,0 +1,76 @@
+{
+  "results": [
+    {
+      "id": "MESSAGES-LOAD",
+      "s": "PASS",
+      "d": "Messages loaded (26 nodes)"
+    },
+    {
+      "id": "F9-MESSAGES",
+      "s": "FAIL",
+      "d": "Conv tap did not open chat",
+      "det": "URL:https://zupurb-dev.web.app/#/messages nodes:26 vs 26",
+      "sev": "P1"
+    },
+    {
+      "id": "EST-LOAD",
+      "s": "FAIL",
+      "d": "Establishment not reached via Discover",
+      "det": "                                ",
+      "sev": "P1"
+    },
+    {
+      "id": "REVIEW-VERIFY",
+      "s": "FAIL",
+      "d": "Verify Visit not loaded after Write Review tap",
+      "det": "                   ",
+      "sev": "P1"
+    },
+    {
+      "id": "SETTINGS-LOAD",
+      "s": "PASS",
+      "d": "Settings loaded (30 nodes)"
+    },
+    {
+      "id": "F10-PERSONAL",
+      "s": "PARTIAL",
+      "d": "Personal Info btn not found in:        plus          push notifications  marketing alerts          ",
+      "det": ""
+    },
+    {
+      "id": "F10-EMAIL",
+      "s": "PARTIAL",
+      "d": "Email Prefs btn not found",
+      "det": ""
+    },
+    {
+      "id": "SETTINGS-PRIVACY",
+      "s": "PARTIAL",
+      "d": "Privacy btn not found",
+      "det": ""
+    },
+    {
+      "id": "F10-DELETE",
+      "s": "FAIL",
+      "d": "Delete Account btn not found",
+      "det": "       plus          push notifications  marketing alerts          ",
+      "sev": "P1"
+    },
+    {
+      "id": "SETTINGS-LOGOUT",
+      "s": "PARTIAL",
+      "d": "Logout not found by label, checking position...",
+      "det": ""
+    }
+  ],
+  "errors": [
+    "PE:Error",
+    "PE:Error",
+    "PE:Error",
+    "PE:Error",
+    "PE:Error",
+    "PE:Error",
+    "PE:Error",
+    "PE:Error"
+  ]
+}

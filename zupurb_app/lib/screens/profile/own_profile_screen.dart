@@ -5,6 +5,12 @@ import 'package:go_router/go_router.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../state/user/user_profile_provider.dart';
+import '../../state/auth/auth_providers.dart';
+import '../../state/reviews/reviews_provider.dart';
+import '../../state/posts/posts_provider.dart';
+import '../../models/review.dart';
+import '../../widgets/entity_detail_sheet.dart';
+import '../../widgets/score_badge.dart';
 
 class OwnProfileScreen extends ConsumerStatefulWidget {
   const OwnProfileScreen({super.key});
@@ -15,7 +21,7 @@ class OwnProfileScreen extends ConsumerStatefulWidget {
 
 class _OwnProfileScreenState extends ConsumerState<OwnProfileScreen> {
   int _tab = 0;
-  final _tabs = ['Posts', 'Reels', 'Reviews', 'Places Visited'];
+  final _tabs = ['Posts', 'Reviews', 'Places Visited'];
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +96,7 @@ class _OwnProfileScreenState extends ConsumerState<OwnProfileScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       OutlinedButton(
-                        onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Edit profile coming soon'), duration: Duration(seconds: 2))),
+                        onPressed: () => context.push('/profile/edit'),
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size(110, 38),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
@@ -109,6 +115,36 @@ class _OwnProfileScreenState extends ConsumerState<OwnProfileScreen> {
                         child: const Text('Settings', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
                       ),
                     ],
+                  ),
+                  const Gap(12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => context.push('/favourites'),
+                      child: Row(children: const [
+                        Icon(Icons.favorite, color: AppColors.primary, size: 20),
+                        Gap(10),
+                        Text('Favourites', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                        Spacer(),
+                        Icon(Icons.chevron_right, color: AppColors.textTertiary),
+                      ]),
+                    ),
+                  ),
+                  const Gap(12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => context.push('/preferences'),
+                      child: Row(children: const [
+                        Icon(Icons.tune, color: AppColors.primary, size: 20),
+                        Gap(10),
+                        Text('Preferences', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                        Spacer(),
+                        Icon(Icons.chevron_right, color: AppColors.textTertiary),
+                      ]),
+                    ),
                   ),
                   const Gap(16),
                   Row(
@@ -179,26 +215,196 @@ class _OwnProfileScreenState extends ConsumerState<OwnProfileScreen> {
                 ],
               ),
             ),
-            SliverPadding(
-              padding: const EdgeInsets.all(2),
-              sliver: SliverGrid(
-                delegate: SliverChildBuilderDelegate((ctx, i) {
-                  final urls = [
-                    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300',
-                    'https://images.unsplash.com/photo-1600180758890-6b94519a8ba6?w=300',
-                    'https://images.unsplash.com/photo-1566004100631-35d015d6a491?w=300',
-                    'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=300',
-                    'https://images.unsplash.com/photo-1519125323398-675f0ddb6308?w=300',
-                    'https://images.unsplash.com/photo-1499856374892-fecaac17a44e?w=300',
-                    'https://images.unsplash.com/photo-1600180758890-6b94519a8ba6?w=300',
-                    'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=300',
-                    'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=300',
-                  ];
-                  return Image.network(urls[i % urls.length], fit: BoxFit.cover);
-                }, childCount: 9),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 2, mainAxisSpacing: 2),
+            _buildTabSliver(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTabSliver() {
+    // Tab 0 = Posts (3-column image grid from postsByAuthorProvider).
+    if (_tab == 0) {
+      final uid = ref.watch(currentUidProvider);
+      if (uid == null) {
+        return SliverToBoxAdapter(child: _OwnEmptyTab(label: 'Posts'));
+      }
+      final postsAsync = ref.watch(postsByAuthorProvider(uid));
+      return postsAsync.when(
+        loading: () => const SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 40),
+            child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+          ),
+        ),
+        error: (e, _) => SliverToBoxAdapter(child: _OwnEmptyTab(label: 'Posts')),
+        data: (posts) {
+          if (posts.isEmpty) {
+            return SliverToBoxAdapter(child: _OwnEmptyTab(label: 'Posts'));
+          }
+          final capped = posts.length > 30 ? posts.sublist(0, 30) : posts;
+          return SliverPadding(
+            padding: const EdgeInsets.all(2),
+            sliver: SliverGrid(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                mainAxisSpacing: 2,
+                crossAxisSpacing: 2,
+              ),
+              delegate: SliverChildBuilderDelegate(
+                (ctx, i) {
+                  final post = capped[i];
+                  return GestureDetector(
+                    onTap: () => showEntityDetailSheet(
+                      ctx,
+                      imageUrl: post.imageUrl,
+                      title: post.authorName,
+                      subtitle: post.venueName,
+                      body: post.caption,
+                      footer: '♥ ${post.likes} likes',
+                    ),
+                    child: post.imageUrl.isNotEmpty
+                        ? Image.network(
+                            post.imageUrl,
+                            fit: BoxFit.cover,
+                            loadingBuilder: (c, child, progress) => progress == null
+                                ? child
+                                : Container(color: AppColors.border),
+                            errorBuilder: (c, e, s) =>
+                                Container(color: AppColors.border),
+                          )
+                        : Container(color: AppColors.border),
+                  );
+                },
+                childCount: capped.length,
               ),
             ),
+          );
+        },
+      );
+    }
+
+    // Tab 1 = Reviews, tab 2 = Places Visited (both from the user's reviews).
+    final uid = ref.watch(currentUidProvider);
+    if (uid == null) return SliverToBoxAdapter(child: _OwnEmptyTab(label: _tabs[_tab])); // reviews/places fallback
+    final async = ref.watch(reviewsByAuthorProvider(uid));
+    return async.when(
+      loading: () => const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.symmetric(vertical: 40), child: Center(child: CircularProgressIndicator(color: AppColors.primary)))),
+      error: (e, _) => SliverToBoxAdapter(child: _OwnEmptyTab(label: _tabs[_tab])),
+      data: (reviews) {
+        if (reviews.isEmpty) return SliverToBoxAdapter(child: _OwnEmptyTab(label: _tabs[_tab]));
+        if (_tab == 2) {
+          // Places Visited — unique venues from the user's reviews.
+          final seen = <String>{};
+          final places = <Review>[];
+          for (final r in reviews) {
+            if (r.estId.isNotEmpty && seen.add(r.estId)) places.add(r);
+          }
+          return SliverPadding(
+            padding: const EdgeInsets.all(16),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (ctx, i) => Padding(padding: const EdgeInsets.only(bottom: 12), child: _PlaceVisitedCard(review: places[i])),
+                childCount: places.length,
+              ),
+            ),
+          );
+        }
+        return SliverPadding(
+          padding: const EdgeInsets.all(16),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (ctx, i) => Padding(padding: const EdgeInsets.only(bottom: 12), child: _OwnReviewCard(review: reviews[i])),
+              childCount: reviews.length,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _PlaceVisitedCard extends StatelessWidget {
+  final Review review;
+  const _PlaceVisitedCard({required this.review});
+
+  @override
+  Widget build(BuildContext context) {
+    final r = review;
+    return GestureDetector(
+      onTap: () => context.push('/establishment/${r.estId}'),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: (r.photoUrls.isNotEmpty)
+                  ? Image.network(r.photoUrls.first, width: 52, height: 52, fit: BoxFit.cover, errorBuilder: (c, e, s) => Container(width: 52, height: 52, color: AppColors.border, child: const Icon(Icons.place, color: AppColors.textTertiary)))
+                  : Container(width: 52, height: 52, color: AppColors.primaryLight, child: const Icon(Icons.place, color: AppColors.primary)),
+            ),
+            const Gap(12),
+            Expanded(child: Text(r.venueLabel, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A)), maxLines: 1, overflow: TextOverflow.ellipsis)),
+            const Gap(8),
+            ScoreBadge(score: r.score),
+            const Gap(6),
+            const Icon(Icons.chevron_right, color: AppColors.textTertiary),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OwnEmptyTab extends StatelessWidget {
+  final String label;
+  const _OwnEmptyTab({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        children: [
+          const Icon(Icons.inbox_outlined, size: 36, color: AppColors.textTertiary),
+          const Gap(8),
+          Text('No $label yet', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+          const Gap(2),
+          Text(label == 'Reviews' ? 'Reviews you write will appear here.' : 'Nothing here yet.',
+              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+        ],
+      ),
+    );
+  }
+}
+
+class _OwnReviewCard extends StatelessWidget {
+  final Review review;
+  const _OwnReviewCard({required this.review});
+
+  @override
+  Widget build(BuildContext context) {
+    final r = review;
+    return GestureDetector(
+      onTap: () => context.push('/review/detail', extra: r),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(child: Text(r.venueLabel, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A)), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                const Gap(8),
+                ScoreBadge(score: r.score),
+              ],
+            ),
+            if (r.text.isNotEmpty) ...[
+              const Gap(8),
+              Text(r.text, style: const TextStyle(fontSize: 13, color: Color(0xFF444444), height: 1.4), maxLines: 3, overflow: TextOverflow.ellipsis),
+            ],
           ],
         ),
       ),

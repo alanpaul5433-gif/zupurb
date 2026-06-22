@@ -1,21 +1,33 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import '../../state/onboarding/onboarding_draft_provider.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../widgets/app_button.dart';
 
-class OnboardingStep2Screen extends StatefulWidget {
+class OnboardingStep2Screen extends ConsumerStatefulWidget {
   const OnboardingStep2Screen({super.key});
 
   @override
-  State<OnboardingStep2Screen> createState() => _OnboardingStep2ScreenState();
+  ConsumerState<OnboardingStep2Screen> createState() => _OnboardingStep2ScreenState();
 }
 
-class _OnboardingStep2ScreenState extends State<OnboardingStep2Screen> {
+class _OnboardingStep2ScreenState extends ConsumerState<OnboardingStep2Screen> {
   double _age = 18;
   String _gender = 'Man';
   final _genders = ['Man', 'Woman', 'Non-binary', 'Genderqueer', 'Agender', 'Other'];
+
+  @override
+  void initState() {
+    super.initState();
+    final draft = ref.read(onboardingDraftProvider);
+    if (draft.age != null) _age = draft.age!.toDouble();
+    if (draft.gender != null) _gender = draft.gender!;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -129,7 +141,7 @@ class _OnboardingStep2ScreenState extends State<OnboardingStep2Screen> {
                     ),
                   ],
                   const Gap(12),
-                  AppButton(label: 'Continue', onTap: _age < 18 ? null : () => context.go('/onboarding/3')),
+                  AppButton(label: 'Continue', onTap: _age < 18 ? null : _onContinue),
                 ],
               ),
             ),
@@ -137,6 +149,27 @@ class _OnboardingStep2ScreenState extends State<OnboardingStep2Screen> {
         ),
       ),
     );
+  }
+
+  Future<void> _onContinue() async {
+    // Write to shared draft
+    ref.read(onboardingDraftProvider.notifier).setAge(_age.toInt());
+    ref.read(onboardingDraftProvider.notifier).setGender(_gender);
+
+    // Existing direct Firestore write (non-fatal)
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      try {
+        await FirebaseFirestore.instance.doc('users/$uid').set({
+          'age': _age.toInt(),
+          'gender': _gender,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      } catch (_) {
+        // Non-fatal — proceed regardless
+      }
+    }
+    if (mounted) context.go('/onboarding/3');
   }
 
   Widget _buildProgress() {

@@ -26,14 +26,25 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
+  bool _sending = false;
+
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || _sending || _isDemo) return;
     _messageController.clear();
+    setState(() => _sending = true);
     try {
       await DirectChatService().sendMessage(widget.conversationId, text);
     } catch (_) {
-      // ignore for demo
+      // Restore the text so the user doesn't lose it, and surface the failure.
+      _messageController.text = text;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not send. Try again.'), duration: Duration(seconds: 2)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _sending = false);
     }
   }
 
@@ -131,6 +142,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 const Gap(10),
                 Expanded(child: TextField(
                   controller: _messageController,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (_) => _sendMessage(),
                   decoration: const InputDecoration(
                     hintText: 'Type here...',
                     hintStyle: TextStyle(color: AppColors.textTertiary, fontSize: 14),

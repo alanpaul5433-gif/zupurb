@@ -84,11 +84,11 @@ Widget _providerWrap(Widget screen, {List<Override> overrides = const []}) {
 const _fakeReview = Review(
   id: 'r1',
   estId: '1',
+  estName: 'Test Venue',
   authorName: 'Test Reviewer',
   authorPhotoUrl: '',
   score: 4.2,
   text: 'Great spot with excellent service.',
-  aiSummary: '',
   verificationTier: 'Verified',
   helpfulVotes: 3,
 );

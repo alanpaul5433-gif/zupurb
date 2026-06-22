@@ -6,33 +6,78 @@ import '../../theme/dimens.dart';
 import '../../widgets/app_button.dart';
 
 class TimeSlotScreen extends StatefulWidget {
-  const TimeSlotScreen({super.key});
+  final Map<String, dynamic> args;
+  const TimeSlotScreen({super.key, this.args = const {}});
 
   @override
   State<TimeSlotScreen> createState() => _TimeSlotScreenState();
 }
 
 class _TimeSlotScreenState extends State<TimeSlotScreen> {
+  static const _weekdays = ['', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+  static const _months = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  // (label, hour24, minute)
+  static const _timeSlots = [
+    ('5:30 PM', 17, 30), ('6:00 PM', 18, 0), ('7:00 PM', 19, 0),
+    ('7:30 PM', 19, 30), ('8:00 PM', 20, 0), ('9:30 PM', 21, 30),
+  ];
+
   int _party = 4;
   int _dayIndex = 0;
-  String _selectedSlot = '7:30 PM';
+  int _slotIndex = 3;
+  late final List<DateTime> _days;
 
-  final _days = [
-    ('MON', '23'), ('TUE', '24'), ('WED', '25'), ('THU', '26'), ('SAT', '28'), ('FR', '27'),
-  ];
+  String get _estId => (widget.args['estId'] ?? '').toString();
+  String get _estName => (widget.args['estName'] ?? 'Reserve a table').toString();
+  String get _imageUrl => (widget.args['imageUrl'] ?? '').toString();
 
-  final _slots = [
-    ('5:30 PM', 30, true), ('6:00 PM', 30, true), ('7:00 PM', 10, true),
-    ('7:30 PM', 10, false), ('8:00 PM', 10, false), ('9:30 PM', 30, true),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    final today = DateTime.now();
+    final base = DateTime(today.year, today.month, today.day);
+    _days = List.generate(14, (i) => base.add(Duration(days: i)));
+  }
+
+  DateTime get _scheduledAt {
+    final d = _days[_dayIndex];
+    final s = _timeSlots[_slotIndex];
+    return DateTime(d.year, d.month, d.day, s.$2, s.$3);
+  }
+
+  void _continue() {
+    final at = _scheduledAt;
+    if (at.isBefore(DateTime.now().add(const Duration(hours: 1)))) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please pick a time at least 1 hour from now.'), duration: Duration(seconds: 2)),
+      );
+      return;
+    }
+    if (_estId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Open this from a venue to make a reservation.')),
+      );
+      return;
+    }
+    context.push('/reservation/confirm', extra: {
+      'estId': _estId,
+      'estName': _estName,
+      'imageUrl': _imageUrl,
+      'partySize': _party,
+      'scheduledAtIso': at.toUtc().toIso8601String(),
+      'slotLabel': _timeSlots[_slotIndex].$1,
+      'dayLabel': '${_weekdays[_days[_dayIndex].weekday]} ${_days[_dayIndex].day}',
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final monthLabel = '${_months[_days[_dayIndex].month]} ${_days[_dayIndex].year}';
     return Scaffold(
       backgroundColor: const Color(0xFFF5F0ED),
       appBar: AppBar(
         leading: IconButton(onPressed: () => context.pop(), icon: const Icon(Icons.arrow_back_ios, size: 20, color: AppColors.textPrimary)),
-        title: const Text('The Social Lounge', style: TextStyle(color: AppColors.primary)),
+        title: Text(_estName, style: const TextStyle(color: AppColors.primary)),
         backgroundColor: const Color(0xFFF5F0ED),
       ),
       body: Column(
@@ -43,11 +88,11 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> {
                 children: [
                   Container(
                     height: 160,
-                    decoration: const BoxDecoration(
-                      image: DecorationImage(
-                        image: NetworkImage('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800'),
-                        fit: BoxFit.cover,
-                      ),
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      image: _imageUrl.isNotEmpty
+                          ? DecorationImage(image: NetworkImage(_imageUrl), fit: BoxFit.cover)
+                          : null,
                     ),
                     child: Container(
                       decoration: BoxDecoration(
@@ -55,12 +100,12 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> {
                       ),
                       padding: const EdgeInsets.all(14),
                       alignment: Alignment.bottomLeft,
-                      child: const Column(
+                      child: Column(
                         mainAxisAlignment: MainAxisAlignment.end,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('TRENDING NEARBY', style: TextStyle(fontSize: 9, color: Colors.white70, letterSpacing: 0.5)),
-                          Text('The Espresso Lab', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
+                          const Text('RESERVE A TABLE', style: TextStyle(fontSize: 9, color: Colors.white70, letterSpacing: 0.5)),
+                          Text(_estName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
                         ],
                       ),
                     ),
@@ -95,7 +140,7 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> {
                               label: 'Increase party size',
                               button: true,
                               child: GestureDetector(
-                                onTap: () => setState(() => _party++),
+                                onTap: () => setState(() { if (_party < 20) _party++; }),
                                 child: const SizedBox(
                                   width: 44,
                                   height: 44,
@@ -111,8 +156,8 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('Establishment Type', style: TextStyle(fontSize: 13, color: AppColors.primary, fontWeight: FontWeight.w500)),
-                            const Text('October 2026', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                            const Text('Select Date', style: TextStyle(fontSize: 13, color: AppColors.primary, fontWeight: FontWeight.w500)),
+                            Text(monthLabel, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
                           ],
                         ),
                         const Gap(12),
@@ -132,9 +177,9 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> {
                                 ),
                                 child: Column(
                                   children: [
-                                    Text(e.value.$1, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: _dayIndex == e.key ? Colors.white : AppColors.textSecondary)),
+                                    Text(_weekdays[e.value.weekday], style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: _dayIndex == e.key ? Colors.white : AppColors.textSecondary)),
                                     const Gap(2),
-                                    Text(e.value.$2, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _dayIndex == e.key ? Colors.white : AppColors.textPrimary)),
+                                    Text('${e.value.day}', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _dayIndex == e.key ? Colors.white : AppColors.textPrimary)),
                                   ],
                                 ),
                               ),
@@ -142,19 +187,7 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> {
                           ),
                         ),
                         const Gap(16),
-                        const Row(
-                          children: [
-                            Text('Select Time', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                            Spacer(),
-                            Icon(Icons.circle, size: 8, color: AppColors.success),
-                            Gap(4),
-                            Text('30 pts', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                            Gap(10),
-                            Icon(Icons.circle, size: 8, color: AppColors.textTertiary),
-                            Gap(4),
-                            Text('10 pts', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                          ],
-                        ),
+                        const Text('Select Time', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                         const Gap(10),
                         GridView.count(
                           shrinkWrap: true,
@@ -162,32 +195,22 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> {
                           crossAxisCount: 3,
                           mainAxisSpacing: 10,
                           crossAxisSpacing: 10,
-                          childAspectRatio: 2.2,
-                          children: _slots.map((s) => GestureDetector(
-                            onTap: () => setState(() => _selectedSlot = s.$1),
-                            child: Container(
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: _selectedSlot == s.$1 ? AppColors.primary : AppColors.border, width: _selectedSlot == s.$1 ? 1.5 : 1),
+                          childAspectRatio: 2.6,
+                          children: _timeSlots.asMap().entries.map((e) {
+                            final sel = _slotIndex == e.key;
+                            return GestureDetector(
+                              onTap: () => setState(() => _slotIndex = e.key),
+                              child: Container(
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: sel ? AppColors.primary : AppColors.border, width: sel ? 1.5 : 1),
+                                ),
+                                child: Text(e.value.$1, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: sel ? AppColors.primary : AppColors.textPrimary)),
                               ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(s.$1, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _selectedSlot == s.$1 ? AppColors.primary : AppColors.textPrimary)),
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.add_circle_outline, size: 10, color: s.$3 ? AppColors.success : AppColors.textTertiary),
-                                      const Gap(2),
-                                      Text('${s.$2} PTS', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: s.$3 ? AppColors.success : AppColors.textTertiary)),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          )).toList(),
+                            );
+                          }).toList(),
                         ),
                       ],
                     ),
@@ -198,7 +221,7 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> {
           ),
           Padding(
             padding: const EdgeInsets.all(AppDimens.screenPadding),
-            child: AppButton(label: 'Save & Continue', onTap: () => context.push('/reservation/confirm')),
+            child: AppButton(label: 'Save & Continue', onTap: _continue),
           ),
         ],
       ),

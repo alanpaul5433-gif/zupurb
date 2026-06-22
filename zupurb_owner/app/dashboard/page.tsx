@@ -17,7 +17,6 @@ interface DemographicSegment {
 
 interface Analytics {
   followerCount: number;
-  aiSummary: string | null;
   demographicScores: DemographicSegment[];
 }
 
@@ -35,7 +34,7 @@ export default function DashboardOverviewPage() {
   const selectedEstId = pickedEstId || establishmentIds[0] || '';
   const [establishment, setEstablishment] = useState<Establishment | null>(null);
   const [stats, setStats] = useState<Stats>({ overallScore: null, reviewCount: 0, thisMonthReviews: 0, upcomingReservations: 0 });
-  const [analytics, setAnalytics] = useState<Analytics>({ followerCount: 0, aiSummary: null, demographicScores: [] });
+  const [analytics, setAnalytics] = useState<Analytics>({ followerCount: 0, demographicScores: [] });
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   // `loading` is derived: true until the data load for the active id resolves.
   const [loadedEstId, setLoadedEstId] = useState<string>('');
@@ -110,7 +109,6 @@ export default function DashboardOverviewPage() {
           const data = await res.json();
           setAnalytics({
             followerCount: data.followerCount ?? 0,
-            aiSummary: data.aiSummary ?? null,
             demographicScores: data.demographicScores ?? [],
           });
         }
@@ -211,26 +209,6 @@ export default function DashboardOverviewPage() {
                 <p className="text-xs text-gray-400 mt-1">{card.sub}</p>
               </div>
             ))}
-          </div>
-
-          {/* AI Summary Panel */}
-          <div className="bg-white rounded-xl border-2 p-6 mb-6 relative" style={{ borderColor: '#BF5B2E' }}>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-bold text-gray-800">AI Summary</h2>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-50 text-orange-600 border border-orange-200">
-                ✨ AI-generated
-              </span>
-            </div>
-            {analyticsLoading ? (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#BF5B2E', borderTopColor: 'transparent' }} />
-                <span className="text-sm text-gray-400">Loading summary…</span>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-600 leading-relaxed">
-                {analytics.aiSummary ?? 'No AI summary available yet — accumulate more reviews to generate insights.'}
-              </p>
-            )}
           </div>
 
           {/* Customer Segments */}

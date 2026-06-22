@@ -1,22 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../widgets/app_button.dart';
+import '../../state/onboarding/onboarding_draft_provider.dart';
 
-class OnboardingStep8Screen extends StatefulWidget {
+class OnboardingStep8Screen extends ConsumerStatefulWidget {
   const OnboardingStep8Screen({super.key});
 
   @override
-  State<OnboardingStep8Screen> createState() => _OnboardingStep8ScreenState();
+  ConsumerState<OnboardingStep8Screen> createState() => _OnboardingStep8ScreenState();
 }
 
-class _OnboardingStep8ScreenState extends State<OnboardingStep8Screen> {
-  final Set<String> _selected = {'NFL'};
+class _OnboardingStep8ScreenState extends ConsumerState<OnboardingStep8Screen> {
+  // No phantom defaults — only what the draft already has (hydrated below).
+  Set<String> _selected = {};
   final _sports = [('🏈', 'NFL'), ('🏀', 'NBA'), ('⚾', 'MLB'), ('⚽', 'Soccer')];
   final _teams = ['Chiefs', 'Cowboys', 'Eagles', 'Packers', 'Ravens'];
-  final Set<String> _selectedTeams = {'Chiefs'};
+  Set<String> _selectedTeams = {};
+
+  @override
+  void initState() {
+    super.initState();
+    final draft = ref.read(onboardingDraftProvider);
+    if (draft.sports.isNotEmpty) _selected = Set<String>.from(draft.sports);
+    if (draft.teams.isNotEmpty) _selectedTeams = Set<String>.from(draft.teams);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -117,9 +128,22 @@ class _OnboardingStep8ScreenState extends State<OnboardingStep8Screen> {
               padding: const EdgeInsets.all(AppDimens.screenPadding),
               child: Column(
                 children: [
-                  AppButton(label: 'Continue', onTap: () => context.go('/onboarding/9')),
+                  AppButton(label: 'Continue', onTap: () {
+                    final notifier = ref.read(onboardingDraftProvider.notifier);
+                    notifier.setSports(Set<String>.from(_selected));
+                    notifier.setTeams(Set<String>.from(_selectedTeams));
+                    context.go('/onboarding/9');
+                  }),
                   const Gap(8),
-                  TextButton(onPressed: () => context.go('/onboarding/9'), child: const Text('Skip', style: TextStyle(color: Color(0xFF666666)))),
+                  TextButton(
+                    onPressed: () {
+                      final notifier = ref.read(onboardingDraftProvider.notifier);
+                      notifier.setSports(Set<String>.from(_selected));
+                      notifier.setTeams(Set<String>.from(_selectedTeams));
+                      context.go('/onboarding/9');
+                    },
+                    child: const Text('Skip', style: TextStyle(color: Color(0xFF666666))),
+                  ),
                 ],
               ),
             ),

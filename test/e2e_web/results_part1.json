@@ -1,0 +1,116 @@
+{
+  "results": [
+    {
+      "id": "LOGIN",
+      "s": "PASS",
+      "d": "Try Demo → https://zupurb-dev.web.app/#/home"
+    },
+    {
+      "id": "HOME-LOAD",
+      "s": "PASS",
+      "d": "Home loaded (34 nodes)"
+    },
+    {
+      "id": "HOME-TABS",
+      "s": "PASS",
+      "d": "5 tab buttons at y=130-175"
+    },
+    {
+      "id": "HOME-CARDS",
+      "s": "PASS",
+      "d": "1 review cards"
+    },
+    {
+      "id": "F8",
+      "s": "PASS",
+      "d": "Review card body tap navigated (URL: https://zupurb-dev.web.app/#/home)"
+    },
+    {
+      "id": "F7-LIKE",
+      "s": "PARTIAL",
+      "d": "Like tapped — state unchanged (null→null)",
+      "det": "check screenshot"
+    },
+    {
+      "id": "F7-UNTOGGLE",
+      "s": "PASS",
+      "d": "Like untoggled"
+    },
+    {
+      "id": "F7-DISLIKE",
+      "s": "PASS",
+      "d": "Dislike tapped at (110,768)"
+    },
+    {
+      "id": "F7-MUTUAL",
+      "s": "PASS",
+      "d": "Like+dislike mutual exclusion tested"
+    },
+    {
+      "id": "HOME-NOTIF",
+      "s": "PASS",
+      "d": "Notifications opened (22 nodes)"
+    },
+    {
+      "id": "F6-NOTIF",
+      "s": "PASS",
+      "d": "Back on Notifications at (40,32)"
+    },
+    {
+      "id": "F6-NOTIF-WORKS",
+      "s": "PASS",
+      "d": "Back→Home"
+    },
+    {
+      "id": "SEARCH-LOAD",
+      "s": "PASS",
+      "d": "Search loaded (53 nodes)"
+    },
+    {
+      "id": "F2",
+      "s": "PASS",
+      "d": "Search input accepts text (text visible in labels after typing)"
+    },
+    {
+      "id": "SEARCH-FILTERS",
+      "s": "PASS",
+      "d": "4 filter switches"
+    },
+    {
+      "id": "SEARCH-RESULTS",
+      "s": "PASS",
+      "d": "Results loaded (20 nodes, URL: https://zupurb-dev.web.app/#/search)"
+    },
+    {
+      "id": "F5",
+      "s": "PASS",
+      "d": "Search results back button at (40,36)"
+    },
+    {
+      "id": "BACK-RESULTS",
+      "s": "PASS",
+      "d": "Back→search, URL:https://zupurb-dev.web.app/#/search"
+    },
+    {
+      "id": "F3",
+      "s": "FAIL",
+      "d": "Remove X navigated away from search",
+      "det": "URL: https://zupurb-dev.web.app/#/profile",
+      "sev": "P1"
+    },
+    {
+      "id": "F4",
+      "s": "PASS",
+      "d": "Recent search tap navigated (53→20 nodes, URL: https://zupurb-dev.web.app/#/search)"
+    }
+  ],
+  "errors": [
+    "PE:Error",
+    "PE:Error",
+    "Access to XMLHttpRequest at 'https://randomuser.me/api/portraits/women/44.jpg' from origin 'https://",
+    "Failed to load resource: net::ERR_FAILED",
+    "Access to XMLHttpRequest at 'https://randomuser.me/api/portraits/men/46.jpg' from origin 'https://zu",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: the server responded with a status of 404 ()"
+  ]
+}

@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import '../../models/establishment.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../state/establishments/establishments_provider.dart';
+import '../../state/user/user_profile_provider.dart';
+import '../../widgets/dual_score.dart';
+import '../../widgets/favorite_heart_button.dart';
 
 class DiscoverScreen extends ConsumerWidget {
   const DiscoverScreen({super.key});
@@ -28,6 +32,7 @@ class DiscoverScreen extends ConsumerWidget {
                       children: [
                         const Text('Discover', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A))),
                         const Spacer(),
+                        IconButton(onPressed: () => context.push('/favourites'), tooltip: 'Favourites', icon: const Icon(Icons.favorite_border)),
                         IconButton(onPressed: () => context.push('/notifications'), icon: const Icon(Icons.notifications_outlined)),
                       ],
                     ),
@@ -46,49 +51,38 @@ class DiscoverScreen extends ConsumerWidget {
                       ),
                     ),
                     const Gap(20),
-                    _SectionHeader(title: 'Trending in Your Area', action: 'See All', onAction: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Coming soon'), duration: Duration(seconds: 2)))),
+
+                    // ── Trending in Your Area ─────────────────────────────
+                    _SectionHeader(
+                      title: 'Trending in Your Area',
+                      action: 'See All',
+                      onAction: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Coming soon'), duration: Duration(seconds: 2))),
+                    ),
                     const Gap(12),
                     SizedBox(
                       height: 180,
                       child: estAsync.when(
-                        loading: () => ListView(
-                          scrollDirection: Axis.horizontal,
-                          children: const [
-                            _TrendingCard(name: 'The Rooftop Garden', type: 'Bar · 2.1 km', score: 4.6, imageUrl: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400'),
-                            Gap(12),
-                            _TrendingCard(name: 'Amber Embe...', type: 'Bistro · 1.4 km', score: 4.6, imageUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400'),
-                          ],
-                        ),
-                        error: (err, _) => ListView(
-                          scrollDirection: Axis.horizontal,
-                          children: const [
-                            _TrendingCard(name: 'The Rooftop Garden', type: 'Bar · 2.1 km', score: 4.6, imageUrl: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400'),
-                            Gap(12),
-                            _TrendingCard(name: 'Amber Embe...', type: 'Bistro · 1.4 km', score: 4.6, imageUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400'),
-                          ],
-                        ),
+                        loading: () => const _HorizontalPlaceholder(),
+                        error: (err, _) => const Center(child: Text("Couldn't load venues", style: TextStyle(color: AppColors.textSecondary))),
                         data: (ests) {
                           final trending = ests.take(4).toList();
                           if (trending.isEmpty) {
-                            return ListView(
-                              scrollDirection: Axis.horizontal,
-                              children: const [
-                                _TrendingCard(name: 'The Rooftop Garden', type: 'Bar · 2.1 km', score: 4.6, imageUrl: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400'),
-                              ],
-                            );
+                            return const Center(child: Text('No venues yet', style: TextStyle(color: AppColors.textSecondary)));
                           }
                           return ListView.separated(
                             scrollDirection: Axis.horizontal,
                             itemCount: trending.length,
                             separatorBuilder: (_, i) => const Gap(12),
-                            itemBuilder: (_, i) {
+                            itemBuilder: (ctx, i) {
                               final e = trending[i];
                               return _TrendingCard(
                                 id: e.id,
                                 name: e.name,
                                 type: '${e.type} · ${e.distanceKm.toStringAsFixed(1)} km',
                                 score: e.score,
-                                imageUrl: e.imageUrl.isNotEmpty ? e.imageUrl : 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400',
+                                imageUrl: e.imageUrl,
+                                plyByCohort: e.plyByCohort,
+                                plyCountByCohort: e.plyCountByCohort,
                               );
                             },
                           );
@@ -96,51 +90,40 @@ class DiscoverScreen extends ConsumerWidget {
                       ),
                     ),
                     const Gap(20),
+
+                    // ── New on Zupurb ─────────────────────────────────────
                     // P1-11: "New on Zupurb" rail per SOW §4.2
-                    _SectionHeader(title: 'New on Zupurb', action: 'See All', onAction: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Coming soon'), duration: Duration(seconds: 2)))),
+                    _SectionHeader(
+                      title: 'New on Zupurb',
+                      action: 'See All',
+                      onAction: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Coming soon'), duration: Duration(seconds: 2))),
+                    ),
                     const Gap(12),
                     SizedBox(
                       height: 160,
                       child: estAsync.when(
-                        loading: () => ListView(
-                          scrollDirection: Axis.horizontal,
-                          children: const [
-                            _TrendingCard(name: 'Velvet Lounge', type: 'Cocktail Bar · 1.8 km', score: 4.1, imageUrl: 'https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=400'),
-                            Gap(12),
-                            _TrendingCard(name: 'The Atrium Café', type: 'Café · 0.9 km', score: 4.3, imageUrl: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=400'),
-                          ],
-                        ),
-                        error: (err, _) => ListView(
-                          scrollDirection: Axis.horizontal,
-                          children: const [
-                            _TrendingCard(name: 'Velvet Lounge', type: 'Cocktail Bar · 1.8 km', score: 4.1, imageUrl: 'https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=400'),
-                            Gap(12),
-                            _TrendingCard(name: 'The Atrium Café', type: 'Café · 0.9 km', score: 4.3, imageUrl: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=400'),
-                          ],
-                        ),
+                        loading: () => const _HorizontalPlaceholder(),
+                        error: (err, _) => const Center(child: Text("Couldn't load venues", style: TextStyle(color: AppColors.textSecondary))),
                         data: (ests) {
                           // Show the tail half of results as "New on Zupurb"
                           final newOnes = ests.skip(ests.length ~/ 2).take(4).toList();
                           if (newOnes.isEmpty) {
-                            return ListView(
-                              scrollDirection: Axis.horizontal,
-                              children: const [
-                                _TrendingCard(name: 'Velvet Lounge', type: 'Cocktail Bar · 1.8 km', score: 4.1, imageUrl: 'https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=400'),
-                              ],
-                            );
+                            return const Center(child: Text('No venues yet', style: TextStyle(color: AppColors.textSecondary)));
                           }
                           return ListView.separated(
                             scrollDirection: Axis.horizontal,
                             itemCount: newOnes.length,
                             separatorBuilder: (_, i) => const Gap(12),
-                            itemBuilder: (_, i) {
+                            itemBuilder: (ctx, i) {
                               final e = newOnes[i];
                               return _TrendingCard(
                                 id: e.id,
                                 name: e.name,
                                 type: '${e.type} · ${e.distanceKm.toStringAsFixed(1)} km',
                                 score: e.score,
-                                imageUrl: e.imageUrl.isNotEmpty ? e.imageUrl : 'https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=400',
+                                imageUrl: e.imageUrl,
+                                plyByCohort: e.plyByCohort,
+                                plyCountByCohort: e.plyCountByCohort,
                               );
                             },
                           );
@@ -148,28 +131,43 @@ class DiscoverScreen extends ConsumerWidget {
                       ),
                     ),
                     const Gap(20),
+
+                    // ── Hidden Gems ───────────────────────────────────────
                     _SectionHeader(title: 'Hidden Gems', subtitle: 'High Score, Discovered First', action: null, onAction: null),
                     const Gap(12),
                     SizedBox(
                       height: 160,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        children: [
-                          _HiddenGemCard(
-                            name: 'The Corner Bistro',
-                            type: 'French',
-                            imageUrl: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400',
-                          ),
-                          const Gap(12),
-                          _HiddenGemCard(
-                            name: 'Night Owl Lo...',
-                            type: 'Lounge · 3.2 KM',
-                            imageUrl: 'https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=400',
-                          ),
-                        ],
+                      child: estAsync.when(
+                        loading: () => const _HorizontalPlaceholder(),
+                        error: (err, _) => const Center(child: Text("Couldn't load venues", style: TextStyle(color: AppColors.textSecondary))),
+                        data: (ests) {
+                          final gems = ests.where((e) => e.score >= 4.5).take(4).toList();
+                          if (gems.isEmpty) {
+                            return const Center(child: Text('No venues yet', style: TextStyle(color: AppColors.textSecondary)));
+                          }
+                          return ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: gems.length,
+                            separatorBuilder: (_, i) => const Gap(12),
+                            itemBuilder: (ctx, i) {
+                              final e = gems[i];
+                              return _HiddenGemCard(
+                                id: e.id,
+                                name: e.name,
+                                type: '${e.type} · ${e.distanceKm.toStringAsFixed(1)} km',
+                                imageUrl: e.imageUrl,
+                                score: e.score,
+                                plyByCohort: e.plyByCohort,
+                                plyCountByCohort: e.plyCountByCohort,
+                              );
+                            },
+                          );
+                        },
                       ),
                     ),
                     const Gap(20),
+
+                    // ── From People Like You ──────────────────────────────
                     Container(
                       decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(16)),
                       padding: const EdgeInsets.all(16),
@@ -178,29 +176,48 @@ class DiscoverScreen extends ConsumerWidget {
                         children: [
                           const Text('From People Like You', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A))),
                           const Gap(2),
-                          const Text('Rated highest By Users With Your Profile', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                          const Text('Rated highest by users with your profile', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                           const Gap(12),
-                          _FPYLItem(name: 'La Mesa', type: 'Mexican · 4.5 / 5', isTopMatch: true),
-                          const Gap(8),
-                          _FPYLItem(name: 'La Mesa', type: 'Mexican · 4.5 / 5', isTopMatch: false),
+                          estAsync.when(
+                            loading: () => const _VerticalPlaceholder(),
+                            error: (err, _) => const Center(child: Text("Couldn't load venues", style: TextStyle(color: AppColors.textSecondary))),
+                            data: (ests) {
+                              final cohort = ref.read(currentUserCohortProvider);
+                              final ranked = [...ests]
+                                ..sort((a, b) {
+                                  final pa = a.plyForCohort(cohort) ?? a.score;
+                                  final pb = b.plyForCohort(cohort) ?? b.score;
+                                  return pb.compareTo(pa);
+                                });
+                              final fpyl = ranked.where((e) => e.plyForCohort(cohort) != null).toList();
+                              final list = (fpyl.isNotEmpty ? fpyl : ranked).take(3).toList();
+                              if (list.isEmpty) {
+                                return const Center(child: Text('No recommendations yet', style: TextStyle(color: AppColors.textSecondary)));
+                              }
+                              return Column(
+                                children: list.asMap().entries.map((entry) {
+                                  return Padding(
+                                    padding: EdgeInsets.only(bottom: entry.key < list.length - 1 ? 8 : 0),
+                                    child: _FPYLItem(est: entry.value, isTopMatch: entry.key == 0),
+                                  );
+                                }).toList(),
+                              );
+                            },
+                          ),
                         ],
                       ),
                     ),
                     const Gap(20),
+
+                    // ── Nearby Venues ─────────────────────────────────────
                     const Text('Nearby Venues', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A))),
                     const Gap(12),
                     estAsync.when(
-                      loading: () => Column(children: const [
-                        _NearbyItem(name: 'The Artisan Grind', type: 'Café · 0.5 km · 4.4 / 5', hasDeal: true, score: 4.4, hasReservations: true),
-                        Gap(8),
-                        _NearbyItem(name: 'Speakeasy No. 9', type: 'Cocktails · 1.2 km · 4.5 / 5', score: 4.5, hasReservations: true),
-                      ]),
-                      error: (err, _) => Column(children: const [
-                        _NearbyItem(name: 'The Artisan Grind', type: 'Café · 0.5 km · 4.4 / 5', hasDeal: true, score: 4.4, hasReservations: true),
-                      ]),
+                      loading: () => const _VerticalPlaceholder(),
+                      error: (err, _) => const Center(child: Text("Couldn't load venues", style: TextStyle(color: AppColors.textSecondary))),
                       data: (ests) {
                         if (ests.isEmpty) {
-                          return const _NearbyItem(name: 'The Artisan Grind', type: 'Café · 0.5 km · 4.4 / 5', hasDeal: true, score: 4.4, hasReservations: true);
+                          return const Center(child: Text('No venues yet', style: TextStyle(color: AppColors.textSecondary)));
                         }
                         return Column(
                           children: ests.map((e) => Padding(
@@ -208,10 +225,13 @@ class DiscoverScreen extends ConsumerWidget {
                             child: _NearbyItem(
                               id: e.id,
                               name: e.name,
-                              type: '${e.type} · ${e.distanceKm.toStringAsFixed(1)} km · ${e.score.toStringAsFixed(1)} / 5',
+                              type: '${e.type} · ${e.distanceKm.toStringAsFixed(1)} km',
                               score: e.score,
+                              imageUrl: e.imageUrl,
                               hasDeal: e.hasDeals,
                               hasReservations: e.hasReservations,
+                              plyByCohort: e.plyByCohort,
+                              plyCountByCohort: e.plyCountByCohort,
                             ),
                           )).toList(),
                         );
@@ -228,6 +248,51 @@ class DiscoverScreen extends ConsumerWidget {
     );
   }
 }
+
+// ── Shared placeholder widgets ─────────────────────────────────────────────
+
+class _HorizontalPlaceholder extends StatelessWidget {
+  const _HorizontalPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      scrollDirection: Axis.horizontal,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: 3,
+      separatorBuilder: (_, i) => const Gap(12),
+      itemBuilder: (_, i) => Container(
+        width: 160,
+        decoration: BoxDecoration(
+          color: Colors.black12,
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
+    );
+  }
+}
+
+class _VerticalPlaceholder extends StatelessWidget {
+  const _VerticalPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: List.generate(2, (i) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Container(
+          height: 64,
+          decoration: BoxDecoration(
+            color: Colors.black12,
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      )),
+    );
+  }
+}
+
+// ── Section header ─────────────────────────────────────────────────────────
 
 class _SectionHeader extends StatelessWidget {
   final String title;
@@ -255,19 +320,31 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
+// ── _TrendingCard ──────────────────────────────────────────────────────────
+
 class _TrendingCard extends StatelessWidget {
-  final String? id;
+  final String id;
   final String name;
   final String type;
   final double score;
   final String imageUrl;
+  final Map<String, double>? plyByCohort;
+  final Map<String, int>? plyCountByCohort;
 
-  const _TrendingCard({this.id, required this.name, required this.type, required this.score, required this.imageUrl});
+  const _TrendingCard({
+    required this.id,
+    required this.name,
+    required this.type,
+    required this.score,
+    required this.imageUrl,
+    this.plyByCohort,
+    this.plyCountByCohort,
+  });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.push('/establishment/${id ?? '1'}'),
+      onTap: () => context.push('/establishment/$id'),
       child: Container(
         width: 160,
         decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
@@ -275,26 +352,24 @@ class _TrendingCard extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              child: Image.network(
-                imageUrl,
-                width: 160,
-                height: 180,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  width: 160,
-                  height: 180,
-                  color: AppColors.primaryLight,
-                  child: const Icon(Icons.store, color: AppColors.primary, size: 40),
-                ),
-              ),
+              child: imageUrl.isNotEmpty
+                  ? Image.network(
+                      imageUrl,
+                      width: 160,
+                      height: 180,
+                      fit: BoxFit.cover,
+                      errorBuilder: (ctx, err, _) => _imgFallback(160, 180),
+                    )
+                  : _imgFallback(160, 180),
             ),
             Positioned(
               top: 8,
               left: 8,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(6)),
-                child: Text('${score.toStringAsFixed(1)} / 5', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white)),
+              child: DualScore(
+                generalScore: score,
+                plyByCohort: plyByCohort,
+                plyCountByCohort: plyCountByCohort,
+                compact: true,
               ),
             ),
             Positioned(
@@ -305,12 +380,16 @@ class _TrendingCard extends StatelessWidget {
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
-                  gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withValues(alpha: 0.8)]),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Colors.black.withValues(alpha: 0.8)],
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
+                    Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white), maxLines: 1, overflow: TextOverflow.ellipsis),
                     Text(type, style: const TextStyle(fontSize: 10, color: Colors.white70)),
                   ],
                 ),
@@ -321,19 +400,40 @@ class _TrendingCard extends StatelessWidget {
       ),
     );
   }
+
+  Widget _imgFallback(double w, double h) => Container(
+        width: w,
+        height: h,
+        color: AppColors.primaryLight,
+        child: const Icon(Icons.store, color: AppColors.primary, size: 40),
+      );
 }
 
+// ── _HiddenGemCard ─────────────────────────────────────────────────────────
+
 class _HiddenGemCard extends StatelessWidget {
+  final String id;
   final String name;
   final String type;
   final String imageUrl;
+  final double score;
+  final Map<String, double>? plyByCohort;
+  final Map<String, int>? plyCountByCohort;
 
-  const _HiddenGemCard({required this.name, required this.type, required this.imageUrl});
+  const _HiddenGemCard({
+    required this.id,
+    required this.name,
+    required this.type,
+    required this.imageUrl,
+    required this.score,
+    this.plyByCohort,
+    this.plyCountByCohort,
+  });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.push('/establishment/the-social-lounge'),
+      onTap: () => context.push('/establishment/$id'),
       child: Container(
         width: 160,
         height: 160,
@@ -342,17 +442,24 @@ class _HiddenGemCard extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              child: Image.network(
-                imageUrl,
-                width: 160,
-                height: 160,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  width: 160,
-                  height: 160,
-                  color: AppColors.primaryLight,
-                  child: const Icon(Icons.store, color: AppColors.primary, size: 40),
-                ),
+              child: imageUrl.isNotEmpty
+                  ? Image.network(
+                      imageUrl,
+                      width: 160,
+                      height: 160,
+                      fit: BoxFit.cover,
+                      errorBuilder: (ctx, err, _) => _imgFallback(),
+                    )
+                  : _imgFallback(),
+            ),
+            Positioned(
+              top: 8,
+              left: 8,
+              child: DualScore(
+                generalScore: score,
+                plyByCohort: plyByCohort,
+                plyCountByCohort: plyCountByCohort,
+                compact: true,
               ),
             ),
             Positioned(
@@ -363,12 +470,16 @@ class _HiddenGemCard extends StatelessWidget {
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
-                  gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withValues(alpha: 0.85)]),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Colors.black.withValues(alpha: 0.85)],
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
+                    Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white), maxLines: 1, overflow: TextOverflow.ellipsis),
                     Text(type, style: const TextStyle(fontSize: 10, color: Colors.white70)),
                   ],
                 ),
@@ -379,58 +490,69 @@ class _HiddenGemCard extends StatelessWidget {
       ),
     );
   }
+
+  Widget _imgFallback() => Container(
+        width: 160,
+        height: 160,
+        color: AppColors.primaryLight,
+        child: const Icon(Icons.store, color: AppColors.primary, size: 40),
+      );
 }
 
-class _FPYLItem extends StatefulWidget {
-  final String name;
-  final String type;
+// ── _FPYLItem ──────────────────────────────────────────────────────────────
+
+class _FPYLItem extends StatelessWidget {
+  final Establishment est;
   final bool isTopMatch;
 
-  const _FPYLItem({required this.name, required this.type, required this.isTopMatch});
-
-  @override
-  State<_FPYLItem> createState() => _FPYLItemState();
-}
-
-class _FPYLItemState extends State<_FPYLItem> {
-  bool _favourited = false;
+  const _FPYLItem({required this.est, required this.isTopMatch});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.push('/establishment/the-social-lounge'),
+      onTap: () => context.push('/establishment/${est.id}'),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
         child: Row(
           children: [
-            const CircleAvatar(radius: 20, backgroundImage: NetworkImage('https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=100')),
+            CircleAvatar(
+              radius: 20,
+              backgroundImage: est.imageUrl.isNotEmpty ? NetworkImage(est.imageUrl) : null,
+              backgroundColor: AppColors.primaryLight,
+              onBackgroundImageError: est.imageUrl.isNotEmpty
+                  ? (err, _) {} // silently falls through to child
+                  : null,
+              child: est.imageUrl.isEmpty
+                  ? const Icon(Icons.store, size: 18, color: AppColors.primary)
+                  : null,
+            ),
             const Gap(10),
-            Expanded(child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(widget.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                Text(widget.type, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-              ],
-            )),
-            if (widget.isTopMatch)
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(est.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text('${est.type} · ${est.area}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+            const Gap(8),
+            DualScore(
+              generalScore: est.score,
+              plyByCohort: est.plyByCohort,
+              plyCountByCohort: est.plyCountByCohort,
+              compact: true,
+            ),
+            const Gap(8),
+            if (isTopMatch)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(6)),
                 child: const Text('TOP MATCH', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white)),
               )
             else
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () {
-                  setState(() => _favourited = !_favourited);
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text(_favourited ? 'Added to favourites' : 'Removed from favourites'),
-                    duration: const Duration(seconds: 2),
-                  ));
-                },
-                child: Icon(_favourited ? Icons.favorite : Icons.favorite_border, color: AppColors.primary, size: 20),
-              ),
+              FavoriteHeartButton(establishmentId: est.id),
           ],
         ),
       ),
@@ -438,27 +560,35 @@ class _FPYLItemState extends State<_FPYLItem> {
   }
 }
 
-class _NearbyItem extends StatefulWidget {
-  final String? id;
+// ── _NearbyItem ────────────────────────────────────────────────────────────
+
+class _NearbyItem extends StatelessWidget {
+  final String id;
   final String name;
   final String type;
   final double score;
+  final String imageUrl;
   final bool hasDeal;
-  final bool hasReservations; // P1-14
+  final bool hasReservations;
+  final Map<String, double>? plyByCohort;
+  final Map<String, int>? plyCountByCohort;
 
-  const _NearbyItem({this.id, required this.name, required this.type, required this.score, this.hasDeal = false, this.hasReservations = false});
-
-  @override
-  State<_NearbyItem> createState() => _NearbyItemState();
-}
-
-class _NearbyItemState extends State<_NearbyItem> {
-  bool _bookmarked = false;
+  const _NearbyItem({
+    required this.id,
+    required this.name,
+    required this.type,
+    required this.score,
+    required this.imageUrl,
+    this.hasDeal = false,
+    this.hasReservations = false,
+    this.plyByCohort,
+    this.plyCountByCohort,
+  });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.push('/establishment/${widget.id ?? '1'}'),
+      onTap: () => context.push('/establishment/$id'),
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
@@ -466,45 +596,63 @@ class _NearbyItemState extends State<_NearbyItem> {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.network('https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=100', width: 48, height: 48, fit: BoxFit.cover),
+              child: SizedBox(
+                width: 48,
+                height: 48,
+                child: imageUrl.isNotEmpty
+                    ? Image.network(
+                        imageUrl,
+                        width: 48,
+                        height: 48,
+                        fit: BoxFit.cover,
+                        errorBuilder: (ctx, err, _) => Container(
+                          color: AppColors.primaryLight,
+                          child: const Icon(Icons.store, size: 22, color: AppColors.primary),
+                        ),
+                      )
+                    : Container(
+                        color: AppColors.primaryLight,
+                        child: const Icon(Icons.store, size: 22, color: AppColors.primary),
+                      ),
+              ),
             ),
             const Gap(12),
-            Expanded(child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [
-                  Text(widget.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                  if (widget.hasDeal) ...[
-                    const Gap(6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(4)),
-                      child: const Text('20% OFF', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.primary)),
-                    ),
-                  ],
-                ]),
-                Text(widget.type, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                if (widget.hasReservations) ...[
-                  const Gap(3),
-                  Row(children: const [
-                    Icon(Icons.event_available, size: 11, color: AppColors.primary),
-                    Gap(3),
-                    Text('Reservations available', style: TextStyle(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.w500)),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Flexible(child: Text(name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                    if (hasDeal) ...[
+                      const Gap(6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(4)),
+                        child: const Text('20% OFF', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.primary)),
+                      ),
+                    ],
                   ]),
+                  Text(type, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                  if (hasReservations) ...[
+                    const Gap(3),
+                    const Row(children: [
+                      Icon(Icons.event_available, size: 11, color: AppColors.primary),
+                      Gap(3),
+                      Text('Reservations available', style: TextStyle(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.w500)),
+                    ]),
+                  ],
                 ],
-              ],
-            )),
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () {
-                setState(() => _bookmarked = !_bookmarked);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(_bookmarked ? 'Added to favourites' : 'Removed from favourites'),
-                  duration: const Duration(seconds: 2),
-                ));
-              },
-              child: Icon(_bookmarked ? Icons.bookmark : Icons.bookmark_border, size: 20, color: _bookmarked ? AppColors.primary : AppColors.textTertiary),
+              ),
             ),
+            const Gap(8),
+            DualScore(
+              generalScore: score,
+              plyByCohort: plyByCohort,
+              plyCountByCohort: plyCountByCohort,
+              compact: true,
+            ),
+            const Gap(4),
+            FavoriteHeartButton(establishmentId: id),
           ],
         ),
       ),

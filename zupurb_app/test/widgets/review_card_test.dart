@@ -70,21 +70,6 @@ void main() {
       expect(find.text('4.2'), findsOneWidget);
     });
 
-    testWidgets('renders AI SUMMARY label inside review card', (tester) async {
-      await _pump(tester, _wrap());
-      expect(find.text('AI SUMMARY'), findsOneWidget);
-    });
-
-    testWidgets('renders AI summary body text', (tester) async {
-      await _pump(tester, _wrap());
-      expect(
-        find.text(
-          'Vibrant atmosphere with exceptional service. The seafood selection stands out as the main highlight.',
-        ),
-        findsOneWidget,
-      );
-    });
-
     testWidgets('renders review snippet text', (tester) async {
       await _pump(tester, _wrap());
       expect(

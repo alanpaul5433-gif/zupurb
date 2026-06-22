@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/colors.dart';
+import 'app_drawer.dart';
 
 class MainShell extends StatelessWidget {
   final Widget child;
@@ -29,6 +30,7 @@ class MainShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final idx = _currentIndex(context);
     return Scaffold(
+      drawer: const AppDrawer(),
       body: child,
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(

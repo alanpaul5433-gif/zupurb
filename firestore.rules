@@ -107,19 +107,47 @@ service cloud.firestore {
       // from this list — they are written exclusively by Cloud Functions via
       // Admin SDK (RevenueCat webhook, processPlusExpirations cron).
       allow update: if isOwner(userId)
-        && hasOnly([
+        // Only the CHANGED keys must be in the editable allowlist (diff-based).
+        // Using hasOnly() on request.resource.data.keys() (ALL keys) instead would
+        // reject every client update, because the doc also carries Cloud-Function-
+        // managed fields (uid, loyaltyTier, counts, createdAt, …) outside this list.
+        // That was silently breaking onboarding completion + the Preferences screen.
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           "displayName",
           "photoUrl",
           "bio",
           "tierHiddenByUser",
           "onboardingComplete",
+          "onboardingCompletedAt",
           "dateOfBirth",   // B14: user sets MM-DD for birthday bonus eligibility
           "age",           // Demo: client writes age from onboarding step 2
           "gender",        // Demo: client writes gender from onboarding step 2
+          // Onboarding / Preferences — the user's own taste profile (self-write).
+          // The canonical write is the completeOnboarding callable (Admin SDK);
+          // these allow the client fallback + the editable Preferences screen.
+          "birthYear",
+          "ethnicity",
+          "incomeRange",
+          "city",
+          "neighborhood",
+          "neighborhoods",
+          "searchRadius",
+          "activityPreferences",
+          "diningPreferences",
+          "nightlifePreferences",
+          "drinkPreferences",
+          "sportsFollowed",
+          "favoriteTeams",
+          "sensitiveTopics",
+          "orientation",
+          "relationshipStatus",
+          "veteran",
+          "username",      // canonical uniqueness still enforced by the callable
           "pointsBalance", // Demo: client increments own balance (Spark plan, no Cloud Functions)
           "reviewCount",   // Demo: client increments own review count
           "updatedAt"
         ]);
+      // NOTE: "fingerprint" intentionally excluded — scoring input, Cloud-Function-only.
       allow delete: if false; // Deletion handled by Cloud Function (anonymize, not delete)
       // Admin override (Retool / Admin SDK path)
       allow read, write: if isAdmin();
@@ -140,6 +168,14 @@ service cloud.firestore {
       match /referrals/{referralId} {
         allow read: if isOwner(userId);
         allow write: if false; // Cloud Function writes via Admin SDK only
+      }
+
+      // SUB-COLLECTION: users/{userId}/lists/{listId}
+      // Curated venue lists — publicly readable (shown on profiles); owner-write.
+      match /lists/{listId} {
+        allow read: if isAuthenticated();
+        allow write: if isOwner(userId);
+        allow read, write: if isAdmin();
       }
     }
 
@@ -192,10 +228,18 @@ service cloud.firestore {
 
       // -----------------------------------------------------------------------
       // SUB-COLLECTION: establishments/{estId}/deals/{dealId}
-      // Readable by authenticated users; admin-write only.
+      // Public read (shown on venue pages); admin/owner write.
       // -----------------------------------------------------------------------
       match /deals/{dealId} {
-        allow read, write: if isAdmin() || isEstablishmentOwner(estId);
+        allow read: if true;
+        allow write: if isAdmin() || isEstablishmentOwner(estId);
+      }
+
+      // SUB-COLLECTION: establishments/{estId}/menu/{itemId}
+      // Public read (menu shown on venue pages); admin/owner write.
+      match /menu/{itemId} {
+        allow read: if true;
+        allow write: if isAdmin() || isEstablishmentOwner(estId);
       }
 
       // -----------------------------------------------------------------------
@@ -207,6 +251,23 @@ service cloud.firestore {
         allow read: if isEstablishmentOwner(estId) || isAdmin();
         allow write: if isEstablishmentOwner(estId) || isAdmin();
       }
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLECTIONS: vendors / entertainers / brands (Search categories)
+    // Public read (discovery); admin/Admin-SDK write.
+    // -------------------------------------------------------------------------
+    match /vendors/{vendorId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /entertainers/{entertainerId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /brands/{brandId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     // -------------------------------------------------------------------------
@@ -276,6 +337,21 @@ service cloud.firestore {
           && request.resource.data.voterUid == voterUid
           && request.resource.data.vote in ["up", "down"];
         allow delete: if isOwner(voterUid);
+      }
+
+      // SUB-COLLECTION: reviews/{reviewId}/comments/{commentId}
+      // Authenticated users read all comments and create their own; no client edits.
+      match /comments/{commentId} {
+        allow read: if isAuthenticated();
+        allow create: if isOwner(request.resource.data.authorUid)
+          && request.resource.data.authorUid == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 1000
+          && request.resource.data.keys().hasOnly(
+               ['reviewId', 'authorUid', 'authorName', 'authorPhotoUrl', 'text', 'createdAt']);
+        allow update, delete: if false;
+        allow read, write: if isAdmin();
       }
     }
 
@@ -404,8 +480,11 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
 
     match /conversations/{conversationId} {
+      // `resource == null` lets getOrCreateConversation's existence check read a
+      // not-yet-created conversation (otherwise isParticipant(null) denies it and
+      // every brand-new chat fails).
       allow read: if isAuthenticated()
-        && isParticipant(resource.data);
+        && (resource == null || isParticipant(resource.data));
       allow create: if isAuthenticated()
         && request.auth.uid in request.resource.data.participantUids;
       // Client-side updates restricted to safe metadata fields only.

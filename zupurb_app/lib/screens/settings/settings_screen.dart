@@ -158,7 +158,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             _SettingsItem(icon: Icons.lock_outline, label: 'Privacy Settings', onTap: () => context.push('/settings/privacy')),
             const Gap(16),
             _SectionLabel('Support'),
-            _SettingsItem(icon: Icons.headset_mic_outlined, label: 'Help Center', onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Help Center coming soon'), duration: Duration(seconds: 2)))),
             _SettingsItem(icon: Icons.privacy_tip_outlined, label: 'Privacy Policy', onTap: () => launchUrl(Uri.parse(LegalUrls.privacyPolicy), mode: LaunchMode.externalApplication), trailing: Icons.open_in_new),
             _SettingsItem(icon: Icons.description_outlined, label: 'Terms of Service', onTap: () => launchUrl(Uri.parse(LegalUrls.termsOfService), mode: LaunchMode.externalApplication), trailing: Icons.open_in_new),
             const Gap(16),

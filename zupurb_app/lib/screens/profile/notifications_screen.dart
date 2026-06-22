@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
+import '../../state/notifications/notifications_provider.dart';
 
-class NotificationsScreen extends StatefulWidget {
+class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
 
   @override
-  State<NotificationsScreen> createState() => _NotificationsScreenState();
+  ConsumerState<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
-class _NotificationsScreenState extends State<NotificationsScreen> {
+class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   int _tab = 0;
   final _tabs = ['All', 'Reviews', 'Points', 'Social'];
 
@@ -65,32 +67,66 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ),
             const Gap(12),
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: AppDimens.screenPadding),
-                itemCount: _items.length,
-                itemBuilder: (ctx, i) {
-                  final item = _items[i];
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: item.$4 ? Border(left: BorderSide(color: AppColors.primary, width: 3)) : null,
-                    ),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                      leading: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(color: AppColors.primaryLight, shape: BoxShape.circle),
-                        child: Icon(item.$1, color: AppColors.primary, size: 20),
-                      ),
-                      title: Text(item.$2, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-                      subtitle: Text(item.$3, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                    ),
+              child: Builder(builder: (context) {
+                final realNotifs = ref.watch(notificationsProvider).value;
+                final hasReal = realNotifs != null && realNotifs.isNotEmpty;
+                if (hasReal) {
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: AppDimens.screenPadding),
+                    itemCount: realNotifs.length,
+                    itemBuilder: (ctx, i) {
+                      final n = realNotifs[i];
+                      final isUnread = n['isRead'] != true;
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: isUnread ? const Border(left: BorderSide(color: AppColors.primary, width: 3)) : null,
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                          leading: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: const BoxDecoration(color: AppColors.primaryLight, shape: BoxShape.circle),
+                            child: const Icon(Icons.notifications_outlined, color: AppColors.primary, size: 20),
+                          ),
+                          title: Text(n['title'] as String? ?? '', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                          subtitle: Text(n['body'] as String? ?? '', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                        ),
+                      );
+                    },
                   );
-                },
-              ),
+                }
+                // Fallback to hardcoded demo items
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: AppDimens.screenPadding),
+                  itemCount: _items.length,
+                  itemBuilder: (ctx, i) {
+                    final item = _items[i];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: item.$4 ? const Border(left: BorderSide(color: AppColors.primary, width: 3)) : null,
+                      ),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        leading: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: const BoxDecoration(color: AppColors.primaryLight, shape: BoxShape.circle),
+                          child: Icon(item.$1, color: AppColors.primary, size: 20),
+                        ),
+                        title: Text(item.$2, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                        subtitle: Text(item.$3, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                      ),
+                    );
+                  },
+                );
+              }),
             ),
           ],
         ),

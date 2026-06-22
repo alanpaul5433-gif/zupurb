@@ -7,10 +7,14 @@ import '../../theme/dimens.dart';
 import '../../widgets/app_button.dart';
 
 class ReviewSubmittedScreen extends StatelessWidget {
-  const ReviewSubmittedScreen({super.key});
+  /// The `submitReview` response, when navigated here after a real submission.
+  final Map<String, dynamic>? result;
+  const ReviewSubmittedScreen({super.key, this.result});
 
   @override
   Widget build(BuildContext context) {
+    final pointsAwarded = (result?['pointsAwarded'] as num?)?.toInt();
+    final badges = (result?['badgesUnlocked'] as List?)?.cast<String>() ?? const <String>[];
     return Scaffold(
       backgroundColor: const Color(0xFFF5F0ED),
       body: SafeArea(
@@ -50,44 +54,32 @@ class ReviewSubmittedScreen extends StatelessWidget {
                       Text('YOU EARNED', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary, letterSpacing: 0.5)),
                     ]),
                     const Gap(8),
-                    const Text('80 Pts', style: TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A))),
+                    Text('${pointsAwarded ?? 80} Pts', style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A))),
                     const Gap(4),
-                    const Text('Verified review • The Social Lounge', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-                    const Divider(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Total Balance: 800 Pts', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-                        const Icon(Icons.trending_up, color: AppColors.primary, size: 18),
-                      ],
-                    ),
+                    const Text('Thanks for your review!', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
                   ],
                 ),
               ),
-              const Gap(12),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
-                child: Row(
-                  children: [
-                    const Stack(children: [
-                      CircleAvatar(radius: 22, backgroundColor: AppColors.primary, child: Icon(Icons.star, color: Colors.white, size: 22)),
-                      Positioned(top: -4, left: -4, child: Icon(Icons.auto_awesome, color: AppColors.pointsGold, size: 14)),
-                    ]),
-                    const Gap(12),
-                    const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('Badge Unlocked: Taster', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-                      Text('5 reviews completed', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                    ])),
-                    // P2-11: Badge bonus points
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(6)),
-                      child: const Text('+150 pts', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary)),
-                    ),
-                  ],
+              if (badges.isNotEmpty) ...[
+                const Gap(12),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+                  child: Row(
+                    children: [
+                      const Stack(children: [
+                        CircleAvatar(radius: 22, backgroundColor: AppColors.primary, child: Icon(Icons.star, color: Colors.white, size: 22)),
+                        Positioned(top: -4, left: -4, child: Icon(Icons.auto_awesome, color: AppColors.pointsGold, size: 14)),
+                      ]),
+                      const Gap(12),
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('Badge Unlocked: ${badges.first}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                        const Text('Keep reviewing to unlock more', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                      ])),
+                    ],
+                  ),
                 ),
-              ),
+              ],
               const Spacer(),
               AppButton(label: 'Explore More Spots', onTap: () => context.go('/home')),
               const Gap(12),

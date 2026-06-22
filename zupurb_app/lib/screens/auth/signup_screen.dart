@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
@@ -53,30 +52,38 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
     setState(() => _loading = true);
     try {
-      await AuthService().createUserWithEmailAndPassword(email, password);
-      final uid = FirebaseAuth.instance.currentUser!.uid;
+      final cred = await AuthService().createUserWithEmailAndPassword(email, password);
+      final uid = cred.user!.uid;
       final name = _nameController.text.trim();
-      await FirebaseFirestore.instance.doc('users/$uid').set({
-        'uid': uid,
-        'displayName': name.isEmpty ? email.split('@')[0] : name,
-        'photoUrl': null,
-        'bio': '',
-        'followersCount': 0,
-        'followingCount': 0,
-        'reviewCount': 0,
-        'verifiedReviewCount': 0,
-        'loyaltyTier': 'bronze',
-        'tierHiddenByUser': false,
-        'pointsBalance': 0,
-        'rollingPoints12mo': 0,
-        'onboardingComplete': false,
-        'phoneVerified': false,
-        'isPlusSubscriber': false,
-        'isBanned': false,
-        'isDeleted': false,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      // Best-effort profile seed — must NOT abort signup. When Cloud Functions are
+      // live, the onUserCreate trigger has already created users/{uid} and the
+      // restrictive `users` update rule rejects this full client write; without
+      // them, this create seeds the doc. The auth account exists either way, so a
+      // failure here must never block the user from reaching onboarding.
+      try {
+        await cred.user?.updateDisplayName(name.isEmpty ? null : name);
+        await FirebaseFirestore.instance.doc('users/$uid').set({
+          'uid': uid,
+          'displayName': name.isEmpty ? email.split('@')[0] : name,
+          'photoUrl': null,
+          'bio': '',
+          'followersCount': 0,
+          'followingCount': 0,
+          'reviewCount': 0,
+          'verifiedReviewCount': 0,
+          'loyaltyTier': 'bronze',
+          'tierHiddenByUser': false,
+          'pointsBalance': 0,
+          'rollingPoints12mo': 0,
+          'onboardingComplete': false,
+          'phoneVerified': false,
+          'isPlusSubscriber': false,
+          'isBanned': false,
+          'isDeleted': false,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      } catch (_) {/* non-fatal — account exists; trigger/onboarding fills the rest */}
       if (mounted) context.go('/onboarding/1');
     } on AppAuthException catch (e) {
       if (mounted) {

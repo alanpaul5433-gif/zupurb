@@ -1,20 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../widgets/app_button.dart';
+import '../../state/onboarding/onboarding_draft_provider.dart';
 
 // P0-3: Dedicated Bio screen — split out from profile_complete_screen
-class OnboardingStep9Screen extends StatefulWidget {
+class OnboardingStep9Screen extends ConsumerStatefulWidget {
   const OnboardingStep9Screen({super.key});
 
   @override
-  State<OnboardingStep9Screen> createState() => _OnboardingStep9ScreenState();
+  ConsumerState<OnboardingStep9Screen> createState() => _OnboardingStep9ScreenState();
 }
 
-class _OnboardingStep9ScreenState extends State<OnboardingStep9Screen> {
+class _OnboardingStep9ScreenState extends ConsumerState<OnboardingStep9Screen> {
   final TextEditingController _bioController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    final draft = ref.read(onboardingDraftProvider);
+    if (draft.bio.isNotEmpty) _bioController.text = draft.bio;
+  }
 
   @override
   void dispose() {
@@ -97,10 +106,16 @@ class _OnboardingStep9ScreenState extends State<OnboardingStep9Screen> {
               padding: const EdgeInsets.all(AppDimens.screenPadding),
               child: Column(
                 children: [
-                  AppButton(label: 'Continue', onTap: () => context.go('/onboarding/10')),
+                  AppButton(label: 'Continue', onTap: () {
+                    ref.read(onboardingDraftProvider.notifier).setBio(_bioController.text.trim());
+                    context.go('/onboarding/10');
+                  }),
                   const Gap(8),
                   TextButton(
-                    onPressed: () => context.go('/onboarding/10'),
+                    onPressed: () {
+                      ref.read(onboardingDraftProvider.notifier).setBio(_bioController.text.trim());
+                      context.go('/onboarding/10');
+                    },
                     child: const Text('Skip', style: TextStyle(color: Color(0xFF666666))),
                   ),
                 ],

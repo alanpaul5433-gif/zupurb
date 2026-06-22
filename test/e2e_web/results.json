@@ -1,0 +1,162 @@
+{
+  "results": [
+    {
+      "id": "LOGIN",
+      "status": "PARTIAL",
+      "desc": "Flutter renders but semantic tree inaccessible in headless mode",
+      "detail": "Using screenshot-based testing"
+    },
+    {
+      "id": "HOME-LOAD",
+      "status": "PARTIAL",
+      "desc": "Home semantic tree sparse",
+      "detail": "0 nodes — screenshot is authoritative"
+    },
+    {
+      "id": "HOME-TABS",
+      "status": "PARTIAL",
+      "desc": "Tab bar not found in semantic tree",
+      "detail": ""
+    },
+    {
+      "id": "FIX-13",
+      "status": "PARTIAL",
+      "desc": "Card tap — no semantic change detected",
+      "detail": "Screenshot 04 may show navigation"
+    },
+    {
+      "id": "FIX-7",
+      "status": "PARTIAL",
+      "desc": "Like/dislike buttons not in semantic tree",
+      "detail": "React cards may render actions without aria-labels"
+    },
+    {
+      "id": "FIX-8",
+      "status": "PARTIAL",
+      "desc": "Share button not in semantic tree",
+      "detail": "May exist visually without aria-label"
+    },
+    {
+      "id": "HOME-NOTIF",
+      "status": "PARTIAL",
+      "desc": "Bell/notification button not found in semantic tree",
+      "detail": ""
+    },
+    {
+      "id": "FIX-2",
+      "status": "PARTIAL",
+      "desc": "No textbox/searchbox role in semantic tree",
+      "detail": "May exist visually — check screenshot 08"
+    },
+    {
+      "id": "SEARCH-FILTERS",
+      "status": "PARTIAL",
+      "desc": "No switch/checkbox filter elements found",
+      "detail": ""
+    },
+    {
+      "id": "FIX-5",
+      "status": "FAIL",
+      "desc": "Search submit button not found",
+      "detail": "Cannot navigate to results",
+      "severity": "P1"
+    },
+    {
+      "id": "FIX-10",
+      "status": "FAIL",
+      "desc": "Cannot test — no search button found",
+      "detail": "",
+      "severity": "P1"
+    },
+    {
+      "id": "FIX-3",
+      "status": "PARTIAL",
+      "desc": "No remove button in semantic tree",
+      "detail": "Recent search section absent or not accessible"
+    },
+    {
+      "id": "FIX-4",
+      "status": "PARTIAL",
+      "desc": "No searchable recent item found",
+      "detail": "Cannot test recent search tap-to-search"
+    },
+    {
+      "id": "DISCOVER-LOAD",
+      "status": "PARTIAL",
+      "desc": "Discover semantic tree sparse",
+      "detail": "0 nodes"
+    },
+    {
+      "id": "FIX-1",
+      "status": "PARTIAL",
+      "desc": "Tap did not show age gate or establishment",
+      "detail": ""
+    },
+    {
+      "id": "EST-LOAD",
+      "status": "FAIL",
+      "desc": "Establishment not reached",
+      "detail": "",
+      "severity": "P1"
+    },
+    {
+      "id": "MESSAGES-LOAD",
+      "status": "FAIL",
+      "desc": "Messages empty",
+      "detail": "0 nodes",
+      "severity": "P1"
+    },
+    {
+      "id": "PROFILE-LOAD",
+      "status": "PARTIAL",
+      "desc": "Profile sparse",
+      "detail": "0 nodes"
+    },
+    {
+      "id": "PROFILE-TABS",
+      "status": "PARTIAL",
+      "desc": "Profile tabs not confirmed",
+      "detail": ""
+    },
+    {
+      "id": "PROFILE-INFO",
+      "status": "PARTIAL",
+      "desc": "User info not confirmed",
+      "detail": ""
+    },
+    {
+      "id": "SETTINGS-LOAD",
+      "status": "FAIL",
+      "desc": "Settings empty",
+      "detail": "0 nodes",
+      "severity": "P1"
+    },
+    {
+      "id": "ROUTE_POINTS",
+      "status": "PARTIAL",
+      "desc": "/points sparse",
+      "detail": "0 nodes — check screenshot"
+    },
+    {
+      "id": "ROUTE_BADGES",
+      "status": "PARTIAL",
+      "desc": "/badges sparse",
+      "detail": "0 nodes — check screenshot"
+    },
+    {
+      "id": "ROUTE_REDEEM",
+      "status": "PARTIAL",
+      "desc": "/redeem sparse",
+      "detail": "0 nodes — check screenshot"
+    }
+  ],
+  "consoleErrors": [
+    "PAGE_ERROR: Error"
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 5,
+    "partial": 19,
+    "total": 24
+  }
+}

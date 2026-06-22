@@ -1,21 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../widgets/app_button.dart';
+import '../../state/reviews/review_draft_provider.dart';
 
 // P0-1: Redesigned to 8-question system per SOW §7.2
 // Each question uses exactly 4 named answer chips.
-class RateExperienceScreen extends StatefulWidget {
+class RateExperienceScreen extends ConsumerStatefulWidget {
   const RateExperienceScreen({super.key});
 
   @override
-  State<RateExperienceScreen> createState() => _RateExperienceScreenState();
+  ConsumerState<RateExperienceScreen> createState() => _RateExperienceScreenState();
 }
 
-class _RateExperienceScreenState extends State<RateExperienceScreen> {
-  final Map<int, String> _answers = {};
+class _RateExperienceScreenState extends ConsumerState<RateExperienceScreen> {
+  // question index (0..7) → selected option index (0..3)
+  final Map<int, int> _answers = {};
 
   static const List<_Question> _questions = [
     _Question(
@@ -54,6 +57,7 @@ class _RateExperienceScreenState extends State<RateExperienceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final estName = ref.watch(reviewDraftProvider).estName;
     return Scaffold(
       backgroundColor: const Color(0xFFF5F0ED),
       appBar: AppBar(
@@ -61,7 +65,7 @@ class _RateExperienceScreenState extends State<RateExperienceScreen> {
           onPressed: () => context.pop(),
           icon: const Icon(Icons.arrow_back_ios, size: 20, color: AppColors.primary),
         ),
-        title: const Text('Lumiere'),
+        title: Text(estName.isEmpty ? 'Write a Review' : estName),
         backgroundColor: const Color(0xFFF5F0ED),
       ),
       body: Column(
@@ -88,10 +92,10 @@ class _RateExperienceScreenState extends State<RateExperienceScreen> {
                     style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A)),
                   ),
                   const Gap(4),
-                  const Row(children: [
-                    Text('The Social Lounge · Verified Visit · ', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                    Icon(Icons.add_circle_outline, size: 12, color: AppColors.primary),
-                    Text(' +80 pts', style: TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600)),
+                  Row(children: [
+                    Text('${estName.isEmpty ? 'This venue' : estName} · ', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                    const Icon(Icons.add_circle_outline, size: 12, color: AppColors.primary),
+                    const Text(' +80 pts', style: TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600)),
                   ]),
                   const Gap(20),
                   ...List.generate(_questions.length, (qi) => Padding(
@@ -99,8 +103,8 @@ class _RateExperienceScreenState extends State<RateExperienceScreen> {
                     child: _QuestionCard(
                       question: _questions[qi].text,
                       options: _questions[qi].options,
-                      selected: _answers[qi],
-                      onSelect: (o) => setState(() => _answers[qi] = o),
+                      selectedIndex: _answers[qi],
+                      onSelect: (idx) => setState(() => _answers[qi] = idx),
                     ),
                   )),
                   const Gap(24),
@@ -110,7 +114,20 @@ class _RateExperienceScreenState extends State<RateExperienceScreen> {
           ),
           Padding(
             padding: const EdgeInsets.all(AppDimens.screenPadding),
-            child: AppButton(label: 'Continue', onTap: () => context.push('/review/disclosure')),
+            child: AppButton(
+              label: 'Continue',
+              onTap: () {
+                if (_answers.length < _questions.length) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please answer all 8 questions.'), duration: Duration(seconds: 2)),
+                  );
+                  return;
+                }
+                final notifier = ref.read(reviewDraftProvider.notifier);
+                _answers.forEach(notifier.setAnswer);
+                context.push('/review/disclosure');
+              },
+            ),
           ),
         ],
       ),
@@ -127,13 +144,13 @@ class _Question {
 class _QuestionCard extends StatelessWidget {
   final String question;
   final List<String> options;
-  final String? selected;
-  final ValueChanged<String> onSelect;
+  final int? selectedIndex;
+  final ValueChanged<int> onSelect;
 
   const _QuestionCard({
     required this.question,
     required this.options,
-    required this.selected,
+    required this.selectedIndex,
     required this.onSelect,
   });
 
@@ -157,26 +174,29 @@ class _QuestionCard extends StatelessWidget {
             mainAxisSpacing: 8,
             crossAxisSpacing: 8,
             childAspectRatio: 3.2,
-            children: options.map((o) => GestureDetector(
-              onTap: () => onSelect(o),
-              child: Container(
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: selected == o ? AppColors.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(100),
-                  border: Border.all(color: selected == o ? AppColors.primary : AppColors.border),
-                ),
-                child: Text(
-                  o,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: selected == o ? Colors.white : AppColors.textPrimary,
+            children: List.generate(options.length, (oi) {
+              final isSel = selectedIndex == oi;
+              return GestureDetector(
+                onTap: () => onSelect(oi),
+                child: Container(
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: isSel ? AppColors.primary : Colors.transparent,
+                    borderRadius: BorderRadius.circular(100),
+                    border: Border.all(color: isSel ? AppColors.primary : AppColors.border),
+                  ),
+                  child: Text(
+                    options[oi],
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: isSel ? Colors.white : AppColors.textPrimary,
+                    ),
                   ),
                 ),
-              ),
-            )).toList(),
+              );
+            }),
           ),
         ],
       ),

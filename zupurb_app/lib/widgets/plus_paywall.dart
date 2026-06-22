@@ -491,7 +491,12 @@ class _PackageSkeleton extends StatelessWidget {
   }
 }
 
-/// Shown when offerings failed to load — still lets user restore.
+/// Fallback shown when no store offerings are configured yet (e.g. RevenueCat
+/// products not set up). Shows the plan tiers + a disabled CTA instead of a
+/// scary "connection" error, and still lets the user restore.
+const String kPlusMonthlyPriceFallback = r'$4.99/mo';
+const String kPlusAnnualPriceFallback = r'$39.99/yr';
+
 class _PackageFallback extends StatelessWidget {
   const _PackageFallback({required this.onRestore});
 
@@ -502,11 +507,27 @@ class _PackageFallback extends StatelessWidget {
     return Column(
       children: [
         const Text(
-          'Could not load pricing. Please check your connection.',
+          'Pricing is coming soon',
           textAlign: TextAlign.center,
-          style: TextStyle(color: AppColors.textSecondary),
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
         ),
-        const Gap(12),
+        const Gap(10),
+        const _FallbackPlanCard(label: 'Monthly', price: kPlusMonthlyPriceFallback),
+        const Gap(8),
+        const _FallbackPlanCard(label: 'Annual', price: kPlusAnnualPriceFallback, badge: 'BEST VALUE'),
+        const Gap(14),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: null,
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(0, 48),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Purchasing available soon'),
+          ),
+        ),
+        const Gap(8),
         TextButton(
           onPressed: onRestore,
           child: const Text(
@@ -515,6 +536,40 @@ class _PackageFallback extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _FallbackPlanCard extends StatelessWidget {
+  final String label;
+  final String price;
+  final String? badge;
+  const _FallbackPlanCard({required this.label, required this.price, this.badge});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+          if (badge != null) ...[
+            const Gap(8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(4)),
+              child: Text(badge!, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: AppColors.primary)),
+            ),
+          ],
+          const Spacer(),
+          Text(price, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.primary)),
+        ],
+      ),
     );
   }
 }
