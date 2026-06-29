@@ -43,15 +43,16 @@ void main() {
       expect(find.text('Thai'), findsOneWidget);
     });
 
-    testWidgets('Italian and Japanese are pre-selected (primary background)',
-        (tester) async {
+    testWidgets('no cuisine chip is pre-selected initially', (tester) async {
       await tester.pumpWidget(_wrap());
       await tester.pump();
 
-      // Check Italian chip container has primary background
-      _assertChipSelected(tester, 'Italian', expected: true);
+      // Phantom defaults were intentionally removed: the screen now hydrates
+      // from an empty onboarding draft, so an untouched screen starts with no
+      // chip selected (submits an empty set rather than fake preferences).
+      _assertChipSelected(tester, 'Italian', expected: false);
       _assertChipSelected(tester, 'Mexican', expected: false);
-      _assertChipSelected(tester, 'Japanese', expected: true);
+      _assertChipSelected(tester, 'Japanese', expected: false);
     });
 
     testWidgets('tapping an unselected chip selects it', (tester) async {
@@ -70,11 +71,16 @@ void main() {
       await tester.pumpWidget(_wrap());
       await tester.pump();
 
+      // Nothing is pre-selected, so first tap to select Italian, then tap again
+      // to deselect — verifying the chip toggle works in both directions.
+      _assertChipSelected(tester, 'Italian', expected: false);
+
+      await tester.tap(find.text('Italian'));
+      await tester.pump();
       _assertChipSelected(tester, 'Italian', expected: true);
 
       await tester.tap(find.text('Italian'));
       await tester.pump();
-
       _assertChipSelected(tester, 'Italian', expected: false);
     });
 
