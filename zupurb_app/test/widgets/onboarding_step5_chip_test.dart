@@ -2,10 +2,13 @@
 // The chips are inline (not a separate widget class), so they are tested
 // through OnboardingStep5Screen.
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:zupurb_app/screens/onboarding/onboarding_step5_screen.dart';
 import 'package:zupurb_app/theme/colors.dart';
+
+import '../helpers/test_app_harness.dart';
 
 GoRouter _buildRouter() => GoRouter(
       initialLocation: '/onboarding/5',
@@ -17,9 +20,19 @@ GoRouter _buildRouter() => GoRouter(
       ],
     );
 
-Widget _wrap() => MaterialApp.router(routerConfig: _buildRouter());
+// OnboardingStep5Screen is now a ConsumerStatefulWidget reading
+// onboardingDraftProvider, so it requires a ProviderScope ancestor. Firebase
+// core is mocked (setUpAll) and the boot providers neutralised for safety.
+Widget _wrap() => ProviderScope(
+      overrides: firebaseNeutralisingOverrides(),
+      child: MaterialApp.router(routerConfig: _buildRouter()),
+    );
 
 void main() {
+  setUpAll(() async {
+    await setUpTestFirebase();
+  });
+
   group('OnboardingStep5Screen – chip selection', () {
     testWidgets('renders cuisine chip labels', (tester) async {
       await tester.pumpWidget(_wrap());

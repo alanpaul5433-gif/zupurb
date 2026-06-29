@@ -34,6 +34,8 @@ import 'package:zupurb_app/screens/home/home_screen.dart';
 import 'package:zupurb_app/screens/discover/discover_screen.dart';
 import 'package:zupurb_app/widgets/score_badge.dart';
 
+import '../helpers/test_app_harness.dart';
+
 // ---------------------------------------------------------------------------
 // Budget constants
 // ---------------------------------------------------------------------------
@@ -218,8 +220,11 @@ Future<void> _pumpSuppressed(WidgetTester tester, Widget widget) async {
   };
   addTearDown(() => FlutterError.onError = orig);
   // Real screens (HomeScreen/DiscoverScreen) read Riverpod providers, so they
-  // require a ProviderScope ancestor.
-  await tester.pumpWidget(ProviderScope(child: widget));
+  // require a ProviderScope ancestor. firebaseNeutralisingOverrides() stubs the
+  // Firebase-touching boot providers so the tree renders without [core/no-app].
+  await tester.pumpWidget(
+    ProviderScope(overrides: firebaseNeutralisingOverrides(), child: widget),
+  );
   await tester.pump();
 }
 
@@ -257,6 +262,12 @@ Future<List<Duration>> _measureScrollFrames(
 // ---------------------------------------------------------------------------
 
 void main() {
+  // Mocks Firebase core so HomeScreen/DiscoverScreen providers that reach
+  // `*.instance` getters during build no longer throw [core/no-app].
+  setUpAll(() async {
+    await setUpTestFirebase();
+  });
+
   group('T7 – Scroll performance: synthetic feed lists', () {
     testWidgets(
       'Home feed: 20 mock review cards scroll without blocking work '
