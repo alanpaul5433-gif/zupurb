@@ -154,6 +154,52 @@ void main() {
     });
   });
 
+  group('AgeGateService.evaluate — three-way decision (TS-17)', () {
+    test('guaranteed adult → pass (and persists)', () async {
+      final p = OwnUserProfile(birthYear: birthYearForAge(kAgeThreshold + 1));
+      expect(await service.evaluate(p), AgeGateDecision.pass);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool(kAgeGatePrefKey), isTrue);
+    });
+
+    test('definite minor → deny (and clears any cached affirmative)', () async {
+      SharedPreferences.setMockInitialValues(
+        <String, Object>{kAgeGatePrefKey: true},
+      );
+      final p = OwnUserProfile(birthYear: birthYearForAge(12));
+      expect(await service.evaluate(p), AgeGateDecision.deny);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool(kAgeGatePrefKey), isNull,
+          reason: 'a known-minor birthYear must clear the cache');
+    });
+
+    test('ambiguous boundary year + empty cache → prompt', () async {
+      final p = OwnUserProfile(birthYear: birthYearForAge(kAgeThreshold));
+      expect(await service.evaluate(p), AgeGateDecision.prompt);
+    });
+
+    test('ambiguous boundary year + cached affirmative → pass', () async {
+      SharedPreferences.setMockInitialValues(
+        <String, Object>{kAgeGatePrefKey: true},
+      );
+      final p = OwnUserProfile(birthYear: birthYearForAge(kAgeThreshold));
+      expect(await service.evaluate(p), AgeGateDecision.pass);
+    });
+
+    test('null birthYear + empty cache → prompt (self-attestation)', () async {
+      expect(await service.evaluate(null), AgeGateDecision.prompt);
+      expect(await service.evaluate(const OwnUserProfile(birthYear: null)),
+          AgeGateDecision.prompt);
+    });
+
+    test('null birthYear + cached affirmative → pass', () async {
+      SharedPreferences.setMockInitialValues(
+        <String, Object>{kAgeGatePrefKey: true},
+      );
+      expect(await service.evaluate(null), AgeGateDecision.pass);
+    });
+  });
+
   group('Constants', () {
     test('kAgeThreshold and kAgeGatePrefKey match the documented contract', () {
       expect(kAgeThreshold, 18);

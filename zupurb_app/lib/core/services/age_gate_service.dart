@@ -30,6 +30,19 @@ const int kAgeThreshold = 18;
 /// SharedPreferences key used to cache a user's affirmative age confirmation.
 const String kAgeGatePrefKey = 'age_gate_passed';
 
+/// Three-way outcome of evaluating the age gate for a user (TS-17).
+enum AgeGateDecision {
+  /// Of age (or honouring a prior confirmation) — allow, no prompt.
+  pass,
+
+  /// A known [OwnUserProfile.birthYear] proves the user is under
+  /// [kAgeThreshold] — hard-deny; NO self-attestation is offered.
+  deny,
+
+  /// Age unknown or ambiguous — show the self-attestation dialog.
+  prompt,
+}
+
 /// Lightweight model that carries the only field this service needs.
 /// The real UserDoc (added during backend integration) should expose a field
 /// compatible with this — or this class can be replaced with the real model.
@@ -49,7 +62,16 @@ class AgeGateService {
   ///   3. Ambiguous boundary / no birthYear → honour the SharedPreferences
   ///      cache (a previous "I am 18+" tap); else `false` and the caller shows
   ///      the [AgeGateDialog].
-  Future<bool> hasPassedAgeGate(OwnUserProfile? profile) async {
+  Future<bool> hasPassedAgeGate(OwnUserProfile? profile) async =>
+      (await evaluate(profile)) == AgeGateDecision.pass;
+
+  /// Three-way age decision used by the guard (TS-17) so a known minor can be
+  /// hard-denied instead of being offered self-attestation:
+  ///   1. guaranteedMinAge >= [kAgeThreshold] → [AgeGateDecision.pass] + persist.
+  ///   2. maxPossibleAge  <  [kAgeThreshold] → revoke cache + [AgeGateDecision.deny].
+  ///   3. Ambiguous boundary / no birthYear → honour the cache ([pass]); else
+  ///      [AgeGateDecision.prompt] and the caller shows the [AgeGateDialog].
+  Future<AgeGateDecision> evaluate(OwnUserProfile? profile) async {
     final birthYear = profile?.birthYear;
     if (birthYear != null) {
       final currentYear = DateTime.now().year;
@@ -61,20 +83,22 @@ class AgeGateService {
       // ── 1. Of age regardless of birthday → auto-pass + persist. ────────────
       if (guaranteedMinAge >= kAgeThreshold) {
         await recordAgeGateAccepted();
-        return true;
+        return AgeGateDecision.pass;
       }
-      // ── 2. Under age even in the best case → revoke cache + deny. ──────────
+      // ── 2. Under age even in the best case → revoke cache + hard-deny. ─────
       // A known under-age birthYear must override a stale "I am 18+" tap.
       if (maxPossibleAge < kAgeThreshold) {
         await _clearAgeGate();
-        return false;
+        return AgeGateDecision.deny;
       }
       // ── 3. Ambiguous boundary year → fall through to the explicit cache. ───
     }
 
     // ── Fall back to the local cache (explicit confirmation tap). ────────────
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(kAgeGatePrefKey) ?? false;
+    return (prefs.getBool(kAgeGatePrefKey) ?? false)
+        ? AgeGateDecision.pass
+        : AgeGateDecision.prompt;
   }
 
   /// Persists the user's affirmative age confirmation to SharedPreferences.

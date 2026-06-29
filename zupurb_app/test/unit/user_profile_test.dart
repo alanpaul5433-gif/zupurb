@@ -43,6 +43,7 @@ void main() {
         'loyaltyTier': 'gold',
         'onboardingComplete': true,
         'tasteCohort': 'nightlife',
+        'birthYear': 1995,
         'accountType': 'creator',
         'creatorCategory': 'Food Creator',
         'creatorLinks': {
@@ -64,6 +65,7 @@ void main() {
       expect(p.loyaltyTier, 'gold');
       expect(p.onboardingComplete, true);
       expect(p.tasteCohort, 'nightlife');
+      expect(p.birthYear, 1995);
       expect(p.accountType, 'creator');
       expect(p.creatorCategory, 'Food Creator');
       expect(p.creatorLinks, {
@@ -89,6 +91,7 @@ void main() {
       expect(p.loyaltyTier, 'bronze');
       expect(p.onboardingComplete, false);
       expect(p.tasteCohort, isNull);
+      expect(p.birthYear, isNull);
       expect(p.accountType, 'user');
       expect(p.creatorCategory, isNull);
       expect(p.creatorLinks, const <String, String>{});
@@ -101,6 +104,7 @@ void main() {
         'followingCount': 20.0,
         'reviewCount': 5.9, // toInt truncates
         'pointsBalance': 100.0,
+        'birthYear': 1992.0,
       });
 
       final p = UserProfile.fromFirestore(doc);
@@ -110,6 +114,8 @@ void main() {
       expect(p.followingCount, 20);
       expect(p.reviewCount, 5);
       expect(p.pointsBalance, 100);
+      expect(p.birthYear, 1992);
+      expect(p.birthYear, isA<int>());
     });
 
     test('creatorLinks coerces non-string values via toString()', () async {
