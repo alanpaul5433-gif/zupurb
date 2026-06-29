@@ -4,11 +4,18 @@
 // (nightlife venues, alcohol-tagged listings).
 //
 // ─── Rules ───────────────────────────────────────────────────────────────────
-//   1. If a `birthYear` is available on the user profile AND
-//      (currentYear - birthYear) >= kAgeThreshold → auto-pass + persist.
-//   2. Otherwise, check the SharedPreferences cache.  A stored `true` means
-//      the user already tapped "I am 18 or older" on a previous session.
-//   3. This service does NOT write back to Firestore.  Updating `birthYear`
+//   Only the user's birth YEAR is known (no month/day), so their exact age is a
+//   range: guaranteedMinAge (born Dec 31) ≤ actual ≤ maxPossibleAge (born Jan 1).
+//   The gate errs to the floor so a possible-minor is never admitted:
+//   1. guaranteedMinAge >= kAgeThreshold (of age regardless of birthday)
+//      → auto-pass + persist.
+//   2. maxPossibleAge < kAgeThreshold (under age even in the best case)
+//      → revoke any cached affirmative and deny. A known under-age birthYear
+//        overrides a stale "I am 18 or older" tap.
+//   3. Otherwise (ambiguous boundary year, or no birthYear at all) → consult the
+//      SharedPreferences cache. A stored `true` means the user already tapped
+//      "I am 18 or older" on a previous session.
+//   4. This service does NOT write back to Firestore.  Updating `birthYear`
 //      on the UserDoc is a separate profile-edit flow.
 //
 // ─── API ─────────────────────────────────────────────────────────────────────
@@ -36,22 +43,36 @@ class OwnUserProfile {
 class AgeGateService {
   /// Returns `true` when the user is permitted to see restricted content.
   ///
-  /// Evaluation order:
-  ///   1. Firestore `birthYear` on [profile] → auto-pass if age >= [kAgeThreshold].
-  ///   2. SharedPreferences cache → honour a previous "I am 18+" tap.
-  ///   3. Falls through to `false` — caller must show [AgeGateDialog].
+  /// Evaluation order (only the birth YEAR is known, so age is bounded):
+  ///   1. guaranteedMinAge >= [kAgeThreshold] → auto-pass + persist.
+  ///   2. maxPossibleAge  <  [kAgeThreshold] → revoke cache + deny.
+  ///   3. Ambiguous boundary / no birthYear → honour the SharedPreferences
+  ///      cache (a previous "I am 18+" tap); else `false` and the caller shows
+  ///      the [AgeGateDialog].
   Future<bool> hasPassedAgeGate(OwnUserProfile? profile) async {
-    // ── 1. Derive age from birthYear when available ──────────────────────────
-    if (profile?.birthYear != null) {
-      final age = DateTime.now().year - profile!.birthYear!;
-      if (age >= kAgeThreshold) {
-        // Auto-pass: persist so we skip this check on subsequent cold starts.
+    final birthYear = profile?.birthYear;
+    if (birthYear != null) {
+      final currentYear = DateTime.now().year;
+      // Birth YEAR only → age is a range, not a point:
+      //   guaranteedMinAge (worst case, born Dec 31) ≤ actual ≤ maxPossibleAge.
+      final guaranteedMinAge = currentYear - birthYear - 1;
+      final maxPossibleAge = currentYear - birthYear;
+
+      // ── 1. Of age regardless of birthday → auto-pass + persist. ────────────
+      if (guaranteedMinAge >= kAgeThreshold) {
         await recordAgeGateAccepted();
         return true;
       }
+      // ── 2. Under age even in the best case → revoke cache + deny. ──────────
+      // A known under-age birthYear must override a stale "I am 18+" tap.
+      if (maxPossibleAge < kAgeThreshold) {
+        await _clearAgeGate();
+        return false;
+      }
+      // ── 3. Ambiguous boundary year → fall through to the explicit cache. ───
     }
 
-    // ── 2. Fall back to local cache ──────────────────────────────────────────
+    // ── Fall back to the local cache (explicit confirmation tap). ────────────
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(kAgeGatePrefKey) ?? false;
   }
@@ -63,5 +84,13 @@ class AgeGateService {
   Future<void> recordAgeGateAccepted() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(kAgeGatePrefKey, true);
+  }
+
+  /// Clears any cached age-gate affirmative. Called when a known [birthYear]
+  /// proves the user is under [kAgeThreshold], so a previously-tapped
+  /// confirmation cannot keep granting access to restricted content.
+  Future<void> _clearAgeGate() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(kAgeGatePrefKey);
   }
 }
