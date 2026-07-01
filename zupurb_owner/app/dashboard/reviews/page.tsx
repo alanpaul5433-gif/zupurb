@@ -75,9 +75,20 @@ export default function ReviewsPage() {
         );
         if (res.ok) {
           const data = await res.json();
-          setTrendData(data.weeklyScores ?? []);
-          if (typeof data.verificationRate === 'number') {
-            setVerificationRate(data.verificationRate);
+          // The endpoint returns every owned establishment under `establishments[]`
+          // (it ignores the estId query param) — pick ours, then map its fields.
+          const est = (data.establishments ?? []).find(
+            (e: { estId: string }) => e.estId === selectedEstId,
+          );
+          if (est) {
+            setTrendData(
+              (est.scoreTrend ?? []).map(
+                (p: { week: string; avgScore: number }) => ({ week: p.week, avg: p.avgScore }),
+              ),
+            );
+            if (typeof est.verificationRate === 'number') {
+              setVerificationRate(est.verificationRate);
+            }
           }
         }
       } catch {

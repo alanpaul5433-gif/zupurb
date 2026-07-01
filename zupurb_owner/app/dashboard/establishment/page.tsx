@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { doc, collection, addDoc, onSnapshot, query, where, updateDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useOwnerAuth } from '@/lib/owner-auth-context';
 
@@ -42,7 +42,7 @@ const defaultHours = (): Record<string, HoursRow> => {
 };
 
 export default function EstablishmentPage() {
-  const { establishmentIds } = useOwnerAuth();
+  const { establishmentIds, user, displayName } = useOwnerAuth();
   const [pickedEstId, setPickedEstId] = useState<string>('');
   // Active establishment is derived: the owner's explicit pick, else the first one.
   const selectedEstId = pickedEstId || establishmentIds[0] || '';
@@ -67,6 +67,11 @@ export default function EstablishmentPage() {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState('');
   const [toastError, setToastError] = useState(false);
+  // Category-suggestion state
+  const [collections, setCollections] = useState<{ id: string; title: string; emoji: string | null; sortOrder: number }[]>([]);
+  const [suggestTarget, setSuggestTarget] = useState('');
+  const [proposedTitle, setProposedTitle] = useState('');
+  const [suggesting, setSuggesting] = useState(false);
 
   const showToast = (msg: string, error = false) => {
     setToast(msg);
@@ -98,6 +103,54 @@ export default function EstablishmentPage() {
     }, () => setLoadedEstId(selectedEstId));
     return unsub;
   }, [selectedEstId]);
+
+  // Active collections an owner can suggest their venue for (public read).
+  useEffect(() => {
+    const unsub = onSnapshot(
+      query(collection(db, 'collections'), where('isActive', '==', true)),
+      (snap) => {
+        const list = snap.docs.map((d) => ({
+          id: d.id,
+          title: (d.data().title as string) ?? d.id,
+          emoji: (d.data().emoji as string | null) ?? null,
+          sortOrder: (d.data().sortOrder as number) ?? 999,
+        }));
+        list.sort((a, b) => a.sortOrder - b.sortOrder);
+        setCollections(list);
+      },
+      () => {},
+    );
+    return unsub;
+  }, []);
+
+  const submitSuggestion = async () => {
+    if (!selectedEstId || !suggestTarget) return;
+    const isNew = suggestTarget === '__new__';
+    if (isNew && !proposedTitle.trim()) return;
+    setSuggesting(true);
+    try {
+      await addDoc(collection(db, 'collectionSuggestions'), {
+        estId: selectedEstId,
+        estName: form.name,
+        collectionId: isNew ? null : suggestTarget,
+        proposedTitle: isNew ? proposedTitle.trim() : null,
+        suggestedByUid: user?.uid ?? '',
+        suggestedByName: displayName,
+        status: 'pending',
+        rejectionReason: null,
+        createdAt: Timestamp.now(),
+        reviewedAt: null,
+        reviewedBy: null,
+      });
+      showToast('Suggestion submitted for review ✓');
+      setSuggestTarget('');
+      setProposedTitle('');
+    } catch {
+      showToast('Error submitting suggestion', true);
+    } finally {
+      setSuggesting(false);
+    }
+  };
 
   const setHours = (key: string, field: keyof HoursRow, value: string | boolean) => {
     setForm((f) => ({
@@ -406,6 +459,47 @@ export default function EstablishmentPage() {
               </button>
             </div>
             <p className="text-xs text-gray-400 mt-2">Enter a public image URL and press Add or Enter.</p>
+          </section>
+
+          {/* Suggest for a category */}
+          <section className="bg-white rounded-xl border border-gray-200 p-6">
+            <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide mb-1">Suggest for a Category</h2>
+            <p className="text-xs text-gray-500 mb-4">Ask Zupurb to feature your venue in a discovery category. An admin reviews every suggestion.</p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-gray-600 mb-1">Category</label>
+                <select
+                  value={suggestTarget}
+                  onChange={(e) => setSuggestTarget(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2"
+                >
+                  <option value="" disabled>Choose a category…</option>
+                  {collections.map((c) => (
+                    <option key={c.id} value={c.id}>{c.emoji ? `${c.emoji} ` : ''}{c.title}</option>
+                  ))}
+                  <option value="__new__">➕ Propose a new category…</option>
+                </select>
+              </div>
+              {suggestTarget === '__new__' && (
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">New category name</label>
+                  <input
+                    value={proposedTitle}
+                    onChange={(e) => setProposedTitle(e.target.value)}
+                    placeholder="e.g. Late Night Eats"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2"
+                  />
+                </div>
+              )}
+              <button
+                onClick={submitSuggestion}
+                disabled={suggesting || !suggestTarget || (suggestTarget === '__new__' && !proposedTitle.trim())}
+                className="px-5 py-2 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
+                style={{ backgroundColor: '#BF5B2E' }}
+              >
+                {suggesting ? 'Submitting…' : 'Submit'}
+              </button>
+            </div>
           </section>
 
           {/* Save */}
