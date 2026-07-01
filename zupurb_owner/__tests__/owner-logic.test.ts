@@ -134,16 +134,20 @@ describe('verificationTier', () => {
 // --- reservations -----------------------------------------------------------
 
 describe('filterReservations', () => {
-  // Anchor "now" to a fixed instant so the windowing is deterministic.
-  const now = new Date('2026-06-05T12:00:00Z').getTime();
-  const at = (iso: string) => ts(Math.floor(new Date(iso).getTime() / 1000));
+  // Anchor "now" and the fixtures in LOCAL time. filterReservations derives the
+  // day window with setHours() (local), so UTC-instant fixtures would cross the
+  // local-midnight boundary in positive-offset timezones. Building both sides in
+  // the same local frame keeps the windowing deterministic in any runner TZ.
+  // (month index 5 = June)
+  const now = new Date(2026, 5, 5, 12, 0, 0).getTime();
+  const at = (d: Date) => ts(Math.floor(d.getTime() / 1000));
 
   const data = [
-    reservation({ id: 'earlier-today', scheduledAt: at('2026-06-05T19:00:00Z'), status: 'confirmed' }),
-    reservation({ id: 'in-three-days', scheduledAt: at('2026-06-08T18:00:00Z'), status: 'pending' }),
-    reservation({ id: 'in-two-weeks', scheduledAt: at('2026-06-19T18:00:00Z'), status: 'confirmed' }),
-    reservation({ id: 'yesterday', scheduledAt: at('2026-06-04T18:00:00Z'), status: 'seated' }),
-    reservation({ id: 'cancelled-future', scheduledAt: at('2026-06-07T18:00:00Z'), status: 'cancelled' }),
+    reservation({ id: 'earlier-today', scheduledAt: at(new Date(2026, 5, 5, 19)), status: 'confirmed' }),
+    reservation({ id: 'in-three-days', scheduledAt: at(new Date(2026, 5, 8, 18)), status: 'pending' }),
+    reservation({ id: 'in-two-weeks', scheduledAt: at(new Date(2026, 5, 19, 18)), status: 'confirmed' }),
+    reservation({ id: 'yesterday', scheduledAt: at(new Date(2026, 5, 4, 18)), status: 'seated' }),
+    reservation({ id: 'cancelled-future', scheduledAt: at(new Date(2026, 5, 7, 18)), status: 'cancelled' }),
   ];
 
   it('today → only reservations within the local calendar day of now', () => {

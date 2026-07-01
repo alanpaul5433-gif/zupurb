@@ -107,10 +107,24 @@ export default function DashboardOverviewPage() {
         );
         if (res.ok) {
           const data = await res.json();
-          setAnalytics({
-            followerCount: data.followerCount ?? 0,
-            demographicScores: data.demographicScores ?? [],
-          });
+          // The endpoint returns every establishment the owner owns under
+          // `establishments[]` (it ignores the estId query param) — pick ours.
+          const est = (data.establishments ?? []).find(
+            (e: { estId: string }) => e.estId === selectedEstId,
+          );
+          if (est) {
+            setAnalytics({
+              followerCount: est.followerCount ?? 0,
+              // Backend sends `count`; the UI segment type uses `reviewCount`.
+              demographicScores: (est.demographicScores ?? []).map(
+                (d: { segment: string; avgScore: number; count: number }) => ({
+                  segment: d.segment,
+                  avgScore: d.avgScore,
+                  reviewCount: d.count,
+                }),
+              ),
+            });
+          }
         }
       } catch {
         // Non-critical; fail silently

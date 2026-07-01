@@ -416,19 +416,27 @@ void main() {
       expect(node.label, isNotEmpty);
     });
 
-    testWidgets('Upgrade Now button has a semantic label', (tester) async {
+    testWidgets('Buy Points action card exposes a semantic label',
+        (tester) async {
       await _pump(tester, _walletWrap());
 
-      expect(find.text('Upgrade Now'), findsOneWidget);
-      final node = tester.getSemantics(find.text('Upgrade Now'));
+      // H4 (audit-2026-06-23): the dead "Upgrade Now" button was removed from
+      // the Elite Tier card. Re-pointed onto the "Buy Points" action card — a
+      // primary wallet control that must announce itself to VoiceOver/TalkBack.
+      expect(find.text('Buy Points'), findsOneWidget);
+      final node = tester.getSemantics(find.text('Buy Points'));
       expect(node.label, isNotEmpty);
     });
 
-    testWidgets('See All button exposes a label', (tester) async {
+    testWidgets('Gift a Deal action card exposes a semantic label',
+        (tester) async {
       await _pump(tester, _walletWrap());
 
-      expect(find.text('See All'), findsOneWidget);
-      final node = tester.getSemantics(find.text('See All'));
+      // H4 (audit-2026-06-23): the dead "See All" link (no activity-history
+      // screen) was removed beside "Recent Activity". Re-pointed onto the
+      // "Gift a Deal" action card, which remains and must expose a label.
+      expect(find.text('Gift a Deal'), findsOneWidget);
+      final node = tester.getSemantics(find.text('Gift a Deal'));
       expect(node.label, isNotEmpty);
     });
 
@@ -448,15 +456,15 @@ void main() {
   // ---------------------------------------------------------------------------
 
   group('PointsWalletScreen — touch targets ≥44pt', () {
-    testWidgets('Upgrade Now button meets 44pt minimum', (tester) async {
+    testWidgets('back button meets 44pt minimum', (tester) async {
       await _pump(tester, _walletWrap());
 
-      // Measure the tappable button (minimumSize 80×36), not the inner Text.
-      final size = tester.getSize(
-        find.ancestor(of: find.text('Upgrade Now'), matching: find.byType(ElevatedButton)).first,
-      );
-      expect(size.height, greaterThanOrEqualTo(36.0),
-          reason: 'ElevatedButton minimumSize is 80×36 per spec.');
+      // H4 (audit-2026-06-23): the dead "Upgrade Now" button was removed.
+      // Re-pointed onto the AppBar back IconButton — the screen's primary
+      // remaining tap target, which must meet the 44pt minimum.
+      final size = tester.getSize(find.byType(IconButton));
+      expect(size.height, greaterThanOrEqualTo(44.0),
+          reason: 'Back button tap target should be ≥44pt');
     });
   });
 
@@ -557,15 +565,18 @@ void main() {
       expect(size.height, greaterThan(0));
     });
 
-    testWidgets('View All button is ≥44pt tall', (tester) async {
+    testWidgets('Challenges tab chip is ≥44pt tall', (tester) async {
       await _pump(tester, _badgesWrap());
 
-      // Measure the TextButton (44/48pt padded tap target), not the inner Text.
+      // H4 (audit-2026-06-23): the dead "View All" link (no challenges-list
+      // screen) was removed beside "Weekly Challenges". Re-pointed onto the
+      // Challenges tab chip — a real tap target wrapped in a GestureDetector
+      // whose Container declares BoxConstraints(minHeight: 44).
       final size = tester.getSize(
-        find.ancestor(of: find.text('View All'), matching: find.byType(TextButton)).first,
+        find.ancestor(of: find.text('Challenges'), matching: find.byType(GestureDetector)).first,
       );
       expect(size.height, greaterThanOrEqualTo(44.0),
-          reason: 'TextButton tap target should be ≥44pt');
+          reason: 'Tab chip tap target should be ≥44pt');
     });
   });
 

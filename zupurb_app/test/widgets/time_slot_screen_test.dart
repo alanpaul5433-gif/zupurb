@@ -78,10 +78,18 @@ void main() {
       expect(decoration.border?.top.color, AppColors.primary);
     });
 
+    // The day selector now generates 14 real calendar dates (commit 8c6fb61),
+    // so day-of-month numbers can collide with the party-size count. Scope the
+    // count finder to the "Party Size" Row so it stays date-independent.
+    Finder partyCount(String n) => find.descendant(
+          of: find.widgetWithText(Row, 'Party Size'),
+          matching: find.text(n),
+        );
+
     testWidgets('renders party size controls', (tester) async {
       await _pump(tester, _wrap());
       expect(find.text('Party Size'), findsOneWidget);
-      expect(find.text('4'), findsOneWidget);
+      expect(partyCount('4'), findsOneWidget);
     });
 
     testWidgets('increment party size increases count', (tester) async {
@@ -91,7 +99,7 @@ void main() {
           w is CircleAvatar && w.backgroundColor == AppColors.primary);
       await tester.tap(addButton);
       await tester.pump();
-      expect(find.text('5'), findsOneWidget);
+      expect(partyCount('5'), findsOneWidget);
     });
 
     testWidgets('decrement party size decreases count', (tester) async {
@@ -101,14 +109,22 @@ void main() {
           w is CircleAvatar && w.backgroundColor == AppColors.border);
       await tester.tap(removeButton);
       await tester.pump();
-      expect(find.text('3'), findsOneWidget);
+      expect(partyCount('3'), findsOneWidget);
     });
 
-    testWidgets('renders 6 day selector tiles', (tester) async {
+    testWidgets('renders the 14-day selector tiles', (tester) async {
       await _pump(tester, _wrap());
-      expect(find.text('MON'), findsOneWidget);
-      expect(find.text('TUE'), findsOneWidget);
-      expect(find.text('WED'), findsOneWidget);
+      // The screen generates 14 consecutive real calendar days (commit 8c6fb61).
+      // Asserting weekday labels + tile count keeps this date-independent (no
+      // dependence on today's specific day-of-month numbers).
+      const weekdays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+      for (final wd in weekdays) {
+        expect(find.text(wd), findsWidgets, reason: '$wd tile should render');
+      }
+      final tileCount = weekdays
+          .map((w) => tester.widgetList(find.text(w)).length)
+          .fold<int>(0, (a, b) => a + b);
+      expect(tileCount, 14, reason: 'day selector renders 14 day tiles');
     });
 
     testWidgets('renders Save & Continue button', (tester) async {
@@ -116,10 +132,8 @@ void main() {
       expect(find.text('Save & Continue'), findsOneWidget);
     });
 
-    testWidgets('points legend renders 30 pts and 10 pts labels', (tester) async {
-      await _pump(tester, _wrap());
-      expect(find.text('30 pts'), findsOneWidget);
-      expect(find.text('10 pts'), findsOneWidget);
-    });
+    // NOTE: the per-slot points legend ('30 pts' / '10 pts') was removed from
+    // TimeSlotScreen in commit 8c6fb61 (no replacement element on the screen),
+    // so its assertion was dropped rather than re-pointed at unrelated content.
   });
 }

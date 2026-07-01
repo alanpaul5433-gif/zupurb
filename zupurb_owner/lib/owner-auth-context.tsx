@@ -36,13 +36,22 @@ export function OwnerAuthProvider({ children }: { children: ReactNode }) {
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (u) {
-        const snap = await getDoc(doc(db, 'owners', u.uid));
-        if (snap.exists()) {
-          const data = snap.data();
-          setIsOwner(true);
-          setEstablishmentIds(data.establishmentIds ?? []);
-          setDisplayName(data.displayName ?? u.email ?? '');
-        } else {
+        try {
+          const snap = await getDoc(doc(db, 'owners', u.uid));
+          if (snap.exists()) {
+            const data = snap.data();
+            setIsOwner(true);
+            setEstablishmentIds(data.establishmentIds ?? []);
+            setDisplayName(data.displayName ?? u.email ?? '');
+          } else {
+            setIsOwner(false);
+            setEstablishmentIds([]);
+            setDisplayName('');
+          }
+        } catch {
+          // Fail closed: a failed owners-doc read (rules denial, network drop)
+          // must NOT leave the app hanging on the loading spinner. Treat the
+          // session as non-owner; the gate will route to login/contact-support.
           setIsOwner(false);
           setEstablishmentIds([]);
           setDisplayName('');

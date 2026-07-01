@@ -2,10 +2,13 @@
 // The chips are inline (not a separate widget class), so they are tested
 // through OnboardingStep5Screen.
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:zupurb_app/screens/onboarding/onboarding_step5_screen.dart';
 import 'package:zupurb_app/theme/colors.dart';
+
+import '../helpers/test_app_harness.dart';
 
 GoRouter _buildRouter() => GoRouter(
       initialLocation: '/onboarding/5',
@@ -17,9 +20,19 @@ GoRouter _buildRouter() => GoRouter(
       ],
     );
 
-Widget _wrap() => MaterialApp.router(routerConfig: _buildRouter());
+// OnboardingStep5Screen is now a ConsumerStatefulWidget reading
+// onboardingDraftProvider, so it requires a ProviderScope ancestor. Firebase
+// core is mocked (setUpAll) and the boot providers neutralised for safety.
+Widget _wrap() => ProviderScope(
+      overrides: firebaseNeutralisingOverrides(),
+      child: MaterialApp.router(routerConfig: _buildRouter()),
+    );
 
 void main() {
+  setUpAll(() async {
+    await setUpTestFirebase();
+  });
+
   group('OnboardingStep5Screen – chip selection', () {
     testWidgets('renders cuisine chip labels', (tester) async {
       await tester.pumpWidget(_wrap());
@@ -30,15 +43,16 @@ void main() {
       expect(find.text('Thai'), findsOneWidget);
     });
 
-    testWidgets('Italian and Japanese are pre-selected (primary background)',
-        (tester) async {
+    testWidgets('no cuisine chip is pre-selected initially', (tester) async {
       await tester.pumpWidget(_wrap());
       await tester.pump();
 
-      // Check Italian chip container has primary background
-      _assertChipSelected(tester, 'Italian', expected: true);
+      // Phantom defaults were intentionally removed: the screen now hydrates
+      // from an empty onboarding draft, so an untouched screen starts with no
+      // chip selected (submits an empty set rather than fake preferences).
+      _assertChipSelected(tester, 'Italian', expected: false);
       _assertChipSelected(tester, 'Mexican', expected: false);
-      _assertChipSelected(tester, 'Japanese', expected: true);
+      _assertChipSelected(tester, 'Japanese', expected: false);
     });
 
     testWidgets('tapping an unselected chip selects it', (tester) async {
@@ -57,11 +71,16 @@ void main() {
       await tester.pumpWidget(_wrap());
       await tester.pump();
 
+      // Nothing is pre-selected, so first tap to select Italian, then tap again
+      // to deselect — verifying the chip toggle works in both directions.
+      _assertChipSelected(tester, 'Italian', expected: false);
+
+      await tester.tap(find.text('Italian'));
+      await tester.pump();
       _assertChipSelected(tester, 'Italian', expected: true);
 
       await tester.tap(find.text('Italian'));
       await tester.pump();
-
       _assertChipSelected(tester, 'Italian', expected: false);
     });
 

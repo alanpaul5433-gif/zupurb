@@ -19,6 +19,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/age_gate_provider.dart';
+import '../services/age_gate_service.dart';
+import '../../state/user/user_profile_provider.dart';
 import '../../features/age_gate/widgets/age_gate_dialog.dart';
 
 /// Returns `true` if the user is permitted to view restricted content.
@@ -29,11 +31,31 @@ import '../../features/age_gate/widgets/age_gate_dialog.dart';
 /// If the gate has not been passed, shows [AgeGateDialog] as a modal bottom
 /// sheet and returns the user's choice.
 Future<bool> checkAgeGate(BuildContext context, WidgetRef ref) async {
-  // ── Fast path: already cleared ────────────────────────────────────────────
-  final passed = await ref.read(ageGatePassedProvider.future);
-  if (passed) return true;
+  final service = ref.read(ageGateServiceProvider);
 
-  // ── Slow path: show dialog ────────────────────────────────────────────────
+  // ── Pull the signed-in user's real birthYear (TS-17) ──────────────────────
+  // so a user the app KNOWS is a minor is hard-denied rather than offered
+  // self-attestation. userProfileProvider short-circuits to null when signed
+  // out, so this never blocks on a backend call there.
+  int? birthYear;
+  try {
+    final profile = await ref.read(userProfileProvider.future);
+    birthYear = profile?.birthYear;
+  } catch (_) {
+    birthYear = null; // profile unavailable → fall back to self-attestation
+  }
+
+  switch (await service.evaluate(OwnUserProfile(birthYear: birthYear))) {
+    case AgeGateDecision.pass:
+      return true;
+    case AgeGateDecision.deny:
+      // birthYear proves a minor — hard-deny, NO self-attestation offered.
+      return false;
+    case AgeGateDecision.prompt:
+      break; // unknown / ambiguous → show the dialog below
+  }
+
+  // ── Slow path: show the self-attestation dialog ───────────────────────────
   if (!context.mounted) return false;
 
   final result = await showModalBottomSheet<bool>(

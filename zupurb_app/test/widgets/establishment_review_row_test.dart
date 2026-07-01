@@ -44,6 +44,12 @@ Future<void> _pump(WidgetTester tester, Widget widget) async {
 }
 
 void main() {
+  // Mocks Firebase core so `*.instance` getters (Firestore/Auth/etc.) reached
+  // during EstablishmentScreen's build no longer throw [core/no-app].
+  setUpAll(() async {
+    await setUpTestFirebase();
+  });
+
   group('EstablishmentScreen – review rows', () {
     testWidgets('renders Recent Reviews header', (tester) async {
       await _pump(tester, _wrap());

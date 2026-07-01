@@ -46,6 +46,8 @@ import 'package:go_router/go_router.dart';
 import 'package:zupurb_app/screens/auth/splash_screen.dart';
 import 'package:zupurb_app/screens/home/home_screen.dart';
 
+import '../helpers/test_app_harness.dart';
+
 // ---------------------------------------------------------------------------
 // Cold-start budget (milliseconds)
 // ---------------------------------------------------------------------------
@@ -91,6 +93,12 @@ GoRouter _startupRouter() => GoRouter(
 // ---------------------------------------------------------------------------
 
 void main() {
+  // Mocks Firebase core so SplashScreen/HomeScreen providers that reach
+  // `*.instance` getters during build no longer throw [core/no-app].
+  setUpAll(() async {
+    await setUpTestFirebase();
+  });
+
   group('T7 – Cold start simulation', () {
     testWidgets(
       'Splash screen first paint completes within widget-test budget',
@@ -107,7 +115,10 @@ void main() {
 
         // pumpWidget is the widget-test equivalent of runApp().
         await tester.pumpWidget(
-          ProviderScope(child: MaterialApp.router(routerConfig: _startupRouter())),
+          ProviderScope(
+            overrides: firebaseNeutralisingOverrides(),
+            child: MaterialApp.router(routerConfig: _startupRouter()),
+          ),
         );
 
         // First pump = first frame rendered (first meaningful paint equivalent).
@@ -174,7 +185,10 @@ void main() {
 
         final sw = Stopwatch()..start();
         await tester.pumpWidget(
-          ProviderScope(child: MaterialApp.router(routerConfig: router)),
+          ProviderScope(
+            overrides: firebaseNeutralisingOverrides(),
+            child: MaterialApp.router(routerConfig: router),
+          ),
         );
         await tester.pump();
         sw.stop();
@@ -216,7 +230,10 @@ void main() {
         addTearDown(() => FlutterError.onError = orig);
 
         await tester.pumpWidget(
-          ProviderScope(child: MaterialApp.router(routerConfig: _startupRouter())),
+          ProviderScope(
+            overrides: firebaseNeutralisingOverrides(),
+            child: MaterialApp.router(routerConfig: _startupRouter()),
+          ),
         );
         await tester.pump(); // render splash
 
